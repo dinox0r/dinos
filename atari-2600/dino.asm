@@ -241,10 +241,11 @@ __y_within_dino:
   sta MISILE_P0                         ; 3
   and #%11110000                        ; 2
   sta HMM0                              ; 3
-  ;asl
-  ;asl
-  ;and %00011000
-  ;sta NUSIZ0
+  lda MISILE_P0
+  asl
+  asl
+  and #%00110000
+  sta NUSIZ0
 
   ;lda (PTR_DINO_MIS),y                  ; 5+
 
@@ -262,7 +263,7 @@ __end_of_scanline:
   lda #0
   sta HMM0
   sta HMCLR
-  INSERT_NOPS 10                         ; 20
+  INSERT_NOPS 5                         ; 20
 
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
@@ -444,10 +445,10 @@ DINO_MIS_OFFSET:
   .byte %00000000 ; |   ███ █|█       |       0                0
   .byte %00000000 ; |  ██████|██      |       0                0
   .byte %11110010 ; | ▒██████|██      |      +1                1
-  .byte %00000010 ; |▒▒▒M████|███     |       0                4
-  .byte %00000010 ; |▒▒▒▒▒MMM|███ █   |       0                8
-  .byte %00000010 ; |▒▒▒▒▒MMM|█████   |       0                8
-  .byte %00000010 ; |▒▒  ████|███     |       0                2
+  .byte %00001010 ; |▒▒▒M████|███     |       0                4
+  .byte %00001110 ; |▒▒▒▒▒MMM|███ █   |       0                8
+  .byte %00001110 ; |▒▒▒▒▒MMM|█████   |       0                8
+  .byte %00000110 ; |▒▒  ████|███     |       0                2
   .byte %00000010 ; |▒    ███|███     |       0                1
   .byte %11000010 ; |▒     ██|██████  |       0                1
   .byte %01110000 ; |       █|████    |       0                0
