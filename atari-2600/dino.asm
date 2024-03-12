@@ -66,11 +66,11 @@ BG_COLOUR .byte          ; 1 byte
 DINO_SPRITE .byte        ; 1 byte
 DINO_SPRITE_OFFSET .byte ; 1 byte
 MISILE_P0 .byte          ; 1 byte
+SPLASH_SCREEN .byte      ; 1 byte
 PTR_DINO_SPRITE .word    ; 2 bytes
 PTR_DINO_OFFSET .word    ; 2 bytes
 PTR_DINO_MIS .word       ; 2 bytes
 RND_SEED .word           ; 2 bytes
-
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -110,6 +110,8 @@ __clear_mem:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
+  lda #%10000000             ; 2 enable splash screen
+  sta SPLASH_SCREEN
   lda #DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
 
@@ -134,7 +136,7 @@ __clear_mem:
 ;=============================================================================
 ; FRAME
 ;=============================================================================
-frame:
+start_of_frame:
 
 .vsync_and_vblank:
   lda #2     ;
@@ -178,28 +180,34 @@ __vblank:
   lda INTIM
   bne __vblank
                ; 2752 cycles + 2 from bne, 2754 (out of 2812 vblank)
+
+  lda SPLASH_SCREEN  ; if SPLASH_SCREEN is enabled then jump to the splash
+  and #%10000000     ; screen kernel after disabling VBLANK
+
   sta WSYNC
   sta VBLANK   ; Disables VBLANK (A=0)
+  beq game_kernel
+  jmp splash_screen_kernel
   ;sta HMOVE
 
 ;=============================================================================
-; BEGIN KERNEL
-;=============================================================================
-kernel:
+; GAME KERNEL
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+game_kernel:
 
-.score_kernel_setup:;---->>> 2 scanlines <<<----
+.score_sub_kernel_setup:;---->>> 2 scanlines <<<----
   DEBUG_SUB_KERNEL #$10, #2
 
-.score_kernel:;---------->>> 10 scanlines <<<---
+.score_sub_kernel:;---------->>> 10 scanlines <<<---
   DEBUG_SUB_KERNEL #$20, #10
 
-.clouds_kernel_setup:;-->>> 2 scanlines <<<-----
+.clouds_sub_kernel_setup:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30, #2
 
-.clouds_kernel:;-------->>> 20 scanlines <<<----
+.clouds_sub_kernel:;-------->>> 20 scanlines <<<----
   DEBUG_SUB_KERNEL #$40, #20
 
-.sky_kernel_setup:;----->>> 2 scanlines <<<-----
+.sky_sub_kernel_setup:;----->>> 2 scanlines <<<-----
   lda BG_COLOUR    ; 3
   sta COLUBK       ; 3
 
@@ -214,7 +222,7 @@ kernel:
 
   sta WSYNC                ; 3
 
-.sky_kernel: ;-------------------->>> 31 2x scanlines <<<--------------------
+.sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
 
   ; 1st scanline ==============================================================
   tya                                   ; 2   A = current scanline (Y)
@@ -269,24 +277,38 @@ __end_of_scanline:
   sta HMOVE                             ; 3
 
   dey                                   ; 2
-  bne .sky_kernel                       ; 2/3
+  bne .sky_sub_kernel                   ; 2/3
 
-.cactus_kernel: ;-------------------->>> 31 2x scanlines <<<-------------------
+.cactus_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
   DEBUG_SUB_KERNEL #$90, #62
 
-.floor_kernel:
+.floor_sub_kernel:
   DEBUG_SUB_KERNEL #$AA, #1
 
-.gravel_kernel:
+.gravel_sub_kernel:
   DEBUG_SUB_KERNEL #$C8, #9
 
-.void_kernel:
+.void_sub_kernel:
   DEBUG_SUB_KERNEL #$FA, #31
+  jmp end_of_frame
+
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+; END GAME KERNEL
+;=============================================================================
 
 ;=============================================================================
-; END KERNEL
+; SPLASH SCREEN KERNEL
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+splash_screen_kernel:
+  DEBUG_SUB_KERNEL #$7A, #36
+  DEBUG_SUB_KERNEL #BKG_LIGHT_GRAY, #62
+  DEBUG_SUB_KERNEL #$7A, #103
+
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+; END SPLASH SCREEN KERNEL
 ;=============================================================================
 
+end_of_frame:
   ; -----------------------
   ; OVERSCAN (30 scanlines)
   ; -----------------------
@@ -303,7 +325,7 @@ __end_of_scanline:
   ; We're on the final OVERSCAN line and 40 cpu cycles remain,
   ; do the jump now to consume some cycles and a WSYNC at the 
   ; beginning of the next frame to consume the rest
-  jmp frame
+  jmp start_of_frame
 
 ;=============================================================================
 ; SPRITE GRAPHICS DATA
