@@ -301,7 +301,90 @@ __end_of_scanline:
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 splash_screen_kernel:
   DEBUG_SUB_KERNEL #$7A, #36
-  DEBUG_SUB_KERNEL #BKG_LIGHT_GRAY, #62
+
+.dino_sub_kernel
+  lda BG_COLOUR    ; 3
+  sta COLUBK       ; 3
+
+  INSERT_NOPS 7    ; 14 Fix the dino_x position for the rest of the kernel
+                   ;    (notice I'm not starving for ROM atm of writing this)
+  sta RESM0        ; 3  TV beam should now be at a dino coarse x position
+  sta RESP0        ; 3  M0 will be 3 cycles (9 px) far from P0
+
+  ldy #DINO_HEIGHT ; 3
+
+  sta WSYNC                ; 3
+
+.sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
+
+  ; 1st scanline ==============================================================
+  lda (PTR_DINO_OFFSET),y               ; 5+
+  sta HMP0                              ; 3
+  lda (PTR_DINO_SPRITE),y               ; 5+
+  sta DINO_SPRITE                       ; 3
+  lda (PTR_DINO_MIS),y                  ; 5+
+  sta MISILE_P0                         ; 3
+  and #%11110000                        ; 2
+  sta HMM0                              ; 3
+  lda MISILE_P0
+  asl
+  asl
+  and #%00110000
+  sta NUSIZ0
+
+  tya                                   ; 2   A = current scanline (Y)
+  sec                                   ; 2
+  sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
+  adc #DINO_HEIGHT                      ; 2
+  bcs __y_within_dino                   ; 2/3
+
+__y_not_within_dino:
+  lda #0                                ; 3   Disable the misile for P0
+  sta DINO_SPRITE                             ; 3
+  sta DINO_SPRITE_OFFSET
+  sta MISILE_P0
+  ;sta HMP0                              ; 3
+  ;sta HMM0                              ; 3
+  jmp __end_of_scanline                 ; 3
+
+__y_within_dino:
+  lda (PTR_DINO_OFFSET),y               ; 5+
+  sta HMP0                              ; 3
+  lda (PTR_DINO_SPRITE),y               ; 5+
+  sta DINO_SPRITE                       ; 3
+  lda (PTR_DINO_MIS),y                  ; 5+
+  sta MISILE_P0                         ; 3
+  and #%11110000                        ; 2
+  sta HMM0                              ; 3
+  lda MISILE_P0
+  asl
+  asl
+  and #%00110000
+  sta NUSIZ0
+
+  ;lda (PTR_DINO_MIS),y                  ; 5+
+
+
+__end_of_scanline:
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
+
+  ; 2nd scanline ==============================================================
+  lda DINO_SPRITE                       ; 3
+  ;lda #0                               ; for debugging, hides GRP0
+  sta GRP0                              ; 3
+  lda MISILE_P0                         ; 3
+  sta ENAM0                             ; 3
+  lda #0
+  sta HMM0
+  sta HMCLR
+  INSERT_NOPS 5                         ; 20
+
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
+
+  dey                                   ; 2
+  bne .sky_sub_kernel                   ; 2/3
   DEBUG_SUB_KERNEL #$7A, #103
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
