@@ -300,9 +300,9 @@ __end_of_scanline:
 ; SPLASH SCREEN KERNEL
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 splash_screen_kernel:
-  DEBUG_SUB_KERNEL #$7A, #36
+  DEBUG_SUB_KERNEL #$7A, #35
 
-.dino_sub_kernel
+.dino_sub_kernel_setup: ;------------->>> 31 1x scanlines <<<------------------
   lda BG_COLOUR    ; 3
   sta COLUBK       ; 3
 
@@ -311,48 +311,24 @@ splash_screen_kernel:
   sta RESM0        ; 3  TV beam should now be at a dino coarse x position
   sta RESP0        ; 3  M0 will be 3 cycles (9 px) far from P0
 
-  ldy #DINO_HEIGHT ; 3
+  lda #0
+  sta GRP0
+  sta ENAM0
+  sta HMM0
+  sta HMP0
+
+  ldy #DINO_HEIGHT         ; 3
 
   sta WSYNC                ; 3
 
-.sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
+.dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
 
-  ; 1st scanline ==============================================================
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta HMP0                              ; 3
-  lda (PTR_DINO_SPRITE),y               ; 5+
-  sta DINO_SPRITE                       ; 3
-  lda (PTR_DINO_MIS),y                  ; 5+
-  sta MISILE_P0                         ; 3
-  and #%11110000                        ; 2
-  sta HMM0                              ; 3
-  lda MISILE_P0
-  asl
-  asl
-  and #%00110000
-  sta NUSIZ0
-
-  tya                                   ; 2   A = current scanline (Y)
-  sec                                   ; 2
-  sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
-  adc #DINO_HEIGHT                      ; 2
-  bcs __y_within_dino                   ; 2/3
-
-__y_not_within_dino:
-  lda #0                                ; 3   Disable the misile for P0
-  sta DINO_SPRITE                             ; 3
-  sta DINO_SPRITE_OFFSET
-  sta MISILE_P0
+  ; 1st scanline (setup) ======================================================
+  lda DINO_SPRITE_1_OFFSET,y          ; 5+
   ;sta HMP0                              ; 3
-  ;sta HMM0                              ; 3
-  jmp __end_of_scanline                 ; 3
-
-__y_within_dino:
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta HMP0                              ; 3
-  lda (PTR_DINO_SPRITE),y               ; 5+
+  lda DINO_SPRITE_1,y               ; 5+
   sta DINO_SPRITE                       ; 3
-  lda (PTR_DINO_MIS),y                  ; 5+
+  lda DINO_MIS_OFFSET,y                  ; 5+
   sta MISILE_P0                         ; 3
   and #%11110000                        ; 2
   sta HMM0                              ; 3
@@ -361,11 +337,6 @@ __y_within_dino:
   asl
   and #%00110000
   sta NUSIZ0
-
-  ;lda (PTR_DINO_MIS),y                  ; 5+
-
-
-__end_of_scanline:
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
 
@@ -373,20 +344,30 @@ __end_of_scanline:
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  lda MISILE_P0                         ; 3
-  sta ENAM0                             ; 3
+  ;lda MISILE_P0                         ; 3
+  ;sta ENAM0                             ; 3
   lda #0
-  sta HMM0
+  ;sta HMM0
+  sta HMP0
   sta HMCLR
-  INSERT_NOPS 5                         ; 20
+  INSERT_NOPS 10                         ; 20
 
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
 
   dey                                   ; 2
-  bne .sky_sub_kernel                   ; 2/3
-  DEBUG_SUB_KERNEL #$7A, #103
+  bne .dino_sub_kernel                   ; 2/3
 
+  lda #0
+  sta GRP0
+  sta ENAM0
+  sta HMM0
+  sta HMP0
+  INSERT_NOPS 11
+  sta WSYNC
+  sta HMOVE
+
+  DEBUG_SUB_KERNEL #$7A, #116
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; END SPLASH SCREEN KERNEL
 ;=============================================================================
