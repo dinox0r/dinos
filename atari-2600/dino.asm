@@ -300,7 +300,7 @@ __end_of_scanline:
 ; SPLASH SCREEN KERNEL
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 splash_screen_kernel:
-  DEBUG_SUB_KERNEL #$7A, #35
+  DEBUG_SUB_KERNEL #$7A, #36
 
 .dino_sub_kernel_setup: ;------------->>> 31 1x scanlines <<<------------------
   lda BG_COLOUR    ; 3
@@ -317,26 +317,28 @@ splash_screen_kernel:
   sta HMM0
   sta HMP0
 
-  ldy #DINO_HEIGHT         ; 3
+  ldy #DINO_HEIGHT      ; 3
 
   sta WSYNC                ; 3
 
 .dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
 
   ; 1st scanline (setup) ======================================================
-  lda DINO_SPRITE_1_OFFSET-#1,y          ; 5+
-  sta HMP0                              ; 3
-  lda DINO_SPRITE_1-#1,y               ; 5+
+  INSERT_NOPS 5                        ; 10
+  lda DINO_SPRITE_1-#1,y                ; 4
   sta DINO_SPRITE                       ; 3
-  lda DINO_MIS_OFFSET-#1,y                  ; 5+
+  lda DINO_MIS_OFFSET-#1,y              ; 4
   sta MISILE_P0                         ; 3
   and #%11110000                        ; 2
   sta HMM0                              ; 3
-  lda MISILE_P0
-  asl
-  asl
-  and #%00110000
-  sta NUSIZ0
+  lda MISILE_P0                         ; 3
+  asl                                   ; 2
+  asl                                   ; 2
+  and #%00110000                        ; 2
+  sta NUSIZ0                            ; 3
+  lda DINO_SPRITE_1_OFFSET-#1,y         ; 4
+  sta HMP0                              ; 3
+
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
 
@@ -347,10 +349,10 @@ splash_screen_kernel:
   lda MISILE_P0                         ; 3
   sta ENAM0                             ; 3
   lda #0
-  sta HMM0
   sta HMP0
-  sta HMCLR
-  INSERT_NOPS 10                         ; 20
+  sta HMM0
+  ;sta HMCLR
+
 
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
