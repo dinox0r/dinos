@@ -324,11 +324,11 @@ splash_screen_kernel:
 .dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
 
   ; 1st scanline (setup) ======================================================
-  lda DINO_SPRITE_1_OFFSET,y          ; 5+
-  ;sta HMP0                              ; 3
-  lda DINO_SPRITE_1,y               ; 5+
+  lda DINO_SPRITE_1_OFFSET-#1,y          ; 5+
+  sta HMP0                              ; 3
+  lda DINO_SPRITE_1-#1,y               ; 5+
   sta DINO_SPRITE                       ; 3
-  lda DINO_MIS_OFFSET,y                  ; 5+
+  lda DINO_MIS_OFFSET-#1,y                  ; 5+
   sta MISILE_P0                         ; 3
   and #%11110000                        ; 2
   sta HMM0                              ; 3
@@ -344,10 +344,10 @@ splash_screen_kernel:
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  ;lda MISILE_P0                         ; 3
-  ;sta ENAM0                             ; 3
+  lda MISILE_P0                         ; 3
+  sta ENAM0                             ; 3
   lda #0
-  ;sta HMM0
+  sta HMM0
   sta HMP0
   sta HMCLR
   INSERT_NOPS 10                         ; 20
