@@ -110,7 +110,7 @@ __clear_mem:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  lda #%10000000             ; 2 enable splash screen
+  lda #%00000000             ; 2 enable splash screen
   sta SPLASH_SCREEN
   lda #DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
@@ -241,8 +241,6 @@ __y_not_within_dino:
   jmp __end_of_scanline                 ; 3
 
 __y_within_dino:
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta HMP0                              ; 3
   lda (PTR_DINO_SPRITE),y               ; 5+
   sta DINO_SPRITE                       ; 3
   lda (PTR_DINO_MIS),y                  ; 5+
@@ -254,6 +252,8 @@ __y_within_dino:
   asl
   and #%00110000
   sta NUSIZ0
+  lda (PTR_DINO_OFFSET),y               ; 5+
+  sta HMP0                              ; 3
 
   ;lda (PTR_DINO_MIS),y                  ; 5+
 
@@ -268,10 +268,8 @@ __end_of_scanline:
   sta GRP0                              ; 3
   lda MISILE_P0                         ; 3
   sta ENAM0                             ; 3
-  lda #0
-  sta HMM0
+  INSERT_NOPS 10                        ; 20
   sta HMCLR
-  INSERT_NOPS 5                         ; 20
 
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
@@ -310,6 +308,7 @@ splash_screen_kernel:
                    ;    (notice I'm not starving for ROM atm of writing this)
   sta RESM0        ; 3  TV beam should now be at a dino coarse x position
   sta RESP0        ; 3  M0 will be 3 cycles (9 px) far from P0
+  sta RESBL        ; 3
 
   lda #0
   sta GRP0
@@ -339,6 +338,11 @@ splash_screen_kernel:
   lda DINO_SPRITE_1_OFFSET-#1,y         ; 4
   sta HMP0                              ; 3
 
+  lda #2
+  sta ENABL
+  lda #$03
+  sta HMBL
+
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
 
@@ -348,10 +352,12 @@ splash_screen_kernel:
   sta GRP0                              ; 3
   lda MISILE_P0                         ; 3
   sta ENAM0                             ; 3
+  INSERT_NOPS 8
   lda #0
-  sta HMP0
-  sta HMM0
-  ;sta HMCLR
+  ;sta HMP0
+  ;sta HMM0
+  ;sta HMBL
+  sta HMCLR
 
 
   sta WSYNC                             ; 3
@@ -538,8 +544,8 @@ DINO_MIS_OFFSET:
   .byte %00001110 ; |▒▒▒▒▒MMM|█████   |       0                8
   .byte %00000110 ; |▒▒  ████|███     |       0                2
   .byte %00000010 ; |▒    ███|███     |       0                1
-  .byte %11000010 ; |▒     ██|██████  |       0                1
-  .byte %01110000 ; |       █|████    |       0                0
+  .byte %01110010 ; |▒     ██|██████  |       0                1
+  .byte %00000000 ; |       █|████    |       0                0
   .byte %00000010 ; |       ▒|████████|      +8                1
   .byte %00000010 ; |       ▒|████████|      +8                1
   .byte %00000010 ; |       ▒|████████|      +8                1
