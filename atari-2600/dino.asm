@@ -313,8 +313,7 @@ splash_screen_kernel:
   lda #0
   sta GRP0
   sta ENAM0
-  sta HMM0
-  sta HMP0
+  sta HMCLR
 
   ldy #DINO_HEIGHT      ; 3
 
@@ -353,12 +352,7 @@ splash_screen_kernel:
   lda MISILE_P0                         ; 3
   sta ENAM0                             ; 3
   INSERT_NOPS 8
-  lda #0
-  ;sta HMP0
-  ;sta HMM0
-  ;sta HMBL
   sta HMCLR
-
 
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
