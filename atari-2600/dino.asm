@@ -61,16 +61,16 @@ CACTUS_KERNEL_LINES = #62
   SEG.U variables
   ORG $80
 
-DINO_TOP_Y .byte         ; 1 byte
-BG_COLOUR .byte          ; 1 byte
-DINO_SPRITE .byte        ; 1 byte
-DINO_SPRITE_OFFSET .byte ; 1 byte
-MISILE_P0 .byte          ; 1 byte
-SPLASH_SCREEN .byte      ; 1 byte
-PTR_DINO_SPRITE .word    ; 2 bytes
-PTR_DINO_OFFSET .word    ; 2 bytes
-PTR_DINO_MIS .word       ; 2 bytes
-RND_SEED .word           ; 2 bytes
+DINO_TOP_Y .byte           ; 1 byte
+BG_COLOUR .byte            ; 1 (2) byte
+DINO_SPRITE .byte          ; 1 (3) byte
+DINO_SPRITE_OFFSET .byte   ; 1 (4) byte
+MISILE_P0 .byte            ; 1 (5) byte
+SPLASH_SCREEN_FLAGS .byte  ; 1 (6) byte
+PTR_DINO_SPRITE .word      ; 2 (8) bytes
+PTR_DINO_OFFSET .word      ; 2 (10) bytes
+PTR_DINO_MIS .word         ; 2 (12) bytes
+RND_SEED .word             ; 2 (14) bytes
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -110,8 +110,8 @@ __clear_mem:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  lda #%00000000             ; 2 enable splash screen
-  sta SPLASH_SCREEN
+  lda #%10000001             ; 2 enable splash screen
+  sta SPLASH_SCREEN_FLAGS
   lda #DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
 
@@ -181,8 +181,8 @@ __vblank:
   bne __vblank
                ; 2752 cycles + 2 from bne, 2754 (out of 2812 vblank)
 
-  lda SPLASH_SCREEN  ; if SPLASH_SCREEN is enabled then jump to the splash
-  and #%10000000     ; screen kernel after disabling VBLANK
+  lda SPLASH_SCREEN_FLAGS  ; if the splash screen is enabled then jump to the 
+  and #%00000001           ; splash screen kernel after disabling VBLANK
 
   sta WSYNC
   sta VBLANK   ; Disables VBLANK (A=0)
@@ -236,26 +236,24 @@ __y_not_within_dino:
   sta DINO_SPRITE                             ; 3
   sta DINO_SPRITE_OFFSET
   sta MISILE_P0
-  ;sta HMP0                              ; 3
-  ;sta HMM0                              ; 3
   jmp __end_of_scanline                 ; 3
 
 __y_within_dino:
+  ; graphics
   lda (PTR_DINO_SPRITE),y               ; 5+
   sta DINO_SPRITE                       ; 3
-  lda (PTR_DINO_MIS),y                  ; 5+
-  sta MISILE_P0                         ; 3
-  and #%11110000                        ; 2
-  sta HMM0                              ; 3
-  lda MISILE_P0
-  asl
-  asl
-  and #%00110000
-  sta NUSIZ0
+
+  ; graphics offset
   lda (PTR_DINO_OFFSET),y               ; 5+
   sta HMP0                              ; 3
 
-  ;lda (PTR_DINO_MIS),y                  ; 5+
+  ; missile
+  lda (PTR_DINO_MIS),y                  ; 5+
+  sta MISILE_P0                         ; 3
+  sta HMM0                              ; 3
+  asl
+  asl
+  sta NUSIZ0
 
 
 __end_of_scanline:
@@ -298,9 +296,9 @@ __end_of_scanline:
 ; SPLASH SCREEN KERNEL
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 splash_screen_kernel:
-  DEBUG_SUB_KERNEL #$7A, #36
+  DEBUG_SUB_KERNEL #$7A, #35
 
-.dino_sub_kernel_setup: ;------------->>> 31 1x scanlines <<<------------------
+.dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------
   lda BG_COLOUR    ; 3
   sta COLUBK       ; 3
 
@@ -308,42 +306,46 @@ splash_screen_kernel:
                    ;    (notice I'm not starving for ROM atm of writing this)
   sta RESM0        ; 3  TV beam should now be at a dino coarse x position
   sta RESP0        ; 3  M0 will be 3 cycles (9 px) far from P0
-  sta RESBL        ; 3
+  sta WSYNC        ; 3
 
-  lda #0
-  sta GRP0
-  sta ENAM0
-  sta HMCLR
 
-  ldy #DINO_HEIGHT      ; 3
+  lda #0                ; 2
+  sta GRP0              ; 3 (5)
+  sta ENAM0             ; 3 (8)
+  sta HMCLR             ; 3 (11)
+  ldy #DINO_HEIGHT      ; 2 (13)
 
-  sta WSYNC                ; 3
+  INSERT_NOPS 6         ; 12 (25)
+  sta RESBL             ; 3 (28)
+
+  lda #$F0              ; 3 moves the ball to x+1
+  sta HMBL
+
+  sta WSYNC             ; 3
 
 .dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
 
   ; 1st scanline (setup) ======================================================
-  INSERT_NOPS 5                        ; 10
-  lda DINO_SPRITE_1-#1,y                ; 4
-  sta DINO_SPRITE                       ; 3
-  lda DINO_MIS_OFFSET-#1,y              ; 4
-  sta MISILE_P0                         ; 3
-  and #%11110000                        ; 2
-  sta HMM0                              ; 3
-  lda MISILE_P0                         ; 3
-  asl                                   ; 2
-  asl                                   ; 2
-  and #%00110000                        ; 2
-  sta NUSIZ0                            ; 3
-  lda DINO_SPRITE_1_OFFSET-#1,y         ; 4
-  sta HMP0                              ; 3
+  INSERT_NOPS 5                        ; 10 add some 'distance' between the last
+                                       ; sta HMOVE (has to be 24+ cycles)
+  lda DINO_SPRITE_1-#1,y               ; 4
+  sta DINO_SPRITE                      ; 3
+  lda DINO_MIS_OFFSET-#1,y             ; 4
 
-  lda #2
-  sta ENABL
-  lda #$03
-  sta HMBL
+  ; missile
+  sta MISILE_P0                        ; 3
+  sta HMM0                             ; 3
+  asl                                  ; 2
+  asl                                  ; 2
+  sta NUSIZ0                           ; 3
 
-  sta WSYNC                             ; 3
-  sta HMOVE                             ; 3
+  lda DINO_SPRITE_1_OFFSET-#1,y        ; 4
+  sta HMP0                             ; 3
+
+  ;sta HMBL
+
+  sta WSYNC                            ; 3
+  sta HMOVE                            ; 3
 
   ; 2nd scanline ==============================================================
   lda DINO_SPRITE                       ; 3
@@ -351,6 +353,13 @@ splash_screen_kernel:
   sta GRP0                              ; 3
   lda MISILE_P0                         ; 3
   sta ENAM0                             ; 3
+  and SPLASH_SCREEN_FLAGS               ; 3
+  rol
+  rol
+  rol
+  sta ENABL                             ; 3
+
+
   INSERT_NOPS 8
   sta HMCLR
 
@@ -493,8 +502,9 @@ DINO_SPRITE_1_OFFSET:
   .byte $00  ;  █ ██████   |   0
   .byte $10  ;  ███████    |   0 <<< push all the pixels to the left one time
   .ds 1      ;                       to stitch with the missiles
-DINO_MIS_OFFSET:
 
+; DINO MISSILE OFFSET
+;
 ; MP0 is strobed at a moment T
 ;  |         +--- then GRP0 is strobed at T+3 CPU cycles (9 pixels) after MP0
 ;  |         |
@@ -525,6 +535,8 @@ DINO_MIS_OFFSET:
 ;       LEFT  <---------------------------------------------------------> RIGHT
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
+
+DINO_MIS_OFFSET:
                   ;                        offset           size
   .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
   .byte %00000000 ; |   ██   |██      |       0                0
@@ -545,7 +557,9 @@ DINO_MIS_OFFSET:
   .byte %00000010 ; |       ▒|████████|      +8                1
   .byte %10000010 ; |       ▒|█ ██████|      +8                1
   .byte %00000000 ; |        |███████ |       0                0
-  .ds 1
+  .ds 1; ^
+  ;      |
+  ;      + enable the ball when this bit is ON
 
 ;=============================================================================
 ; ROM SETUP
