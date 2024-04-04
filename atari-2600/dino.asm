@@ -71,6 +71,7 @@ PTR_DINO_SPRITE .word      ; 2 (8) bytes
 PTR_DINO_OFFSET .word      ; 2 (10) bytes
 PTR_DINO_MIS .word         ; 2 (12) bytes
 RND_SEED .word             ; 2 (14) bytes
+FRAME_COUNT .word          ; 2 (16) bytes
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -188,7 +189,6 @@ __vblank:
   sta VBLANK   ; Disables VBLANK (A=0)
   beq game_kernel
   jmp splash_screen_kernel
-  ;sta HMOVE
 
 ;=============================================================================
 ; GAME KERNEL
@@ -400,6 +400,8 @@ end_of_frame:
   ; We're on the final OVERSCAN line and 40 cpu cycles remain,
   ; do the jump now to consume some cycles and a WSYNC at the 
   ; beginning of the next frame to consume the rest
+  inc FRAME_COUNT      ;
+  adc FRAME_COUNT+1    ; A is 0 here
   jmp start_of_frame
 
 ;=============================================================================
