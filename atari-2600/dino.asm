@@ -394,14 +394,16 @@ end_of_frame:
   sta VBLANK
 .overscan:
   lda INTIM
-    ;inc <RND_SEED
-    ;adc >RND_SEED
   bne .overscan
   ; We're on the final OVERSCAN line and 40 cpu cycles remain,
   ; do the jump now to consume some cycles and a WSYNC at the 
   ; beginning of the next frame to consume the rest
-  inc FRAME_COUNT      ;
-  adc FRAME_COUNT+1    ; A is 0 here
+
+  inc >FRAME_COUNT
+  bne __skip_inc_frame_count_upper_byte
+  inc <FRAME_COUNT
+__skip_inc_frame_count_upper_byte:
+
   jmp start_of_frame
 
 ;=============================================================================
