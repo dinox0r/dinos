@@ -9,11 +9,11 @@
 ;=============================================================================
 
   MAC DEBUG_SUB_KERNEL
-.BGCOLOR SET {1}
-.KERNEL_LINES SET {2}
-    lda #.BGCOLOR
+;.BGCOLOR SET {1}
+;.KERNEL_LINES SET {2}
+    lda {1}
     sta COLUBK
-    ldx #.KERNEL_LINES
+    ldx {2}
 .loop:
     dex
     sta WSYNC
@@ -139,7 +139,7 @@ __clear_mem:
 ;=============================================================================
 start_of_frame:
 
-.vsync_and_vblank:
+_vsync_and_vblank:
   lda #2     ;
   sta VBLANK ; Enables VBLANK (and turns video signal off)
 
@@ -152,8 +152,6 @@ start_of_frame:
   ; -----------------------
 __vsync:
   sta VSYNC  ; Enables VSYNC
-    inc <RND_SEED
-    adc >RND_SEED
   sta WSYNC  ; 1st line of vsync
   sta WSYNC  ; 2nd line of vsync
     lda #0   ; A <- 0
@@ -195,19 +193,19 @@ __vblank:
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 game_kernel:
 
-.score_sub_kernel_setup:;---->>> 2 scanlines <<<----
+_score_sub_kernel_setup:;---->>> 2 scanlines <<<----
   DEBUG_SUB_KERNEL #$10, #2
 
-.score_sub_kernel:;---------->>> 10 scanlines <<<---
-  DEBUG_SUB_KERNEL #$20, #10
+_score_sub_kernel:;---------->>> 10 scanlines <<<---
+  DEBUG_SUB_KERNEL #$20,#10
 
-.clouds_sub_kernel_setup:;-->>> 2 scanlines <<<-----
-  DEBUG_SUB_KERNEL #$30, #2
+_clouds_sub_kernel_setup:;-->>> 2 scanlines <<<-----
+  DEBUG_SUB_KERNEL #$30,#2
 
-.clouds_sub_kernel:;-------->>> 20 scanlines <<<----
-  DEBUG_SUB_KERNEL #$40, #20
+_clouds_sub_kernel:;-------->>> 20 scanlines <<<----
+  DEBUG_SUB_KERNEL #$40,#20
 
-.sky_sub_kernel_setup:;----->>> 2 scanlines <<<-----
+_sky_sub_kernel_setup:;----->>> 2 scanlines <<<-----
   lda BG_COLOUR    ; 3
   sta COLUBK       ; 3
 
@@ -222,7 +220,7 @@ game_kernel:
 
   sta WSYNC                ; 3
 
-.sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
+_sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
 
   ; 1st scanline ==============================================================
   tya                                   ; 2   A = current scanline (Y)
@@ -273,19 +271,19 @@ __end_of_scanline:
   sta HMOVE                             ; 3
 
   dey                                   ; 2
-  bne .sky_sub_kernel                   ; 2/3
+  bne _sky_sub_kernel                   ; 2/3
 
-.cactus_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
-  DEBUG_SUB_KERNEL #$90, #62
+_cactus_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
+  DEBUG_SUB_KERNEL #$90,#62
 
-.floor_sub_kernel:
-  DEBUG_SUB_KERNEL #$AA, #1
+_floor_sub_kernel:
+  DEBUG_SUB_KERNEL #$AA,#1
 
-.gravel_sub_kernel:
-  DEBUG_SUB_KERNEL #$C8, #9
+_gravel_sub_kernel:
+  DEBUG_SUB_KERNEL #$C8,#9
 
-.void_sub_kernel:
-  DEBUG_SUB_KERNEL #$FA, #31
+_void_sub_kernel:
+  DEBUG_SUB_KERNEL #$FA,#31
   jmp end_of_frame
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -296,9 +294,9 @@ __end_of_scanline:
 ; SPLASH SCREEN KERNEL
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 splash_screen_kernel:
-  DEBUG_SUB_KERNEL #$7A, #35
+  DEBUG_SUB_KERNEL #$7A,#35
 
-.dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------
+_dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------
   lda BG_COLOUR    ; 3
   sta COLUBK       ; 3
 
@@ -323,7 +321,7 @@ splash_screen_kernel:
 
   sta WSYNC             ; 3
 
-.dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
+_dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
 
   ; 1st scanline (setup) ======================================================
   INSERT_NOPS 5                        ; 10 add some 'distance' between the last
@@ -367,7 +365,7 @@ splash_screen_kernel:
   sta HMOVE                             ; 3
 
   dey                                   ; 2
-  bne .dino_sub_kernel                   ; 2/3
+  bne _dino_sub_kernel                   ; 2/3
 
   lda #0
   sta GRP0
@@ -378,7 +376,7 @@ splash_screen_kernel:
   sta WSYNC
   sta HMOVE
 
-  DEBUG_SUB_KERNEL #$7A, #116
+  DEBUG_SUB_KERNEL #$7A,#116
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; END SPLASH SCREEN KERNEL
 ;=============================================================================
@@ -392,16 +390,16 @@ end_of_frame:
   sta TIM64T
   lda #2
   sta VBLANK
-.overscan:
+_overscan:
   lda INTIM
-  bne .overscan
+  bne _overscan
   ; We're on the final OVERSCAN line and 40 cpu cycles remain,
   ; do the jump now to consume some cycles and a WSYNC at the 
   ; beginning of the next frame to consume the rest
 
-  inc >FRAME_COUNT
+  inc FRAME_COUNT
   bne __skip_inc_frame_count_upper_byte
-  inc <FRAME_COUNT
+  inc FRAME_COUNT+1
 __skip_inc_frame_count_upper_byte:
 
   jmp start_of_frame
