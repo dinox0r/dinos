@@ -111,7 +111,7 @@ __clear_mem:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  lda #%10000001             ; 2 enable splash screen
+  lda #%00000001             ; 2 enable splash screen
   sta SPLASH_SCREEN_FLAGS
   lda #DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
@@ -168,11 +168,34 @@ __vsync:
 
   sta HMCLR             ; Clear horizontal motion registers
 
-  ; -----------------------
-  ; FRAME SETUP/LOGIC
-  ; -----------------------
+  ; =======================
+  ; BEGIN FRAME SETUP/LOGIC
+  ; - - - - - - - - - - - -
   lda #BKG_LIGHT_GRAY   ;
   sta COLUBK            ; Set initial background
+
+  lda FRAME_COUNT+1
+  and #%00000010
+  beq ___skip_blink
+  ;
+  lda SPLASH_SCREEN_FLAGS
+  ora #%10000000
+  sta SPLASH_SCREEN_FLAGS
+  jmp ___skip_opening_eyes
+
+___skip_blink:
+  ; if dino's eyes are closed then check if we should close them
+  lda FRAME_COUNT
+  cmp #250
+  bmi ___skip_opening_eyes
+  lda SPLASH_SCREEN_FLAGS
+  and #%01111111
+  sta SPLASH_SCREEN_FLAGS
+
+___skip_opening_eyes:
+  ; - - - - - - - - - - - -
+  ; END FRAME SETUP/LOGIC
+  ; =======================
 
   lda #0
 __vblank:
@@ -180,11 +203,11 @@ __vblank:
   bne __vblank
                ; 2752 cycles + 2 from bne, 2754 (out of 2812 vblank)
 
-  lda SPLASH_SCREEN_FLAGS  ; if the splash screen is enabled then jump to the 
-  and #%00000001           ; splash screen kernel after disabling VBLANK
-
   sta WSYNC
   sta VBLANK   ; Disables VBLANK (A=0)
+
+  lda SPLASH_SCREEN_FLAGS  ; if the splash screen is enabled then jump to the
+  and #%00000001           ; splash screen kernel after disabling VBLANK
   beq game_kernel
   jmp splash_screen_kernel
 
