@@ -177,7 +177,8 @@ __vsync:
   lda FRAME_COUNT+1
   and #%00000010
   beq ___skip_blink
-  ;
+
+  ; blink
   lda SPLASH_SCREEN_FLAGS
   ora #%10000000
   sta SPLASH_SCREEN_FLAGS
@@ -187,7 +188,7 @@ ___skip_blink:
   ; if dino's eyes are closed then check if we should close them
   lda FRAME_COUNT
   cmp #250
-  bmi ___skip_opening_eyes
+  bcc ___skip_opening_eyes
   lda SPLASH_SCREEN_FLAGS
   and #%01111111
   sta SPLASH_SCREEN_FLAGS
