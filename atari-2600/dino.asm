@@ -175,19 +175,26 @@ __vsync:
   sta COLUBK            ; Set initial background
 
   lda FRAME_COUNT+1
-  and #%00000010
+  and #%00000001
   beq ___skip_blink
 
-  ; blink
+  ; do the dino blinking
   lda SPLASH_SCREEN_FLAGS
-  ora #%10000000
+  ora #%10000000            ; Remember, the Enable Ball bit is the 7th-bit
+                            ; hence the flag for blinking is in the 7th bit
+  dec FRAME_COUNT+1         ; Turn the 0-bit of FRAME_COUNT+1 off, so the
+                            ; next frame does not enable blinking again
   sta SPLASH_SCREEN_FLAGS
   jmp ___skip_opening_eyes
 
 ___skip_blink:
-  ; if dino's eyes are closed then check if we should close them
+  ; if dino's eyes are closed then check if we should open them
   lda FRAME_COUNT
-  cmp #250
+  cmp #14                    ; 14 frames (actually 15 because is 0 index)
+                             ; or ~250 milliseconds (assuming 60 FPS) is the
+                             ; pause that looked better for the blinking. After
+                             ; these 15 frames has passed, the eyes are then
+                             ; opened
   bcc ___skip_opening_eyes
   lda SPLASH_SCREEN_FLAGS
   and #%01111111
