@@ -53,7 +53,11 @@ DINO_HEIGHT = #20
 DINO_POS_Y = #8
 
 SKY_KERNEL_LINES = #31
-CACTUS_KERNEL_LINES = #62
+CACTUS_KERNEL_LINES = #31
+
+DINO_PLAY_AREA_LINES = #SKY_KERNEL_LINES+#CACTUS_KERNEL_LINES+#2+#8
+SKY_MAX_Y = #DINO_PLAY_AREA_LINES
+SKY_MIN_Y = #SKY_MAX_Y-#SKY_KERNEL_LINES
 
 ;=============================================================================
 ; MEMORY / VARIABLES
@@ -111,7 +115,7 @@ __clear_mem:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  lda #%00000001             ; 2 enable splash screen
+  lda #%00000000             ; 2 enable splash screen
   sta SPLASH_SCREEN_FLAGS
   lda #DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
@@ -180,7 +184,7 @@ __vsync:
 
   ; do the dino blinking
   lda SPLASH_SCREEN_FLAGS
-  ora #%10000000            ; Remember, the Enable Ball bit is the 7th-bit
+  ora #%10000000            ; Remember, the Enable Ball bit is in the 7th-bit
                             ; hence the flag for blinking is in the 7th bit
   dec FRAME_COUNT+1         ; Turn the 0-bit of FRAME_COUNT+1 off, so the
                             ; next frame does not enable blinking again
@@ -245,7 +249,7 @@ _sky_sub_kernel_setup:;----->>> 2 scanlines <<<-----
   sta RESM0        ; 3  TV beam should now be at a dino coarse x position
   sta RESP0        ; 3  M0 will be 3 cycles (9 px) far from P0
 
-  ldy #SKY_KERNEL_LINES    ; 3  The sky is 31 2x scanlines
+  ldy #SKY_MAX_Y
 
   ; T0D0: set the coarse position of the cactus/pterodactile
 
@@ -262,7 +266,7 @@ _sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
 
 __y_not_within_dino:
   lda #0                                ; 3   Disable the misile for P0
-  sta DINO_SPRITE                             ; 3
+  sta DINO_SPRITE                       ; 3
   sta DINO_SPRITE_OFFSET
   sta MISILE_P0
   jmp __end_of_scanline                 ; 3
@@ -302,16 +306,17 @@ __end_of_scanline:
   sta HMOVE                             ; 3
 
   dey                                   ; 2
-  bne _sky_sub_kernel                   ; 2/3
+  cpy #SKY_MIN_Y
+  bcs _sky_sub_kernel                   ; 2/3
 
 _cactus_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
   DEBUG_SUB_KERNEL #$90,#62
 
 _floor_sub_kernel:
-  DEBUG_SUB_KERNEL #$AA,#1
+  DEBUG_SUB_KERNEL #$AA,#2
 
 _gravel_sub_kernel:
-  DEBUG_SUB_KERNEL #$C8,#9
+  DEBUG_SUB_KERNEL #$C8,#8
 
 _void_sub_kernel:
   DEBUG_SUB_KERNEL #$FA,#31
