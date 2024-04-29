@@ -9,11 +9,11 @@
 ;=============================================================================
 
   MAC DEBUG_SUB_KERNEL
-;.BGCOLOR SET {1}
-;.KERNEL_LINES SET {2}
-    lda {1}
+.BGCOLOR SET {1}
+.KERNEL_LINES SET {2}
+    lda #.BGCOLOR
     sta COLUBK
-    ldx {2}
+    ldx #.KERNEL_LINES
 .loop:
     dex
     sta WSYNC
@@ -52,12 +52,16 @@ BKG_LIGHT_GRAY = #13
 DINO_HEIGHT = #20
 DINO_POS_Y = #8
 
-SKY_KERNEL_LINES = #31
-CACTUS_KERNEL_LINES = #31
+SKY_LINES = #31
+CACTUS_LINES = #31
+FLOOR_LINES = #2
+GRAVEL_LINES = #8
 
-DINO_PLAY_AREA_LINES = #SKY_KERNEL_LINES+#CACTUS_KERNEL_LINES+#2+#8
+DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GRAVEL_LINES
 SKY_MAX_Y = #DINO_PLAY_AREA_LINES
-SKY_MIN_Y = #SKY_MAX_Y-#SKY_KERNEL_LINES
+SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
+CACTUS_AREA_MAX_Y = #SKY_MIN_Y
+CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 
 ;=============================================================================
 ; MEMORY / VARIABLES
@@ -262,16 +266,16 @@ _sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sec                                   ; 2
   sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
   adc #DINO_HEIGHT                      ; 2
-  bcs __y_within_dino                   ; 2/3
+  bcs __sky__y_within_dino                   ; 2/3
 
-__y_not_within_dino:
+__sky__y_not_within_dino:
   lda #0                                ; 3   Disable the misile for P0
   sta DINO_SPRITE                       ; 3
   sta DINO_SPRITE_OFFSET
   sta MISILE_P0
-  jmp __end_of_scanline                 ; 3
+  jmp __sky__end_of_1st_scanline                 ; 3
 
-__y_within_dino:
+__sky__y_within_dino:
   ; graphics
   lda (PTR_DINO_SPRITE),y               ; 5+
   sta DINO_SPRITE                       ; 3
@@ -289,7 +293,7 @@ __y_within_dino:
   sta NUSIZ0
 
 
-__end_of_scanline:
+__sky__end_of_1st_scanline:
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
 
@@ -306,11 +310,66 @@ __end_of_scanline:
   sta HMOVE                             ; 3
 
   dey                                   ; 2
-  cpy #SKY_MIN_Y
+  cpy #SKY_MIN_Y+#1  ; The +1 is because the carry is set if Y ≥ SKY_MIN_Y, 
+                     ; if Y > SKY_MIN_Y or Y == SKY_MIN_Y, we want to ignore 
+                     ; the when Y == SKY_MIN_Y, that is, turn this from Y ≥ C
+                     ; to Y > C, and Y ≥ C + 1 ≡ Y > C
   bcs _sky_sub_kernel                   ; 2/3
 
-_cactus_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
-  DEBUG_SUB_KERNEL #$90,#62
+_cactus_area_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
+
+  ; 1st scanline ==============================================================
+  tya                                   ; 2   A = current scanline (Y)
+  sec                                   ; 2
+  sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
+  adc #DINO_HEIGHT                      ; 2
+  bcs __cactus__y_within_dino                   ; 2/3
+
+__cactus__y_not_within_dino:
+  lda #0                                ; 3   Disable the misile for P0
+  sta DINO_SPRITE                       ; 3
+  sta DINO_SPRITE_OFFSET
+  sta MISILE_P0
+  jmp __cactus__end_of_1st_scanline     ; 3
+
+__cactus__y_within_dino:
+  ; graphics
+  lda (PTR_DINO_SPRITE),y               ; 5+
+  sta DINO_SPRITE                       ; 3
+
+  ; graphics offset
+  lda (PTR_DINO_OFFSET),y               ; 5+
+  sta HMP0                              ; 3
+
+  ; missile
+  lda (PTR_DINO_MIS),y                  ; 5+
+  sta MISILE_P0                         ; 3
+  sta HMM0                              ; 3
+  asl
+  asl
+  sta NUSIZ0
+
+
+__cactus__end_of_1st_scanline:
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
+
+  ; 2nd scanline ==============================================================
+  lda DINO_SPRITE                       ; 3
+  ;lda #0                               ; for debugging, hides GRP0
+  sta GRP0                              ; 3
+  lda MISILE_P0                         ; 3
+  sta ENAM0                             ; 3
+  INSERT_NOPS 10                        ; 20
+  sta HMCLR
+
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
+
+  dey                                   ; 2
+  cpy #CACTUS_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
+                                        ; kernel, +1 turns Y ≥ C into Y > C
+  bcs _cactus_area_sub_kernel                   ; 2/3
 
 _floor_sub_kernel:
   DEBUG_SUB_KERNEL #$AA,#2
