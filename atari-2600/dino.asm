@@ -71,15 +71,16 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 
 DINO_TOP_Y .byte           ; 1 byte
 BG_COLOUR .byte            ; 1 (2) byte
-DINO_SPRITE .byte          ; 1 (3) byte
-DINO_SPRITE_OFFSET .byte   ; 1 (4) byte
-MISILE_P0 .byte            ; 1 (5) byte
-SPLASH_SCREEN_FLAGS .byte  ; 1 (6) byte
-PTR_DINO_SPRITE .word      ; 2 (8) bytes
-PTR_DINO_OFFSET .word      ; 2 (10) bytes
-PTR_DINO_MIS .word         ; 2 (12) bytes
-RND_SEED .word             ; 2 (14) bytes
-FRAME_COUNT .word          ; 2 (16) bytes
+DINO_COLOUR .byte          ; 1 (3) byte
+DINO_SPRITE .byte          ; 1 (4) byte
+DINO_SPRITE_OFFSET .byte   ; 1 (5) byte
+MISILE_P0 .byte            ; 1 (6) byte
+SPLASH_SCREEN_FLAGS .byte  ; 1 (7) byte
+PTR_DINO_SPRITE .word      ; 2 (9) bytes
+PTR_DINO_OFFSET .word      ; 2 (11) bytes
+PTR_DINO_MIS .word         ; 2 (13) bytes
+RND_SEED .word             ; 2 (15) bytes
+FRAME_COUNT .word          ; 2 (17) bytes
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -124,6 +125,8 @@ __clear_mem:
   lda #DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
 
+  lda #3
+  sta DINO_COLOUR
   lda #BKG_LIGHT_GRAY
   sta BG_COLOUR
 
@@ -181,6 +184,9 @@ __vsync:
   ; - - - - - - - - - - - -
   lda #BKG_LIGHT_GRAY   ;
   sta COLUBK            ; Set initial background
+
+  lda DINO_COLOUR       ; dino sprite colour
+  sta COLUP0
 
   lda FRAME_COUNT+1
   and #%00000001
@@ -372,7 +378,42 @@ __cactus__end_of_1st_scanline:
   bcs _cactus_area_sub_kernel                   ; 2/3
 
 _floor_sub_kernel:
-  DEBUG_SUB_KERNEL #$AA,#2
+  ; 1st scanline ==============================================================
+  tya                                   ; 2   A = current scanline (Y)
+  sec                                   ; 2
+  sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
+  adc #DINO_HEIGHT                      ; 2
+  bcs __floor__y_within_dino                   ; 2/3
+
+__floor__y_not_within_dino:
+  lda #0                                ; 3   Disable the misile for P0
+  sta DINO_SPRITE                       ; 3
+  sta DINO_SPRITE_OFFSET
+  jmp __floor__end_of_1st_scanline     ; 3
+
+__floor__y_within_dino:
+  ; graphics
+  lda (PTR_DINO_SPRITE),y               ; 5+
+  sta DINO_SPRITE                       ; 3
+
+  ; graphics offset
+  lda (PTR_DINO_OFFSET),y               ; 5+
+  sta HMP0                              ; 3
+
+
+__floor__end_of_1st_scanline:
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
+
+  ; 2nd scanline ==============================================================
+  lda DINO_SPRITE                       ; 3
+  ;lda #0                               ; for debugging, hides GRP0
+  sta GRP0                              ; 3
+  INSERT_NOPS 13                        ; 26
+  sta HMCLR
+
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
 
 _gravel_sub_kernel:
   DEBUG_SUB_KERNEL #$C8,#8
