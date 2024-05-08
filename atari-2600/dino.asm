@@ -406,10 +406,20 @@ __floor__end_of_1st_scanline:
   sta HMOVE                             ; 3
 
   ; 2nd scanline ==============================================================
+  lda DINO_COLOUR
+  sta COLUBK
+
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  INSERT_NOPS 13                        ; 26
+  sta GRP0                              ; 3
+
+  ldx BG_COLOUR
+  lda DINO_COLOUR
+  stx COLUBK
+  sta COLUBK
+
+  INSERT_NOPS 12                        ; 24
   sta HMCLR
 
   sta WSYNC                             ; 3
