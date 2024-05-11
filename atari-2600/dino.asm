@@ -55,7 +55,7 @@ DINO_POS_Y = #8
 SKY_LINES = #31
 CACTUS_LINES = #31
 FLOOR_LINES = #2
-GRAVEL_LINES = #8
+GROUND_LINES = #8
 
 DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GRAVEL_LINES
 SKY_MAX_Y = #DINO_PLAY_AREA_LINES
@@ -425,8 +425,51 @@ __floor__end_of_1st_scanline:
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
 
-_gravel_sub_kernel:
-  DEBUG_SUB_KERNEL #$C8,#8
+_ground_area_sub_kernel:
+  ; 1st scanline ==============================================================
+  tya                                   ; 2   A = current scanline (Y)
+  sec                                   ; 2
+  sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
+  adc #DINO_HEIGHT                      ; 2
+  bcs __ground_y_within_dino                   ; 2/3
+
+__ground__y_not_within_dino:
+  lda #0                                ; 3   Disable the misile for P0
+  sta DINO_SPRITE                       ; 3
+  sta DINO_SPRITE_OFFSET
+  jmp __ground__end_of_1st_scanline     ; 3
+
+__ground__y_within_dino:
+  ; graphics
+  lda (PTR_DINO_SPRITE),y               ; 5+
+  sta DINO_SPRITE                       ; 3
+
+  ; graphics offset
+  lda (PTR_DINO_OFFSET),y               ; 5+
+  sta HMP0                              ; 3
+
+
+__ground__end_of_1st_scanline:
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
+
+  ; 2nd scanline ==============================================================
+  lda DINO_SPRITE                       ; 3
+  ;lda #0                               ; for debugging, hides GRP0
+  sta GRP0                              ; 3
+  lda MISILE_P0                         ; 3
+  sta ENAM0                             ; 3
+  INSERT_NOPS 10                        ; 20
+  sta HMCLR
+
+  sta WSYNC                             ; 3
+  sta HMOVE                             ; 3
+
+  dey                                   ; 2
+  cpy #GROUND_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
+                                        ; kernel, +1 turns Y ≥ C into Y > C
+  bcs _ground_area_sub_kernel                   ; 2/3
+
 
 _void_sub_kernel:
   DEBUG_SUB_KERNEL #$FA,#31
