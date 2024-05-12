@@ -57,11 +57,13 @@ CACTUS_LINES = #31
 FLOOR_LINES = #2
 GROUND_LINES = #8
 
-DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GRAVEL_LINES
+DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GROUND_LINES
 SKY_MAX_Y = #DINO_PLAY_AREA_LINES
 SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
 CACTUS_AREA_MAX_Y = #SKY_MIN_Y
 CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
+GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
+GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
 ;=============================================================================
 ; MEMORY / VARIABLES
@@ -426,12 +428,15 @@ __floor__end_of_1st_scanline:
   sta HMOVE                             ; 3
 
 _ground_area_sub_kernel:
+  lda BG_COLOUR
+  sta COLUBK
+
   ; 1st scanline ==============================================================
   tya                                   ; 2   A = current scanline (Y)
   sec                                   ; 2
   sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
   adc #DINO_HEIGHT                      ; 2
-  bcs __ground_y_within_dino                   ; 2/3
+  bcs __ground__y_within_dino                   ; 2/3
 
 __ground__y_not_within_dino:
   lda #0                                ; 3   Disable the misile for P0
