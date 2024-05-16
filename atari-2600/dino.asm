@@ -426,6 +426,7 @@ __floor__end_of_1st_scanline:
 
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
+  dey
 
 _ground_area_sub_kernel:
   lda BG_COLOUR
