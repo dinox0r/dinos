@@ -65,7 +65,9 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
-ENABLE_SPLASH_SCREEN = #%00000001
+FLAG_DINO_BLINKING = #%10000000
+FLAG_DINO_LEFT_LEG = #%00000010
+FLAG_SPLASH_SCREEN = #%00000001
 
 ;=============================================================================
 ; MEMORY / VARIABLES
@@ -85,6 +87,11 @@ PTR_DINO_OFFSET .word      ; 2 (11) bytes
 PTR_DINO_MIS .word         ; 2 (13) bytes
 RND_SEED .word             ; 2 (15) bytes
 FRAME_COUNT .word          ; 2 (17) bytes
+
+; About GAME_FLAGS
+; bit 0: ON - splash screen mode / OFF - game mode
+; bit 1: ON/OFF - in game mode dino left/right leg up sprite
+; bit 7: ON/OFF - in splash screen mode, dino blinking
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -124,7 +131,7 @@ __clear_mem:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  ; lda #ENABLE_SPLASH_SCREEN  ; 2 enable splash screen
+  ; lda #FLAG_SPLASH_SCREEN  ; 2 enable splash screen
   lda #0  ; disable splash screen 
   sta GAME_FLAGS
   lda #DINO_POS_Y+#DINO_HEIGHT
@@ -187,20 +194,47 @@ __vsync:
   ; =======================
   ; BEGIN FRAME SETUP/LOGIC
   ; - - - - - - - - - - - -
+__start_frame_setup:
   lda #BKG_LIGHT_GRAY   ;
   sta COLUBK            ; Set initial background
 
   lda DINO_COLOUR       ; dino sprite colour
   sta COLUP0
 
-  lda GAME_FLAGS
-  cmp #ENABLE_SPLASH_SCREEN
+  lda #FLAG_SPLASH_SCREEN
+  bit GAME_FLAGS
   bne ___in_splash_screen
 
-  lda FRAME_COUNT
-  
+  lda FRAME_COUNT            ; Check if is time to update dino's legs
+  and #%00000111             ; animation
+  cmp #7                     ;
+  bne ___end_legs_anim       ;
 
-  jmp ___skip_opening_yes
+  lda #FLAG_DINO_LEFT_LEG    ; Check which leg is up, and swap
+  bit GAME_FLAGS
+  beq ___right_leg
+
+  lda #<[DINO_SPRITE_3 - DINO_POS_Y]
+  sta PTR_DINO_SPRITE
+  lda #>[DINO_SPRITE_3 - DINO_POS_Y]
+  sta PTR_DINO_SPRITE+1
+
+  jmp ___swap_legs
+
+___right_leg:
+  lda #<[DINO_SPRITE_2 - DINO_POS_Y]
+  sta PTR_DINO_SPRITE
+  lda #>[DINO_SPRITE_2 - DINO_POS_Y]
+  sta PTR_DINO_SPRITE+1
+
+___swap_legs:
+  lda GAME_FLAGS
+  eor #FLAG_DINO_LEFT_LEG
+  sta GAME_FLAGS
+
+___end_legs_anim:
+
+  jmp __end_frame_setup
 
 ___in_splash_screen:
   lda FRAME_COUNT+1
@@ -209,8 +243,9 @@ ___in_splash_screen:
 
   ; do the dino blinking
   lda GAME_FLAGS
-  ora #%10000000            ; Remember, the Enable Ball bit is in the 7th-bit
+  ora #FLAG_DINO_BLINKING  ; Remember, the Enable Ball bit is in the 7th-bit
                             ; hence the flag for blinking is in the 7th bit
+
   dec FRAME_COUNT+1         ; Turn the 0-bit of FRAME_COUNT+1 off, so the
                             ; next frame does not enable blinking again
   sta GAME_FLAGS
@@ -231,6 +266,8 @@ ___skip_blink:
 
 ___skip_opening_eyes:
 
+__end_frame_setup:
+
 
   ; - - - - - - - - - - - -
   ; END FRAME SETUP/LOGIC
@@ -246,7 +283,7 @@ __vblank:
   sta VBLANK   ; Disables VBLANK (A=0)
 
   lda GAME_FLAGS             ; if the splash screen is enabled then jump to the
-  and #ENABLE_SPLASH_SCREEN  ; splash screen kernel after disabling VBLANK
+  and #FLAG_SPLASH_SCREEN  ; splash screen kernel after disabling VBLANK
   beq game_kernel
   jmp splash_screen_kernel
 
