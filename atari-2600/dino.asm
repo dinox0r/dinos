@@ -65,6 +65,8 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
+ENABLE_SPLASH_SCREEN = #%00000001
+
 ;=============================================================================
 ; MEMORY / VARIABLES
 ;=============================================================================
@@ -77,7 +79,7 @@ DINO_COLOUR .byte          ; 1 (3) byte
 DINO_SPRITE .byte          ; 1 (4) byte
 DINO_SPRITE_OFFSET .byte   ; 1 (5) byte
 MISILE_P0 .byte            ; 1 (6) byte
-SPLASH_SCREEN_FLAGS .byte  ; 1 (7) byte
+GAME_FLAGS .byte           ; 1 (7) byte
 PTR_DINO_SPRITE .word      ; 2 (9) bytes
 PTR_DINO_OFFSET .word      ; 2 (11) bytes
 PTR_DINO_MIS .word         ; 2 (13) bytes
@@ -122,8 +124,9 @@ __clear_mem:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  lda #%00000000             ; 2 enable splash screen
-  sta SPLASH_SCREEN_FLAGS
+  ; lda #ENABLE_SPLASH_SCREEN  ; 2 enable splash screen
+  lda #0  ; disable splash screen 
+  sta GAME_FLAGS
   lda #DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
 
@@ -190,17 +193,27 @@ __vsync:
   lda DINO_COLOUR       ; dino sprite colour
   sta COLUP0
 
+  lda GAME_FLAGS
+  cmp #ENABLE_SPLASH_SCREEN
+  bne ___in_splash_screen
+
+  lda FRAME_COUNT
+  
+
+  jmp ___skip_opening_yes
+
+___in_splash_screen:
   lda FRAME_COUNT+1
   and #%00000001
   beq ___skip_blink
 
   ; do the dino blinking
-  lda SPLASH_SCREEN_FLAGS
+  lda GAME_FLAGS
   ora #%10000000            ; Remember, the Enable Ball bit is in the 7th-bit
                             ; hence the flag for blinking is in the 7th bit
   dec FRAME_COUNT+1         ; Turn the 0-bit of FRAME_COUNT+1 off, so the
                             ; next frame does not enable blinking again
-  sta SPLASH_SCREEN_FLAGS
+  sta GAME_FLAGS
   jmp ___skip_opening_eyes
 
 ___skip_blink:
@@ -212,11 +225,13 @@ ___skip_blink:
                              ; these 15 frames has passed, the eyes are then
                              ; opened
   bcc ___skip_opening_eyes
-  lda SPLASH_SCREEN_FLAGS
+  lda GAME_FLAGS
   and #%01111111
-  sta SPLASH_SCREEN_FLAGS
+  sta GAME_FLAGS
 
 ___skip_opening_eyes:
+
+
   ; - - - - - - - - - - - -
   ; END FRAME SETUP/LOGIC
   ; =======================
@@ -230,8 +245,8 @@ __vblank:
   sta WSYNC
   sta VBLANK   ; Disables VBLANK (A=0)
 
-  lda SPLASH_SCREEN_FLAGS  ; if the splash screen is enabled then jump to the
-  and #%00000001           ; splash screen kernel after disabling VBLANK
+  lda GAME_FLAGS             ; if the splash screen is enabled then jump to the
+  and #ENABLE_SPLASH_SCREEN  ; splash screen kernel after disabling VBLANK
   beq game_kernel
   jmp splash_screen_kernel
 
@@ -546,7 +561,7 @@ _dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
   sta GRP0                              ; 3
   lda MISILE_P0                         ; 3
   sta ENAM0                             ; 3
-  and SPLASH_SCREEN_FLAGS               ; 3
+  and GAME_FLAGS               ; 3
   rol
   rol
   rol
@@ -652,6 +667,52 @@ DINO_SPRITE_1:
   .byte %11111110   ;  ███████ 
   .ds 1             ; <- this is to match the size of the pixel offsets table
 DINO_SPRITE_1_END = * ; * means 'here' or 'this'
+
+DINO_SPRITE_2:
+  .ds 1             ;
+  .byte %11000000   ;  ▒▒      
+  .byte %10000000   ;  ▒       
+  .byte %11000110   ;  ▒▒   ██ 
+  .byte %11101100   ;  ▒▒▒ ▒█  
+  .byte %11111111   ;  ▒▒▒▒▒▒██
+  .byte %11111111   ;  ▒▒▒▒▒▒██
+  .byte %11111111   ;  ▒▒▒▒▒███
+  .byte %11111101   ;  ▒▒▒███ █
+  .byte %11111111   ;  ▒▒▒█████
+  .byte %11111110   ;  ▒▒▒▒███ 
+  .byte %11111100   ;  ▒▒▒███  
+  .byte %11111111   ;  ▒▒██████
+  .byte %11111000   ;  ▒████   
+  .byte %11111111   ;  ████████
+  .byte %11111111   ;  ████████
+  .byte %11111111   ;  ████████
+  .byte %10111111   ;  █ ██████
+  .byte %11111110   ;  ███████ 
+  .ds 1             ;
+DINO_SPRITE_2_END = * 
+
+DINO_SPRITE_3:
+  .ds 1             ;
+  .byte %00000110   ;       ██ 
+  .byte %00000100   ;       █  
+  .byte %11000100   ;  ▒▒   █  
+  .byte %11101100   ;  ▒▒▒ ▒█  
+  .byte %11111111   ;  ▒▒▒▒▒▒██
+  .byte %11111111   ;  ▒▒▒▒▒▒██
+  .byte %11111111   ;  ▒▒▒▒▒███
+  .byte %11111101   ;  ▒▒▒███ █
+  .byte %11111111   ;  ▒▒▒█████
+  .byte %11111110   ;  ▒▒▒▒███ 
+  .byte %11111100   ;  ▒▒▒███  
+  .byte %11111111   ;  ▒▒██████
+  .byte %11111000   ;  ▒████   
+  .byte %11111111   ;  ████████
+  .byte %11111111   ;  ████████
+  .byte %11111111   ;  ████████
+  .byte %10111111   ;  █ ██████
+  .byte %11111110   ;  ███████ 
+  .ds 1             ;
+DINO_SPRITE_3_END = * 
 
 ;DINO_SPRITE_DEAD:
 ;  .ds 1             ;
