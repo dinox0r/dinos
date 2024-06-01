@@ -430,9 +430,10 @@ __cactus__end_of_1st_scanline:
   cpy #CACTUS_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
   bcs _cactus_area_sub_kernel                   ; 2/3
-
 _floor_sub_kernel:
-  ; 1st scanline ==============================================================
+  lda #87
+  sta COLUBK
+  ; 1st scanline SETUP ==============================================================
   tya                                   ; 2   A = current scanline (Y)
   sec                                   ; 2
   sbc DINO_TOP_Y                        ; 3 - A = X - DINO_TOP_Y
@@ -450,28 +451,34 @@ __floor__y_within_dino:
   lda (PTR_DINO_SPRITE),y               ; 5+
   sta DINO_SPRITE                       ; 3
 
-  ; graphics offset
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta HMP0                              ; 3
-
 
 __floor__end_of_1st_scanline:
   sta WSYNC                             ; 3
   sta HMOVE                             ; 3
 
   ; 2nd scanline ==============================================================
+
+  lda #%01110000
+  sta PF0
+  lda #%00111111
+  sta PF1
+  lda #255
+  sta PF2
   lda DINO_COLOUR
-  sta COLUBK
+  sta COLUPF
+
+;lda DINO_COLOUR
+;  sta COLUBK
 
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  sta GRP0                              ; 3
+  ;sta GRP0                              ; 3
 
-  ldx BG_COLOUR
-  lda DINO_COLOUR
-  stx COLUBK
-  sta COLUBK
+;ldx BG_COLOUR
+;  lda DINO_COLOUR
+;  stx COLUBK
+;  sta COLUBK
 
   INSERT_NOPS 12                        ; 24
   sta HMCLR
@@ -483,6 +490,11 @@ __floor__end_of_1st_scanline:
 _ground_area_sub_kernel:
   lda BG_COLOUR
   sta COLUBK
+
+  lda #0
+  sta PF0
+  sta PF1
+  sta PF2
 
   ; 1st scanline ==============================================================
   tya                                   ; 2   A = current scanline (Y)
@@ -526,7 +538,7 @@ __ground__end_of_1st_scanline:
   dey                                   ; 2
   cpy #GROUND_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
-  bcs _ground_area_sub_kernel                   ; 2/3
+  bcs _ground_area_sub_kernel           ; 2/3
 
 
 _void_sub_kernel:
@@ -543,7 +555,7 @@ _void_sub_kernel:
 splash_screen_kernel:
   DEBUG_SUB_KERNEL #$7A,#35
 
-_dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------
+__splash__dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------
   lda BG_COLOUR    ; 3
   sta COLUBK       ; 3
 
@@ -568,7 +580,7 @@ _dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------
 
   sta WSYNC             ; 3
 
-_dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
+__splash__dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
 
   ; 1st scanline (setup) ======================================================
   INSERT_NOPS 5                        ; 10 add some 'distance' between the last
@@ -612,7 +624,7 @@ _dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
   sta HMOVE                             ; 3
 
   dey                                   ; 2
-  bne _dino_sub_kernel                   ; 2/3
+  bne __splash__dino_sub_kernel                   ; 2/3
 
   lda #0
   sta GRP0
