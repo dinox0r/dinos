@@ -458,22 +458,25 @@ __floor__end_of_1st_scanline:
 
   ; 2nd scanline ==============================================================
 
-  lda #%01110000
-  sta PF0
-  lda #%00111111
-  sta PF1
-  lda #255
-  sta PF2
   lda DINO_COLOUR
   sta COLUPF
-
-;lda DINO_COLOUR
-;  sta COLUBK
+  lda #%01110000
+  sta PF0
 
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
   ;sta GRP0                              ; 3
+
+  lda #%00111111
+  sta PF1
+
+  lda #255
+  sta PF2
+
+;lda DINO_COLOUR
+;  sta COLUBK
+
 
 ;ldx BG_COLOUR
 ;  lda DINO_COLOUR
