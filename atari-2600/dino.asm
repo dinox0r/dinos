@@ -69,6 +69,11 @@ FLAG_DINO_BLINKING = #%10000000
 FLAG_DINO_LEFT_LEG = #%00000010
 FLAG_SPLASH_SCREEN = #%00000001
 
+DINO_JUMP_INITIAL_SPEED_1 = #40
+DINO_JUMP_INITIAL_SPEED_2 = #0
+DINO_JUMP_ACCEL_1 = #0
+DINO_JUMP_ACCEL_2 = #98
+
 ;=============================================================================
 ; MEMORY / VARIABLES
 ;=============================================================================
@@ -87,6 +92,8 @@ PTR_DINO_OFFSET .word      ; 2 (11) bytes
 PTR_DINO_MIS .word         ; 2 (13) bytes
 RND_SEED .word             ; 2 (15) bytes
 FRAME_COUNT .word          ; 2 (17) bytes
+DINO_SPEED_Y .word         ; 2 (19) bytes
+DINO_ACCEL_Y .word         ; 2 (21) bytes
 
 ; About GAME_FLAGS
 ; bit 0: ON - splash screen mode / OFF - game mode
@@ -205,6 +212,7 @@ __start_frame_setup:
   bit GAME_FLAGS
   bne ___in_splash_screen
 
+  ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
   and #%00000111             ; animation
   cmp #7                     ;
@@ -265,6 +273,20 @@ ___skip_blink:
   sta GAME_FLAGS
 
 ___skip_opening_eyes:
+
+  ; Check Joystick for Jump
+
+  lda #%00100000
+  bit SWCHA
+  beq __on_button_down
+  lsr
+  bit SWCHA
+  beq __on_button_up
+  jmp __end_frame_setup
+
+__on_button_up:
+
+__on_button_down:
 
 __end_frame_setup:
 
