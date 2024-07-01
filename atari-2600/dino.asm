@@ -50,7 +50,7 @@ RND_MEM_LOC_2 = $e5   ; bytes when the machine starts. Hopefully this finds
 
 BKG_LIGHT_GRAY = #13
 DINO_HEIGHT = #20
-DINO_POS_Y = #8
+INITIAL_DINO_POS_Y = #8
 
 SKY_LINES = #31
 CACTUS_LINES = #31
@@ -67,6 +67,7 @@ GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
 FLAG_DINO_BLINKING = #%10000000
 FLAG_DINO_LEFT_LEG = #%00000010
+FLAG_DINO_JUMPING =  #%00000100
 FLAG_SPLASH_SCREEN = #%00000001
 
 DINO_JUMP_INITIAL_SPEED_1 = #40
@@ -94,7 +95,7 @@ RND_SEED .word             ; 2 (15) bytes
 FRAME_COUNT .word          ; 2 (17) bytes
 DINO_SPEED_Y .word         ; 2 (19) bytes
 DINO_ACCEL_Y .word         ; 2 (21) bytes
-
+DINO_JUMPING_FRAMES .byte  ; 1 (22) bytes
 ; About GAME_FLAGS
 ; bit 0: ON - splash screen mode / OFF - game mode
 ; bit 1: ON/OFF - in game mode dino left/right leg up sprite
@@ -141,7 +142,7 @@ __clear_mem:
   ; lda #FLAG_SPLASH_SCREEN  ; 2 enable splash screen
   lda #0  ; disable splash screen 
   sta GAME_FLAGS
-  lda #DINO_POS_Y+#DINO_HEIGHT
+  lda #INITIAL_DINO_POS_Y+#DINO_HEIGHT
   sta DINO_TOP_Y
 
   lda #3
@@ -149,19 +150,19 @@ __clear_mem:
   lda #BKG_LIGHT_GRAY
   sta BG_COLOUR
 
-  lda #<[DINO_SPRITE_1 - DINO_POS_Y]
+  lda #<[DINO_SPRITE_1 - INITIAL_DINO_POS_Y]
   sta PTR_DINO_SPRITE
-  lda #>[DINO_SPRITE_1 - DINO_POS_Y]
+  lda #>[DINO_SPRITE_1 - INITIAL_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-  lda #<[DINO_SPRITE_1_OFFSET - DINO_POS_Y]
+  lda #<[DINO_SPRITE_1_OFFSET - INITIAL_DINO_POS_Y]
   sta PTR_DINO_OFFSET
-  lda #>[DINO_SPRITE_1_OFFSET - DINO_POS_Y]
+  lda #>[DINO_SPRITE_1_OFFSET - INITIAL_DINO_POS_Y]
   sta PTR_DINO_OFFSET+1
 
-  lda #<[DINO_MIS_OFFSET - DINO_POS_Y]
+  lda #<[DINO_MIS_OFFSET - INITIAL_DINO_POS_Y]
   sta PTR_DINO_MIS
-  lda #>[DINO_MIS_OFFSET - DINO_POS_Y]
+  lda #>[DINO_MIS_OFFSET - INITIAL_DINO_POS_Y]
   sta PTR_DINO_MIS+1
 
 ;=============================================================================
@@ -212,6 +213,22 @@ __start_frame_setup:
   bit GAME_FLAGS
   bne ___in_splash_screen
 
+  ; Dino jump update
+  lda #FLAG_DINO_JUMPING
+  bit GAME_FLAGS
+  beq ___update_leg_anim
+  dec DINO_JUMPING_FRAMES
+  bne 
+  clc
+  lda #DINO_TOP_Y
+  adc #<DINO_SPEED_Y
+
+  ; update vy = vy + acc_y
+
+
+  jmp ___end_legs_anim
+
+___update_leg_anim:
   ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
   and #%00000111             ; animation
@@ -222,17 +239,17 @@ __start_frame_setup:
   bit GAME_FLAGS
   beq ___right_leg
 
-  lda #<[DINO_SPRITE_3 - DINO_POS_Y]
+  lda #<[DINO_SPRITE_3 - INITIAL_DINO_POS_Y]
   sta PTR_DINO_SPRITE
-  lda #>[DINO_SPRITE_3 - DINO_POS_Y]
+  lda #>[DINO_SPRITE_3 - INITIAL_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
   jmp ___swap_legs
 
 ___right_leg:
-  lda #<[DINO_SPRITE_2 - DINO_POS_Y]
+  lda #<[DINO_SPRITE_2 - INITIAL_DINO_POS_Y]
   sta PTR_DINO_SPRITE
-  lda #>[DINO_SPRITE_2 - DINO_POS_Y]
+  lda #>[DINO_SPRITE_2 - INITIAL_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
 ___swap_legs:
