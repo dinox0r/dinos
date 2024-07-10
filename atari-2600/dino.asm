@@ -65,15 +65,22 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
-FLAG_DINO_BLINKING = #%10000000
-FLAG_DINO_LEFT_LEG = #%00000010
-FLAG_DINO_JUMPING =  #%00000100
-FLAG_SPLASH_SCREEN = #%00000001
-
 DINO_JUMP_INIT_VY_INT = #0
 DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #98
+
+;=============================================================================
+; GAME_FLAGS
+;=============================================================================
+; bit 0: 1 -> splash screen mode / 0 -> game mode
+; bit 1: in game mode dino left/right leg up sprite
+; bit 2: in game mode dino jumping ON / OFF
+; bit 7: in splash screen mode, dino blinking ON / OFF
+FLAG_DINO_BLINKING = #%10000000
+FLAG_DINO_LEFT_LEG = #%00000010
+FLAG_DINO_JUMPING =  #%00000100
+FLAG_SPLASH_SCREEN = #%00000001
 
 ;=============================================================================
 ; MEMORY / VARIABLES
@@ -81,28 +88,21 @@ DINO_JUMP_ACCEL_FRACT = #98
   SEG.U variables
   ORG $80
 
-DINO_TOP_Y_INT .byte       ; 1 byte   (1)
-DINO_TOP_Y_FRACT .byte     ; 1 byte   (2)
-BG_COLOUR .byte            ; 1 byte   (3)
-DINO_COLOUR .byte          ; 1 byte   (4)
-DINO_SPRITE .byte          ; 1 byte   (5)
+DINO_TOP_Y_INT     .byte   ; 1 byte   (1)
+DINO_TOP_Y_FRACT   .byte   ; 1 byte   (2)
+BG_COLOUR          .byte   ; 1 byte   (3)
+DINO_COLOUR        .byte   ; 1 byte   (4)
+DINO_SPRITE        .byte   ; 1 byte   (5)
 DINO_SPRITE_OFFSET .byte   ; 1 byte   (6)
-MISILE_P0 .byte            ; 1 byte   (7)
-GAME_FLAGS .byte           ; 1 byte   (9)
-PTR_DINO_SPRITE .word      ; 2 bytes  (11)
-PTR_DINO_OFFSET .word      ; 2 bytes  (13)
-PTR_DINO_MIS .word         ; 2 bytes  (15)
-RND_SEED .word             ; 2 bytes  (17)
-FRAME_COUNT .word          ; 2 bytes  (19)
-DINO_VY .word              ; 2 bytes  (21)
-
-;=============================================================================
-; About GAME_FLAGS
-;=============================================================================
-; bit 0: 1 -> splash screen mode / 0 -> game mode
-; bit 1: in game mode dino left/right leg up sprite
-; bit 2: in game mode dino jumping ON / OFF
-; bit 7: in splash screen mode, dino blinking ON / OFF
+MISILE_P0          .byte   ; 1 byte   (7)
+GAME_FLAGS         .byte   ; 1 byte   (9)
+PTR_DINO_SPRITE    .word   ; 2 bytes  (11)
+PTR_DINO_OFFSET    .word   ; 2 bytes  (13)
+PTR_DINO_MIS       .word   ; 2 bytes  (15)
+RND_SEED           .word   ; 2 bytes  (17)
+FRAME_COUNT        .word   ; 2 bytes  (19)
+DINO_VY_INT        .byte   ;
+DINO_VY_FRACT      .byte   ; 2 bytes  (21)
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -158,14 +158,14 @@ __clear_mem:
   lda #>[DINO_SPRITE_1 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-  lda #<[DINO_SPRITE_1_OFFSET - INIT_DINO_POS_Y]
+  lda #<[DINO_SPRITE1_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_OFFSET
-  lda #>[DINO_SPRITE_1_OFFSET - INIT_DINO_POS_Y]
+  lda #>[DINO_SPRITE1_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_OFFSET+1
 
-  lda #<[DINO_MIS_OFFSET - INIT_DINO_POS_Y]
+  lda #<[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_MIS
-  lda #>[DINO_MIS_OFFSET - INIT_DINO_POS_Y]
+  lda #>[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_MIS+1
 
 ;=============================================================================
@@ -220,14 +220,20 @@ __start_frame_setup:
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
   beq ___update_leg_anim
+
+__dino_jump_update:
   ; update dino_y <- dino_y - vy
   clc
   lda #DINO_TOP_Y_FRACT
   adc #DINO_VY_FRACT
-  sta DINO_VY_FRACT
+  sta DINO_TOP_Y_FRACT
   lda #DINO_TOP_Y_INT
   adc #DINO_VY_INT
-  sta DINO_VY_INT
+  sta DINO_TOP_Y_INT
+
+  ; TO DO: Here check if DINO_TOP_Y_INT > DINO_INIT_Y and turn off jumping
+  cmp #INIT_DINO_POS_Y
+  bcs __jump_finished
 
   ; update vy = vy + acc_y
   clc
@@ -237,6 +243,24 @@ __start_frame_setup:
   lda #DINO_VY_INT
   adc #DINO_JUMP_ACCEL_INT
   sta DINO_VY_FRACT
+
+  lda #<[DINO_SPRITE_1 - DINO_VY_INT]
+  sta PTR_DINO_SPRITE
+  lda #>[DINO_SPRITE_1 - DINO_VY_INT]
+  sta PTR_DINO_SPRITE+1
+
+  lda #<[DINO_SPRITE1_OFFSETS - DINO_VY_INT]
+  sta PTR_DINO_OFFSET
+  lda #>[DINO_SPRITE1_OFFSETS - DINO_VY_INT]
+  sta PTR_DINO_OFFSET+1
+
+  lda #<[DINO_MIS_OFFSETS - DINO_VY_INT]
+  sta PTR_DINO_MIS
+  lda #>[DINO_MIS_OFFSETS - DINO_VY_INT]
+  sta PTR_DINO_MIS+1
+
+__jump_finished:
+  ; next frame the legs will start moving
 
   jmp ___end_legs_anim
 
@@ -314,6 +338,15 @@ ___skip_opening_eyes:
   jmp __end_frame_setup
 
 __on_button_up:
+  lda GAME_FLAGS
+  eor #FLAG_DINO_JUMPING
+  sta GAME_FLAGS
+
+  ; inititalize jumping velocity integer and fractional part (fixed point)
+  lda #DINO_JUMP_INIT_VY_INT
+  sta DINO_VY_INT
+  lda #DINO_JUMP_INIT_VY_FRACT
+  sta DINO_VY_FRACT
 
 __on_button_down:
 
@@ -333,7 +366,7 @@ __vblank:
   sta WSYNC
   sta VBLANK   ; Disables VBLANK (A=0)
 
-  lda GAME_FLAGS             ; if the splash screen is enabled then jump to the
+  lda GAME_FLAGS           ; if the splash screen is enabled then jump to the
   and #FLAG_SPLASH_SCREEN  ; splash screen kernel after disabling VBLANK
   beq game_kernel
   jmp splash_screen_kernel
@@ -641,7 +674,7 @@ __splash__dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<--------
                                        ; sta HMOVE (has to be 24+ cycles)
   lda DINO_SPRITE_1-#1,y               ; 4
   sta DINO_SPRITE                      ; 3
-  lda DINO_MIS_OFFSET-#1,y             ; 4
+  lda DINO_MIS_OFFSETS-#1,y            ; 4
 
   ; missile
   sta MISILE_P0                        ; 3
@@ -650,7 +683,7 @@ __splash__dino_sub_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<--------
   asl                                  ; 2
   sta NUSIZ0                           ; 3
 
-  lda DINO_SPRITE_1_OFFSET-#1,y        ; 4
+  lda DINO_SPRITE1_OFFSETS-#1,y        ; 4
   sta HMP0                             ; 3
 
   ;sta HMBL
@@ -839,7 +872,7 @@ DINO_SPRITE_3_END = *
 ;  .byte %10111110   ;  █ █████
 ;  .ds 1
 
-DINO_SPRITE_1_OFFSET:
+DINO_SPRITE1_OFFSETS:
 ;       LEFT  <---------------------------------------------------------> RIGHT
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
@@ -897,7 +930,7 @@ DINO_SPRITE_1_OFFSET:
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-DINO_MIS_OFFSET:
+DINO_MIS_OFFSETS:
                   ;                        offset           size
   .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
   .byte %00000000 ; |   ██   |██      |       0                0
