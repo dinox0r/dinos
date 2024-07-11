@@ -82,6 +82,9 @@ FLAG_DINO_LEFT_LEG = #%00000010
 FLAG_DINO_JUMPING =  #%00000100
 FLAG_SPLASH_SCREEN = #%00000001
 
+TOGGLE_FLAG_DINO_BLINKING_OFF = #%01111111
+TOGGLE_FLAG_DINO_JUMPING_OFF = #%11111011
+
 ;=============================================================================
 ; MEMORY / VARIABLES
 ;=============================================================================
@@ -212,6 +215,32 @@ __start_frame_setup:
   lda DINO_COLOUR       ; dino sprite colour
   sta COLUP0
 
+  ; Check Joystick for Jump
+__check_joystick:
+  lda #%00100000
+  bit SWCHA
+  beq __on_joystick_down
+  lsr
+  bit SWCHA
+  bne __on_joystick_down
+
+__on_joystick_up:
+  lda GAME_FLAGS
+  ora #FLAG_DINO_JUMPING
+  sta GAME_FLAGS
+
+  ; inititalize jumping velocity integer and fractional part (fixed point)
+  lda #DINO_JUMP_INIT_VY_INT
+  sta DINO_VY_INT
+  lda #DINO_JUMP_INIT_VY_FRACT
+  sta DINO_VY_FRACT
+  jmp __end_check_joystick
+
+__on_joystick_down:
+  ; TO DO:
+
+__end_check_joystick:
+
   lda #FLAG_SPLASH_SCREEN
   bit GAME_FLAGS
   bne ___in_splash_screen
@@ -221,26 +250,26 @@ __start_frame_setup:
   bit GAME_FLAGS
   beq ___update_leg_anim
 
-__dino_jump_update:
+__jump_update:
   ; update dino_y <- dino_y - vy
   clc
-  lda #DINO_TOP_Y_FRACT
+  lda DINO_TOP_Y_FRACT
   adc #DINO_VY_FRACT
   sta DINO_TOP_Y_FRACT
-  lda #DINO_TOP_Y_INT
+  lda DINO_TOP_Y_INT
   adc #DINO_VY_INT
   sta DINO_TOP_Y_INT
 
-  ; TO DO: Here check if DINO_TOP_Y_INT > DINO_INIT_Y and turn off jumping
+  ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
   cmp #INIT_DINO_POS_Y
-  bcs __jump_finished
+  bcs __end_jump
 
   ; update vy = vy + acc_y
   clc
-  lda #DINO_VY_FRACT
+  lda DINO_VY_FRACT
   adc #DINO_JUMP_ACCEL_FRACT
   sta DINO_VY_FRACT
-  lda #DINO_VY_INT
+  lda DINO_VY_INT
   adc #DINO_JUMP_ACCEL_INT
   sta DINO_VY_FRACT
 
@@ -259,7 +288,18 @@ __dino_jump_update:
   lda #>[DINO_MIS_OFFSETS - DINO_VY_INT]
   sta PTR_DINO_MIS+1
 
-__jump_finished:
+__end_jump:
+  ; Restore dino-y position to the original
+  lda #INIT_DINO_POS_Y
+  sta DINO_TOP_Y_INT
+  lda #0
+  sta DINO_TOP_Y_FRACT
+
+  ; turn off the jumping flag
+  lda GAME_FLAGS
+  and #TOGGLE_FLAG_DINO_JUMPING_OFF
+  sta GAME_FLAGS
+
   ; next frame the legs will start moving
 
   jmp ___end_legs_anim
@@ -322,33 +362,10 @@ ___skip_blink:
                              ; opened
   bcc ___skip_opening_eyes
   lda GAME_FLAGS
-  and #%01111111
+  and #TOGGLE_FLAG_DINO_BLINKING_OFF
   sta GAME_FLAGS
 
 ___skip_opening_eyes:
-
-  ; Check Joystick for Jump
-
-  lda #%00100000
-  bit SWCHA
-  beq __on_button_down
-  lsr
-  bit SWCHA
-  beq __on_button_up
-  jmp __end_frame_setup
-
-__on_button_up:
-  lda GAME_FLAGS
-  eor #FLAG_DINO_JUMPING
-  sta GAME_FLAGS
-
-  ; inititalize jumping velocity integer and fractional part (fixed point)
-  lda #DINO_JUMP_INIT_VY_INT
-  sta DINO_VY_INT
-  lda #DINO_JUMP_INIT_VY_FRACT
-  sta DINO_VY_FRACT
-
-__on_button_down:
 
 __end_frame_setup:
 
