@@ -51,6 +51,7 @@ RND_MEM_LOC_2 = $e5   ; bytes when the machine starts. Hopefully this finds
 BKG_LIGHT_GRAY = #13
 DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
+INIT_DINO_TOP_Y = #INIT_DINO_POS_Y+#DINO_HEIGHT
 
 SKY_LINES = #31
 CACTUS_LINES = #31
@@ -148,7 +149,7 @@ __clear_mem:
   ; lda #FLAG_SPLASH_SCREEN  ; 2 enable splash screen
   lda #0  ; disable splash screen 
   sta GAME_FLAGS
-  lda #INIT_DINO_POS_Y+#DINO_HEIGHT
+  lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
 
   lda #3
@@ -254,25 +255,32 @@ __jump_update:
   ; update dino_y <- dino_y - vy
   clc
   lda DINO_TOP_Y_FRACT
-  adc #DINO_VY_FRACT
+  adc DINO_VY_FRACT
   sta DINO_TOP_Y_FRACT
   lda DINO_TOP_Y_INT
-  adc #DINO_VY_INT
+  adc DINO_VY_INT
   sta DINO_TOP_Y_INT
 
   ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
-  cmp #INIT_DINO_POS_Y
+  cmp #INIT_DINO_TOP_Y+1
   bcs __end_jump
 
   ; update vy = vy + acc_y
   clc
+  ; Update the fractional part
   lda DINO_VY_FRACT
   adc #DINO_JUMP_ACCEL_FRACT
   sta DINO_VY_FRACT
+  ; Update the integer part
   lda DINO_VY_INT
   adc #DINO_JUMP_ACCEL_INT
-  sta DINO_VY_FRACT
+  sta DINO_VY_INT
 
+  ; the following assumes DINO_SPRITE_1 does not cross page boundary
+  sec
+  lda #DINO_SPRITE_1
+  sbc DINO_VY_INT
+  
   lda #<[DINO_SPRITE_1 - DINO_VY_INT]
   sta PTR_DINO_SPRITE
   lda #>[DINO_SPRITE_1 - DINO_VY_INT]
@@ -290,7 +298,7 @@ __jump_update:
 
 __end_jump:
   ; Restore dino-y position to the original
-  lda #INIT_DINO_POS_Y
+  lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
   lda #0
   sta DINO_TOP_Y_FRACT
