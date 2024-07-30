@@ -208,7 +208,7 @@ __vsync:
 
   ; =======================
   ; BEGIN FRAME SETUP/LOGIC
-  ; - - - - - - - - - - - -
+  ; - - - - - - - - - - - - - - - - - - - - - - - -
 __start_frame_setup:
   lda #BKG_LIGHT_GRAY   ;
   sta COLUBK            ; Set initial background
@@ -244,12 +244,11 @@ __end_check_joystick:
 
   lda #FLAG_SPLASH_SCREEN
   bit GAME_FLAGS
-  bne ___in_splash_screen
+  bne __in_splash_screen
 
   ; Dino jump update
-  lda #FLAG_DINO_JUMPING
-  bit GAME_FLAGS
-  beq ___update_leg_anim
+  lda #FLAG_DINO_JUMPING bit GAME_FLAGS
+  beq __update_leg_anim
 
 __jump_update:
   ; update dino_y <- dino_y - vy
@@ -263,7 +262,7 @@ __jump_update:
 
   ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
   cmp #INIT_DINO_TOP_Y+1
-  bcs __end_jump
+  bcs __finish_jump
 
   ; update vy = vy + acc_y
   clc
@@ -296,7 +295,7 @@ __jump_update:
   lda #>[DINO_MIS_OFFSETS - DINO_VY_INT]
   sta PTR_DINO_MIS+1
 
-__end_jump:
+__finish_jump:
   ; Restore dino-y position to the original
   lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
@@ -312,7 +311,7 @@ __end_jump:
 
   jmp ___end_legs_anim
 
-___update_leg_anim:
+__update_leg_anim:
   ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
   and #%00000111             ; animation
@@ -345,10 +344,10 @@ ___end_legs_anim:
 
   jmp __end_frame_setup
 
-___in_splash_screen:
+__in_splash_screen:
   lda FRAME_COUNT+1
   and #%00000001
-  beq ___skip_blink
+  beq __skip_blink
 
   ; do the dino blinking
   lda GAME_FLAGS
@@ -360,7 +359,7 @@ ___in_splash_screen:
   sta GAME_FLAGS
   jmp ___skip_opening_eyes
 
-___skip_blink:
+__skip_blink:
   ; if dino's eyes are closed then check if we should open them
   lda FRAME_COUNT
   cmp #14                    ; 14 frames (actually 15 because is 0 index)
@@ -378,7 +377,7 @@ ___skip_opening_eyes:
 __end_frame_setup:
 
 
-  ; - - - - - - - - - - - -
+  ; - - - - - - - - - - - - - - - - - - - - - - - -
   ; END FRAME SETUP/LOGIC
   ; =======================
 
