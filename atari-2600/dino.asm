@@ -238,7 +238,7 @@ __on_joystick_up:
   jmp __end_check_joystick
 
 __on_joystick_down:
-  ; TO DO:
+  ; TODO(future): implement crouching
 
 __end_check_joystick:
 
@@ -247,7 +247,8 @@ __end_check_joystick:
   bne __in_splash_screen
 
   ; Dino jump update
-  lda #FLAG_DINO_JUMPING bit GAME_FLAGS
+  lda #FLAG_DINO_JUMPING 
+  bit GAME_FLAGS
   beq __update_leg_anim
 
 __jump_update:
@@ -278,21 +279,33 @@ __jump_update:
   ; the following assumes DINO_SPRITE_1 does not cross page boundary
   sec
   lda #DINO_SPRITE_1
-  sbc DINO_VY_INT
-  
-  lda #<[DINO_SPRITE_1 - DINO_VY_INT]
+  sbc DINO_TOP_Y_INT
   sta PTR_DINO_SPRITE
-  lda #>[DINO_SPRITE_1 - DINO_VY_INT]
+  lda #DINO_SPRITE_1+1
+  sbc #0
+
+  sec
+  lda #DINO_SPRITE1_OFFSETS
+  sbc DINO_TOP_Y_INT
+  sta PTR_DINO_SPRITE
+  lda #DINO_SPRITE1_OFFSETS+1
+  sbc #0
   sta PTR_DINO_SPRITE+1
 
-  lda #<[DINO_SPRITE1_OFFSETS - DINO_VY_INT]
+  sec
+  lda #DINO_SPRITE1_OFFSETS
+  sbc DINO_TOP_Y_INT
   sta PTR_DINO_OFFSET
-  lda #>[DINO_SPRITE1_OFFSETS - DINO_VY_INT]
+  lda #DINO_SPRITE1_OFFSETS+1
+  sbc #0
   sta PTR_DINO_OFFSET+1
 
-  lda #<[DINO_MIS_OFFSETS - DINO_VY_INT]
+  sec
+  lda #DINO_MIS_OFFSETS
+  sbc DINO_TOP_Y_INT
   sta PTR_DINO_MIS
-  lda #>[DINO_MIS_OFFSETS - DINO_VY_INT]
+  lda #DINO_MIS_OFFSETS+1
+  sbc #0
   sta PTR_DINO_MIS+1
 
 __finish_jump:
@@ -316,31 +329,31 @@ __update_leg_anim:
   lda FRAME_COUNT            ; Check if is time to update dino's legs
   and #%00000111             ; animation
   cmp #7                     ;
-  bne ___end_legs_anim       ;
+  bne __end_legs_anim       ;
 
   lda #FLAG_DINO_LEFT_LEG    ; Check which leg is up, and swap
   bit GAME_FLAGS
-  beq ___right_leg
+  beq __right_leg
 
   lda #<[DINO_SPRITE_3 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE
   lda #>[DINO_SPRITE_3 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-  jmp ___swap_legs
+  jmp __swap_legs
 
-___right_leg:
+__right_leg:
   lda #<[DINO_SPRITE_2 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE
   lda #>[DINO_SPRITE_2 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-___swap_legs:
+__swap_legs:
   lda GAME_FLAGS
   eor #FLAG_DINO_LEFT_LEG
   sta GAME_FLAGS
 
-___end_legs_anim:
+__end_legs_anim:
 
   jmp __end_frame_setup
 
@@ -367,12 +380,12 @@ __skip_blink:
                              ; pause that looked better for the blinking. After
                              ; these 15 frames has passed, the eyes are then
                              ; opened
-  bcc ___skip_opening_eyes
+  bcc __skip_opening_eyes
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DINO_BLINKING_OFF
   sta GAME_FLAGS
 
-___skip_opening_eyes:
+__skip_opening_eyes:
 
 __end_frame_setup:
 
