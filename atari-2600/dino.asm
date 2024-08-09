@@ -244,8 +244,10 @@ __end_check_joystick:
 
   lda #FLAG_SPLASH_SCREEN
   bit GAME_FLAGS
-  bne __in_splash_screen
+  beq __in_grame_screen
+  jmp __in_splash_screen
 
+__in_grame_screen:
   ; Dino jump update
   lda #FLAG_DINO_JUMPING 
   bit GAME_FLAGS
@@ -278,33 +280,33 @@ __jump_update:
 
   ; the following assumes DINO_SPRITE_1 does not cross page boundary
   sec
-  lda #DINO_SPRITE_1
+  lda #<DINO_SPRITE_1
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_SPRITE
-  lda #DINO_SPRITE_1+1
+  lda #>DINO_SPRITE_1
   sbc #0
 
   sec
-  lda #DINO_SPRITE1_OFFSETS
+  lda #<DINO_SPRITE1_OFFSETS
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_SPRITE
-  lda #DINO_SPRITE1_OFFSETS+1
+  lda #>DINO_SPRITE1_OFFSETS
   sbc #0
   sta PTR_DINO_SPRITE+1
 
   sec
-  lda #DINO_SPRITE1_OFFSETS
+  lda #<DINO_SPRITE1_OFFSETS
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_OFFSET
-  lda #DINO_SPRITE1_OFFSETS+1
+  lda #>DINO_SPRITE1_OFFSETS
   sbc #0
   sta PTR_DINO_OFFSET+1
 
   sec
-  lda #DINO_MIS_OFFSETS
+  lda #<DINO_MIS_OFFSETS
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_MIS
-  lda #DINO_MIS_OFFSETS+1
+  lda #>DINO_MIS_OFFSETS
   sbc #0
   sta PTR_DINO_MIS+1
 
@@ -322,7 +324,7 @@ __finish_jump:
 
   ; next frame the legs will start moving
 
-  jmp ___end_legs_anim
+  jmp __end_legs_anim
 
 __update_leg_anim:
   ; Dino leg animation
@@ -370,7 +372,7 @@ __in_splash_screen:
   dec FRAME_COUNT+1         ; Turn the 0-bit of FRAME_COUNT+1 off, so the
                             ; next frame does not enable blinking again
   sta GAME_FLAGS
-  jmp ___skip_opening_eyes
+  jmp __skip_opening_eyes
 
 __skip_blink:
   ; if dino's eyes are closed then check if we should open them
