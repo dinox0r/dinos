@@ -280,33 +280,26 @@ __jump_update:
 
   ; the following assumes DINO_SPRITE_1 does not cross page boundary
   sec
-  lda #<DINO_SPRITE_1
+  lda #<DINO_SPRITE_1_END
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_SPRITE
-  lda #>DINO_SPRITE_1
-  sbc #0
-
-  sec
-  lda #<DINO_SPRITE1_OFFSETS
-  sbc DINO_TOP_Y_INT
-  sta PTR_DINO_SPRITE
-  lda #>DINO_SPRITE1_OFFSETS
+  lda #>DINO_SPRITE_1_END
   sbc #0
   sta PTR_DINO_SPRITE+1
 
   sec
-  lda #<DINO_SPRITE1_OFFSETS
+  lda #<DINO_SPRITE1_OFFSETS_END
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_OFFSET
-  lda #>DINO_SPRITE1_OFFSETS
+  lda #>DINO_SPRITE1_OFFSETS_END
   sbc #0
   sta PTR_DINO_OFFSET+1
 
   sec
-  lda #<DINO_MIS_OFFSETS
+  lda #<DINO_MIS_OFFSETS_END
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_MIS
-  lda #>DINO_MIS_OFFSETS
+  lda #>DINO_MIS_OFFSETS_END
   sbc #0
   sta PTR_DINO_MIS+1
 
@@ -887,7 +880,7 @@ DINO_SPRITE_3:
   .byte %10111111   ;  █ ██████
   .byte %11111110   ;  ███████ 
   .ds 1             ;
-DINO_SPRITE_3_END = * 
+DINO_SPRITE_3_END = *
 
 ;DINO_SPRITE_DEAD:
 ;  .ds 1             ;
@@ -935,6 +928,7 @@ DINO_SPRITE1_OFFSETS:
   .byte $00  ;  █ ██████   |   0
   .byte $10  ;  ███████    |   0 <<< push all the pixels to the left one time
   .ds 1      ;                       to stitch with the missiles
+DINO_SPRITE1_OFFSETS_END = *
 
 ; DINO MISSILE OFFSET
 ;
@@ -993,6 +987,7 @@ DINO_MIS_OFFSETS:
   .ds 1; ^
   ;      |
   ;      + enable the ball when this bit is ON
+DINO_MIS_OFFSETS_END = *
 
 ;=============================================================================
 ; ROM SETUP
