@@ -264,7 +264,7 @@ __jump_update:
   sta DINO_TOP_Y_INT
 
   ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
-  cmp #INIT_DINO_TOP_Y+1
+  cmp #INIT_DINO_TOP_Y-1
   bcs __finish_jump
 
   ; update vy = vy + acc_y
@@ -302,6 +302,7 @@ __jump_update:
   lda #>DINO_MIS_OFFSETS_END
   sbc #0
   sta PTR_DINO_MIS+1
+  jmp __end_legs_anim
 
 __finish_jump:
   ; Restore dino-y position to the original
