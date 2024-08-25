@@ -66,7 +66,7 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
-DINO_JUMP_INIT_VY_INT = #0
+DINO_JUMP_INIT_VY_INT = #3
 DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #98
@@ -264,18 +264,18 @@ __jump_update:
   sta DINO_TOP_Y_INT
 
   ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
-  cmp #INIT_DINO_TOP_Y-1
-  bcs __finish_jump
+  cmp #INIT_DINO_TOP_Y
+  bcc __finish_jump
 
   ; update vy = vy + acc_y
-  clc
+  sec
   ; Update the fractional part
   lda DINO_VY_FRACT
-  adc #DINO_JUMP_ACCEL_FRACT
+  sbc #DINO_JUMP_ACCEL_FRACT
   sta DINO_VY_FRACT
   ; Update the integer part
   lda DINO_VY_INT
-  adc #DINO_JUMP_ACCEL_INT
+  sbc #DINO_JUMP_ACCEL_INT
   sta DINO_VY_INT
 
   ; the following assumes DINO_SPRITE_1 does not cross page boundary
