@@ -226,8 +226,12 @@ __check_joystick:
   bne __on_joystick_down
 
 __on_joystick_up:
-  lda GAME_FLAGS
-  ora #FLAG_DINO_JUMPING
+  ; if it's already jumping, ignore
+  lda #FLAG_DINO_JUMPING
+  bit GAME_FLAGS
+  bne __end_check_joystick
+
+  ora GAME_FLAGS ; A <- A (=#FLAG_DINO_JUMPING) | GAME_FLAGS
   sta GAME_FLAGS
 
   ; inititalize jumping velocity integer and fractional part (fixed point)
