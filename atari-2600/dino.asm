@@ -66,7 +66,7 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
-DINO_JUMP_INIT_VY_INT = #3
+DINO_JUMP_INIT_VY_INT = #5
 DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #98
@@ -257,7 +257,7 @@ __in_grame_screen:
   bit GAME_FLAGS
   beq __update_leg_anim
 
-__jump_update:
+__jumping:
   ; update dino_y <- dino_y - vy
   clc
   lda DINO_TOP_Y_FRACT
@@ -269,8 +269,22 @@ __jump_update:
 
   ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
   cmp #INIT_DINO_TOP_Y
-  bcc __finish_jump
+  bcs __update_jump
 
+__finish_jump:
+  ; Restore dino-y position to the original
+  lda #INIT_DINO_TOP_Y
+  sta DINO_TOP_Y_INT
+  lda #0
+  sta DINO_TOP_Y_FRACT
+
+  ; turn off the jumping flag
+  lda GAME_FLAGS
+  and #TOGGLE_FLAG_DINO_JUMPING_OFF
+  sta GAME_FLAGS
+  jmp __update_jump_pos
+
+__update_jump:
   ; update vy = vy + acc_y
   sec
   ; Update the fractional part
@@ -282,6 +296,7 @@ __jump_update:
   sbc #DINO_JUMP_ACCEL_INT
   sta DINO_VY_INT
 
+__update_jump_pos:
   ; the following assumes DINO_SPRITE_1 does not cross page boundary
   sec
   lda #<DINO_SPRITE_1_END
@@ -306,22 +321,6 @@ __jump_update:
   lda #>DINO_MIS_OFFSETS_END
   sbc #0
   sta PTR_DINO_MIS+1
-  jmp __end_legs_anim
-
-__finish_jump:
-  ; Restore dino-y position to the original
-  lda #INIT_DINO_TOP_Y
-  sta DINO_TOP_Y_INT
-  lda #0
-  sta DINO_TOP_Y_FRACT
-
-  ; turn off the jumping flag
-  lda GAME_FLAGS
-  and #TOGGLE_FLAG_DINO_JUMPING_OFF
-  sta GAME_FLAGS
-
-  ; next frame the legs will start moving
-
   jmp __end_legs_anim
 
 __update_leg_anim:
