@@ -995,17 +995,24 @@ DINO_MIS_OFFSETS_END = *
 
 
 ; Crouching sprite diagram:
-; 
-;                                 GRP0   
+; Legend: ░ ball   ▓ missile 0   █ player 0  X collision
+;
+;                                 GRP0
 ;                              /-8 bits-\
 ;                              | ██████ |
-;                 ░  ▓▓▓▓▓▓▓▓  |██ █████|
-;                 ░░░░░XXX▓▓▓▓▓|████████|
-;                 ░░░░░XXX▓▓▓▓▓|████████|
-;                  ░░░░XXXX▓▓▓▓|████████|
-;                  ░░░░XXXX▓▓▓▓|████    |
-;                   ░░░XXXXX▓▓▓| █████  | 
-                        █       
+;                 ░  ▓▓▓▓▓▓▓▓  |██ █████|   <-- missile set to size 8
+;                 ░░░░░XXX▓▓▓▓▓|████████|   \
+;                 ░░░░░XXX▓▓▓▓▓|████████|   |  both ball and missile
+;                  ░░░░XXXX▓▓▓▓|████████|    > are set to size 8
+;                  ░░░░XXXX▓▓▓▓|████    |   |  in all these scan lines
+;                   ░░░XXXXX▓▓▓| █████  |   /
+;                   |███ ██  ▓▓   <-- missile set to size 2
+;                   |██   ██ |
+;                   |█       |
+;                   |██      |
+;                   |        |
+;                   \-8 bits-/
+;                      GRP0
 DINO_CROUCHING_GRP0:
   .ds 1 
 
