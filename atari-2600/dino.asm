@@ -997,25 +997,58 @@ DINO_MIS_OFFSETS_END = *
 ; Crouching sprite diagram:
 ; Legend: ░ ball   ▓ missile 0   █ player 0  X collision
 ;
+; 2 sub-kernels for crouching:
 ;                                 GRP0
 ;                              /-8 bits-\
-;                              | ██████ |
+; 1st sub-kernel:              | ██████ |
 ;                 ░  ▓▓▓▓▓▓▓▓  |██ █████|   <-- missile set to size 8
 ;                 ░░░░░XXX▓▓▓▓▓|████████|   \
 ;                 ░░░░░XXX▓▓▓▓▓|████████|   |  both ball and missile
 ;                  ░░░░XXXX▓▓▓▓|████████|    > are set to size 8
 ;                  ░░░░XXXX▓▓▓▓|████    |   |  in all these scan lines
 ;                   ░░░XXXXX▓▓▓| █████  |   /
-;                   |███ ██  ▓▓   <-- missile set to size 2
+; 2nd sub-kernel:   |███ ██  ▓▓   <-- missile set to size 2
 ;                   |██   ██ |
 ;                   |█       |
 ;                   |██      |
 ;                   |        |
 ;                   \-8 bits-/
 ;                      GRP0
-DINO_CROUCHING_GRP0:
-  .ds 1 
+; In the 1st sub-kernel, 3 objects are used, ball, m0 and p0
+; In the 2nd sub-kernel, only 2 objects are used, m0 and p0
+;
+; This is the sprite data for the 1st crouching sub-kernel:
+DINO_CROUCHING_GRP0_1:
+  .ds 1             |        |
+  .byte %11111111   | █████  |
+  .byte %11111111   |████    |
+  .byte %11111101   |████████|
+  .byte %11111111   |████████|
+  .byte %11111110   |████████|
+  .byte %11111100   |██ █████|
+  .byte %11111111   | ██████ |
+  .ds 1             |        |
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  .byte %11111111   ;  ████████
+  .byte %11111111   ;  ████████
+  .byte %10111111   ;  █ ██████
+  .byte %11111110   ;  ███████ 
+  .ds 1             ;
+DINO_SPRITE_3_END = *
 ;=============================================================================
 ; ROM SETUP
 ;=============================================================================
