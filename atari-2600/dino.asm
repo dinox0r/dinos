@@ -77,14 +77,17 @@ DINO_JUMP_ACCEL_FRACT = #98
 ; bit 0: 1 -> splash screen mode / 0 -> game mode
 ; bit 1: in game mode dino left/right leg up sprite
 ; bit 2: in game mode dino jumping ON / OFF
+; bit 4: in game mode dino crouching ON / OFF
 ; bit 7: in splash screen mode, dino blinking ON / OFF
-FLAG_DINO_BLINKING = #%10000000
-FLAG_DINO_LEFT_LEG = #%00000010
-FLAG_DINO_JUMPING =  #%00000100
-FLAG_SPLASH_SCREEN = #%00000001
+FLAG_DINO_BLINKING =  #%10000000
+FLAG_DINO_LEFT_LEG =  #%00000010
+FLAG_DINO_JUMPING =   #%00000100
+FLAG_SPLASH_SCREEN =  #%00000001
+FLAG_DINO_CROUCHING = #%00010000
 
-TOGGLE_FLAG_DINO_BLINKING_OFF = #%01111111
-TOGGLE_FLAG_DINO_JUMPING_OFF = #%11111011
+TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
+TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
+TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
 
 ;=============================================================================
 ; MEMORY / VARIABLES
@@ -218,12 +221,29 @@ __start_frame_setup:
 
   ; Check Joystick for Jump
 __check_joystick:
-  lda #%00100000
+  ; SWCHA reference:
+  ;
+  ; Bit    |  Mask       |
+  ; (L->R) | (in binary) | Direction | Player
+  ; ------------------------------------------
+  ;    7   | #%10000000  | right     | 0
+  ;    6   | #%01000000  | left      | 0
+  ;    5   | #%00100000  | down      | 0
+  ;    4   | #%00010000  | up        | 0
+  ;    3   | #%00001000  | right     | 1
+  ;    2   | #%00000100  | lef       | 1
+  ;    1   | #%00000010  | down      | 1
+  ;    0   | #%00000001  | up        | 1
+
+  lda #%00100000 ; down
   bit SWCHA
   beq __on_joystick_down
-  lsr
-  bit SWCHA
-  bne __on_joystick_down
+  lsr            ; this gets me every time! Note to myself here:
+                 ; remember that LSR without operand means 'LSR A'
+                 ; Here the mask in A goes from:
+                 ; #%00100000 to #%00010000, to check if joystick is up
+  bit SWCHA      ;
+  bne __end_check_joystick
 
 __on_joystick_up:
   ; if it's already jumping, ignore
@@ -231,7 +251,7 @@ __on_joystick_up:
   bit GAME_FLAGS
   bne __end_check_joystick
 
-  ora GAME_FLAGS ; A <- A (=#FLAG_DINO_JUMPING) | GAME_FLAGS
+  ora GAME_FLAGS ; A <- A | GAME_FLAGS => #FLAG_DINO_JUMPING | GAME_FLAGS
   sta GAME_FLAGS
 
   ; inititalize jumping velocity integer and fractional part (fixed point)
@@ -243,6 +263,13 @@ __on_joystick_up:
 
 __on_joystick_down:
   ; TODO(future): implement crouching
+  ; if it's already crouching, ignore
+  lda #FLAG_DINO_CROUCHING
+  bit GAME_FLAGS
+  bne __end_check_joystick
+
+  ora GAME_FLAGS ; A <- A | GAME_FLAGS => #FLAG_DINO_CROUCHING | GAME_FLAGS
+  sta GAME_FLAGS
 
 __end_check_joystick:
 
