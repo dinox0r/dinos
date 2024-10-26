@@ -251,7 +251,7 @@ __on_joystick_up:
   bit GAME_FLAGS
   bne __end_check_joystick
 
-  ora GAME_FLAGS ; A <- A | GAME_FLAGS => #FLAG_DINO_JUMPING | GAME_FLAGS
+  ora GAME_FLAGS ; A <- A | GAME_FLAGS  => #FLAG_DINO_JUMPING | GAME_FLAGS
   sta GAME_FLAGS
 
   ; inititalize jumping velocity integer and fractional part (fixed point)
@@ -268,8 +268,10 @@ __on_joystick_down:
   bit GAME_FLAGS
   bne __end_check_joystick
 
-  ora GAME_FLAGS ; A <- A | GAME_FLAGS => #FLAG_DINO_CROUCHING | GAME_FLAGS
+  ora GAME_FLAGS ; A <- A | GAME_FLAGS  => #FLAG_DINO_CROUCHING | GAME_FLAGS
   sta GAME_FLAGS
+
+  jmp __end_check_joystick
 
 __end_check_joystick:
 
@@ -279,10 +281,19 @@ __end_check_joystick:
   jmp __in_splash_screen
 
 __in_grame_screen:
-  ; Dino jump update
-  lda #FLAG_DINO_JUMPING 
+
+__check_if_dino_is_jumping:
+  lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
-  beq __update_leg_anim
+  bne __jumping
+
+__check_if_dino_is_crouching:
+  lda #FLAG_DINO_CROUCHING
+  bit GAME_FLAGS
+  bne __crouching
+
+  ; neither jumping or crouching, just standing, update the leg animation
+  jmp __update_leg_anim
 
 __jumping:
   ; update dino_y <- dino_y - vy
@@ -349,6 +360,8 @@ __update_jump_pos:
   sbc #0
   sta PTR_DINO_MIS+1
   jmp __end_legs_anim
+
+__crouching:
 
 __update_leg_anim:
   ; Dino leg animation
