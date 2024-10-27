@@ -140,11 +140,11 @@ reset:
   ldx #0
   txa
   tay     ; Y = A = X = 0
-__clear_mem:
+clear_zero_page_memory:
   dex
   txs  ; This is the classic trick that exploits the fact that both
   pha  ; the stack and ZP RAM are the very same 128 bytes
-  bne __clear_mem
+  bne clear_zero_page_memory
 
   ; -----------------------
   ; GAME INITIALIZATION
@@ -180,7 +180,7 @@ __clear_mem:
 ;=============================================================================
 start_of_frame:
 
-_vsync_and_vblank:
+vsync_and_vblank:
   lda #2     ;
   sta VBLANK ; Enables VBLANK (and turns video signal off)
 
@@ -191,7 +191,7 @@ _vsync_and_vblank:
   ; -----------------------
   ; V-SYNC (3 scanlines)
   ; -----------------------
-__vsync:
+vsync:
   sta VSYNC  ; Enables VSYNC
   sta WSYNC  ; 1st line of vsync
   sta WSYNC  ; 2nd line of vsync
@@ -212,7 +212,7 @@ __vsync:
   ; =======================
   ; BEGIN FRAME SETUP/LOGIC
   ; - - - - - - - - - - - - - - - - - - - - - - - -
-__start_frame_setup:
+start_frame_setup:
   lda #BKG_LIGHT_GRAY   ;
   sta COLUBK            ; Set initial background
 
@@ -220,7 +220,7 @@ __start_frame_setup:
   sta COLUP0
 
   ; Check Joystick for Jump
-__check_joystick:
+check_joystick:
   ; SWCHA reference:
   ;
   ; Bit    |  Mask       |
@@ -237,19 +237,19 @@ __check_joystick:
 
   lda #%00100000 ; down
   bit SWCHA
-  beq __on_joystick_down
+  beq _on_joystick_down
   lsr            ; this gets me every time! Note to myself here:
                  ; remember that LSR without operand means 'LSR A'
                  ; Here the mask in A goes from:
                  ; #%00100000 to #%00010000, to check if joystick is up
   bit SWCHA      ;
-  bne __end_check_joystick
+  bne _end_check_joystick
 
-__on_joystick_up:
+_on_joystick_up:
   ; if it's already jumping, ignore
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
-  bne __end_check_joystick
+  bne _end_check_joystick
 
   ora GAME_FLAGS ; A <- A | GAME_FLAGS  => #FLAG_DINO_JUMPING | GAME_FLAGS
   sta GAME_FLAGS
@@ -259,43 +259,43 @@ __on_joystick_up:
   sta DINO_VY_INT
   lda #DINO_JUMP_INIT_VY_FRACT
   sta DINO_VY_FRACT
-  jmp __end_check_joystick
+  jmp _end_check_joystick
 
-__on_joystick_down:
+_on_joystick_down:
   ; TODO(future): implement crouching
   ; if it's already crouching, ignore
   lda #FLAG_DINO_CROUCHING
   bit GAME_FLAGS
-  bne __end_check_joystick
+  bne _end_check_joystick
 
   ora GAME_FLAGS ; A <- A | GAME_FLAGS  => #FLAG_DINO_CROUCHING | GAME_FLAGS
   sta GAME_FLAGS
 
-  jmp __end_check_joystick
+  jmp _end_check_joystick
 
-__end_check_joystick:
+_end_check_joystick:
 
   lda #FLAG_SPLASH_SCREEN
   bit GAME_FLAGS
-  beq __in_grame_screen
-  jmp __in_splash_screen
+  beq in_grame_screen
+  jmp in_splash_screen
 
-__in_grame_screen:
+in_grame_screen:
 
-__check_if_dino_is_jumping:
+_check_if_dino_is_jumping:
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
-  bne __jumping
+  bne _jumping
 
-__check_if_dino_is_crouching:
+_check_if_dino_is_crouching:
   lda #FLAG_DINO_CROUCHING
   bit GAME_FLAGS
-  bne __crouching
+  bne _crouching
 
   ; neither jumping or crouching, just standing, update the leg animation
-  jmp __update_leg_anim
+  jmp _update_leg_anim
 
-__jumping:
+_jumping:
   ; update dino_y <- dino_y - vy
   clc
   lda DINO_TOP_Y_FRACT
@@ -307,9 +307,9 @@ __jumping:
 
   ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
   cmp #INIT_DINO_TOP_Y
-  bcs __update_jump
+  bcs _update_jump
 
-__finish_jump:
+_finish_jump:
   ; Restore dino-y position to the original
   lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
@@ -320,9 +320,9 @@ __finish_jump:
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DINO_JUMPING_OFF
   sta GAME_FLAGS
-  jmp __update_jump_pos
+  jmp _update_jump_pos
 
-__update_jump:
+_update_jump:
   ; update vy = vy + acc_y
   sec
   ; Update the fractional part
@@ -334,7 +334,7 @@ __update_jump:
   sbc #DINO_JUMP_ACCEL_INT
   sta DINO_VY_INT
 
-__update_jump_pos:
+_update_jump_pos:
   ; the following assumes DINO_SPRITE_1 does not cross page boundary
   sec
   lda #<DINO_SPRITE_1_END
@@ -359,47 +359,47 @@ __update_jump_pos:
   lda #>DINO_MIS_OFFSETS_END
   sbc #0
   sta PTR_DINO_MIS+1
-  jmp __end_legs_anim
+  jmp _end_legs_anim
 
-__crouching:
+_crouching:
 
-__update_leg_anim:
+_update_leg_anim:
   ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
   and #%00000111             ; animation
   cmp #7                     ;
-  bne __end_legs_anim       ;
+  bne _end_legs_anim         ;
 
   lda #FLAG_DINO_LEFT_LEG    ; Check which leg is up, and swap
   bit GAME_FLAGS
-  beq __right_leg
+  beq _right_leg
 
   lda #<[DINO_SPRITE_3 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE
   lda #>[DINO_SPRITE_3 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-  jmp __swap_legs
+  jmp _swap_legs
 
-__right_leg:
+_right_leg:
   lda #<[DINO_SPRITE_2 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE
   lda #>[DINO_SPRITE_2 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-__swap_legs:
+_swap_legs:
   lda GAME_FLAGS
   eor #FLAG_DINO_LEFT_LEG
   sta GAME_FLAGS
 
-__end_legs_anim:
+_end_legs_anim:
 
-  jmp __end_frame_setup
+  jmp end_frame_setup
 
-__in_splash_screen:
+in_splash_screen:
   lda FRAME_COUNT+1
   and #%00000001
-  beq __skip_blink
+  beq _skip_blink
 
   ; do the dino blinking
   lda GAME_FLAGS
@@ -409,9 +409,9 @@ __in_splash_screen:
   dec FRAME_COUNT+1         ; Turn the 0-bit of FRAME_COUNT+1 off, so the
                             ; next frame does not enable blinking again
   sta GAME_FLAGS
-  jmp __skip_opening_eyes
+  jmp _skip_opening_eyes
 
-__skip_blink:
+_skip_blink:
   ; if dino's eyes are closed then check if we should open them
   lda FRAME_COUNT
   cmp #14                    ; 14 frames (actually 15 because is 0 index)
@@ -419,14 +419,14 @@ __skip_blink:
                              ; pause that looked better for the blinking. After
                              ; these 15 frames has passed, the eyes are then
                              ; opened
-  bcc __skip_opening_eyes
+  bcc _skip_opening_eyes
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DINO_BLINKING_OFF
   sta GAME_FLAGS
 
-__skip_opening_eyes:
+_skip_opening_eyes:
 
-__end_frame_setup:
+end_frame_setup:
 
 
   ; - - - - - - - - - - - - - - - - - - - - - - - -
@@ -434,9 +434,9 @@ __end_frame_setup:
   ; =======================
 
   lda #0
-__vblank:
+vblank:
   lda INTIM
-  bne __vblank
+  bne vblank
                ; 2752 cycles + 2 from bne, 2754 (out of 2812 vblank)
 
   sta WSYNC
