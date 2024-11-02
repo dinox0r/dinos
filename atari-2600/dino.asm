@@ -58,12 +58,6 @@ CACTUS_LINES = #31
 FLOOR_LINES = #2
 GROUND_LINES = #8
 
-; The first region of the
-CROUCHING_LINES_REGION_1 = #15+#7
-CROUCHING_LINES_REGION_2 = 
-CROUCHING_LINES_REGION_3
-CROUCHING_LINES = #CACTUS_LINES
-
 DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GROUND_LINES
 SKY_MAX_Y = #DINO_PLAY_AREA_LINES
 SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
@@ -72,10 +66,27 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
-; Crouching area has the same size as the cactus area
+; The 1st region of the crouching area covers 15 + 7 = 22 double scanlines:
+; 15 empty 2x scanlines from the top to where the dino's head would be when
+; standing, plus an additional 7 scanlines without the dino, since is now
+; crouching. The 2nd region is 9 2x scanlines, because the dino crouching
+; sprite spans 9 scanlines without the legs (which are drawn by the floor
+; kernel)
+CROUCHING_LINES_REGION_1 = #15+#7
+CROUCHING_LINES_REGION_2 = #9
+CROUCHING_LINES = #CROUCHING_LINES_REGION_1+#CROUCHING_LINES_REGION_2
+
+  IF CROUCHING_LINES != CACTUS_LINES
+    ECHO "Error: CROUCHING_LINES should be equal to CACTUS_LINES"
+    ERR
+  ENDIF
+
+; Crouching area starts at the same location where the cactus area is
 CROUCHING_REGION_1_MAX_Y = #CACTUS_AREA_MAX_Y
-CROUCHING_REGION_1_MIN_Y = #CACTUS_AREA_MAX_Y-
-CROUCHING_AREA_MIN_Y = #CACTUS_AREA_MIN_Y
+CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_LINES_REGION_1
+CROUCHING_REGION_2_MAX_Y = #CROUCHING_REGION_1_MIN_Y
+CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_LINES_REGION_2
+
 
 DINO_JUMP_INIT_VY_INT = #5
 DINO_JUMP_INIT_VY_FRACT = #40
@@ -246,15 +257,22 @@ check_joystick:
   ;    1   | #%00000010  | down      | 1
   ;    0   | #%00000001  | up        | 1
 
-  lda #%00100000 ; down
+  lda #%00100000 ; down (player 0)
   bit SWCHA
-  beq _on_joystick_down
+  bne _on_joystick_down
+  ; If the joystick is not down, we need to clear the crouching flag as the
+  ; user might have released the joystick down and we have to make sure the
+  ; dino is not crouching anymore
+  lda GAME_FLAGS
+  and #TOGGLE_FLAG_DINO_CROUCHING_OFF
+  sta GAME_FLAGS
+
   lsr            ; this gets me every time! Note to myself here:
                  ; remember that LSR without operand means 'LSR A'
                  ; Here the mask in A goes from:
                  ; #%00100000 to #%00010000, to check if joystick is up
   bit SWCHA      ;
-  bne _end_check_joystick
+  beq _end_check_joystick
 
 _on_joystick_up:
   ; if it's already jumping, ignore
@@ -273,7 +291,6 @@ _on_joystick_up:
   jmp _end_check_joystick
 
 _on_joystick_down:
-  ; TODO(future): implement crouching
   ; if it's already crouching, ignore
   lda #FLAG_DINO_CROUCHING
   bit GAME_FLAGS
@@ -548,31 +565,31 @@ _sky__end_of_1st_scanline:
   INSERT_NOPS 10                        ; 20 (38)
   sta HMCLR                             ; 3 (41)
 
-  sta WSYNC                             ; 3 (44)
-  sta HMOVE                             ; 3 (47)
+  sta WSYNC                             ; 3 (3)
+  sta HMOVE                             ; 3 (6)
 
-  dey                                   ; 2 (49)
+  dey                                   ; 2 (8)
   ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
   ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
   ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1                    ; 2 (51)
-  bcs sky_sub_kernel                   ; 2/3 (53 / 54)
+  cpy #SKY_MIN_Y+#1                    ; 2 (10)
+  bcs sky_sub_kernel                   ; 2/3 (12 / 13)
 
+  ; On the last scanline of this area, and just before starting the next 
+  ; scanline
 _check_if_crouching:
   lda #83
   sta COLUBK
 
   ; Check if dino is crouching, then jump to the appropiate kernel if so
-  lda #FLAG_DINO_CROUCHING             ; 3 (56)
-  bit GAME_FLAGS                       ; 3 (59)
-  beq cactus_area_sub_kernel           ; 2/3 (62 / 63)
-
-
+  lda #FLAG_DINO_CROUCHING             ; 3 (15)
+  bit GAME_FLAGS                       ; 3 (18)
+  beq cactus_area_sub_kernel           ; 2/3 (20 / 21)
 
 dino_crouching_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
-; The crouching part is split into three regions:
+; The crouching part is split into two regions:
 ; 1. Obstacles only: This region draws obstacles (either cacti or pterodactyl)
 ;    *without* the dino, following the same logic as in
 ;    'cactus_area_sub_kernel.' It covers 15 + 7 = 22 double scanlines:
@@ -591,21 +608,19 @@ dino_crouching_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------
 ;                  ░░░░XXXX▓▓▓▓|████████|    > set to size 8 in all these
 ;                  ░░░░XXXX▓▓▓▓|████    |   |  scanlines.
 ;                   ░░░XXXXX▓▓▓| █████  |   /
-;
-; 3. Dino legs and arms: This region handles the dino's legs and arms with the 
-;    following layout:
-;
 ;                  |███ ██  |▓▓   <-- missile set to size 2
-;                  |██   ██ |
-;                  |█       |
-;                  |██      |
-;                  |        |
 ;                   \      /
 ;                  GRP0 (8 pixels)
 ;
+; The rest of the dino (the legs) will be drawn by the floor kernel, as they
+; match the same position as the dino when standing:
+;                  |██   ██ |
+;                  |█       |
+;                  |██      |
+;
 ; Legend:    ▒ missile pixels    █ GRP0 pixels    X overlapping pixels
 
-_obstacle_area:
+_crouching_region_1:
   ; 1st scanline ==============================================================
   ; TODO: Copy the obstacle drawing code from the catus kernel here
   sta WSYNC
@@ -615,42 +630,57 @@ _obstacle_area:
   sta HMOVE
 
   dey                                   ; 2
-  cpy #CROUCHING_AREA_MIN_Y+#1          ; Similarly that what we did in the sky
+  cpy #CROUCHING_REGION_1_MIN_Y+#1      ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
-  bcs dino_crouching_sub_kernel         ; 2/3
+  bcs _crouching_region_1               ; 2/3
+
+_crouching_region_2:
+  ; 1st scanline ==============================================================
+  ; TODO: Copy the obstacle drawing code from the catus kernel here
+  sta WSYNC
+  sta HMOVE
+  ; 2nd scanline ==============================================================
+  sta WSYNC
+  sta HMOVE
+
+  dey                                   ; 2
+  cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the sky
+                                        ; kernel, +1 turns Y ≥ C into Y > C
+  bcs _crouching_region_1               ; 2/3
+  jmp floor_sub_kernel
 
 cactus_area_sub_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
 
   ; 1st scanline ==============================================================
-  tya                                   ; 2   A = currrent scanline (Y)
-  sec                                   ; 2
-  sbc DINO_TOP_Y_INT                        ; 3 - A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT                      ; 2
-  bcs _cactus__y_within_dino                   ; 2/3
+  tya                                   ; 2 (5)  A = currrent scanline (Y)
+  sec                                   ; 2 (7)
+  sbc DINO_TOP_Y_INT                    ; 3 (10) A = X - DINO_TOP_Y_INT
+  adc #DINO_HEIGHT                      ; 2 (12)
+  bcs _cactus__y_within_dino            ; 2/3 (14 / 15)
 
 _cactus__y_not_within_dino:
-  lda #0                                ; 3   Disable the misile for P0
-  sta DINO_SPRITE                       ; 3
-  sta DINO_SPRITE_OFFSET
-  sta MISILE_P0
-  jmp _cactus__end_of_1st_scanline     ; 3
+  lda #0                                ; 3 (17)  Disable the misile for P0
+  sta DINO_SPRITE                       ; 3 (20)
+  sta DINO_SPRITE_OFFSET                ; 3 (23)
+  sta MISILE_P0                         ; 3 (26)
+  jmp _cactus__end_of_1st_scanline      ; 3 (29)
 
 _cactus__y_within_dino:
   ; graphics
-  lda (PTR_DINO_SPRITE),y               ; 5+
-  sta DINO_SPRITE                       ; 3
+  lda (PTR_DINO_SPRITE),y               ; 5+ (20)
+  sta DINO_SPRITE                       ; 3  (23)
 
   ; graphics offset
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta HMP0                              ; 3
+  lda (PTR_DINO_OFFSET),y               ; 5+ (28)
+  sta HMP0                              ; 3  (31)
 
   ; missile
-  lda (PTR_DINO_MIS),y                  ; 5+
-  sta MISILE_P0                         ; 3
-  sta HMM0                              ; 3
-  asl
-  asl
-  sta NUSIZ0
+  lda (PTR_DINO_MIS),y                  ; 5+ (36)
+  sta MISILE_P0                         ; 3  (39)
+  sta HMM0                              ; 3  (41)
+  asl                                   ; 2  (43)
+  asl                                   ; 2  (45)
+  sta NUSIZ0                            ; 3  (48)
 
 
 _cactus__end_of_1st_scanline:
@@ -1135,11 +1165,12 @@ DINO_MIS_OFFSETS_END = *
 ;                   ░░░XXXXX▓▓▓| █████  |   /
 ; 2nd sub-kernel:   |███ ██  ▓▓   <-- missile set to size 2
 ;                   |██   ██ |
+;                   \-8 bits-/
+;                      GRP0
+;
 ;                   |█       |
 ;                   |██      |
 ;                   |        |
-;                   \-8 bits-/
-;                      GRP0
 ; In the 1st sub-kernel, 3 objects are used, ball, m0 and p0
 ; In the 2nd sub-kernel, only 2 objects are used, m0 and p0
 ;
