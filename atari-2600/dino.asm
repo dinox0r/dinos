@@ -243,7 +243,7 @@ start_frame_setup:
 
   ; Check Joystick for Jump
 check_joystick:
-  ; SWCHA reference:
+  ; SWCHA reference: REMEMBER! The bit will be 0 only if pressed
   ;
   ; Bit    |  Mask       |
   ; (L->R) | (in binary) | Direction | Player
@@ -257,22 +257,22 @@ check_joystick:
   ;    1   | #%00000010  | down      | 1
   ;    0   | #%00000001  | up        | 1
 
+_check_joystick_down:
+  lda SWCHA
   lda #%00100000 ; down (player 0)
   bit SWCHA
-  bne _on_joystick_down
-  ; If the joystick is not down, we need to clear the crouching flag as the
-  ; user might have released the joystick down and we have to make sure the
-  ; dino is not crouching anymore
+  beq _on_joystick_down
+
+  ; We need to clear the crouching flag as the user might have released the
+  ; joystick down and we have to make sure the dino is not crouching anymore
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DINO_CROUCHING_OFF
   sta GAME_FLAGS
 
-  lsr            ; this gets me every time! Note to myself here:
-                 ; remember that LSR without operand means 'LSR A'
-                 ; Here the mask in A goes from:
-                 ; #%00100000 to #%00010000, to check if joystick is up
-  bit SWCHA      ;
-  beq _end_check_joystick
+_check_joystick_up:
+  lda #%00010000 ; up (player 0)
+  bit SWCHA
+  bne _end_check_joystick
 
 _on_joystick_up:
   ; if it's already jumping, ignore
