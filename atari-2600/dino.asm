@@ -106,6 +106,7 @@ FLAG_DINO_LEFT_LEG =  #%00000010
 FLAG_DINO_JUMPING =   #%00000100
 FLAG_SPLASH_SCREEN =  #%00000001
 FLAG_DINO_CROUCHING = #%00010000
+FLAG_DINO_CROUCHING_OR_JUMPING = #%00010100
 
 TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
@@ -291,8 +292,8 @@ _on_joystick_up:
   jmp _end_check_joystick
 
 _on_joystick_down:
-  ; if it's already crouching, ignore
-  lda #FLAG_DINO_CROUCHING
+  ; if it's already crouching or jumping, ignore
+  lda #FLAG_DINO_CROUCHING_OR_JUMPING
   bit GAME_FLAGS
   bne _end_check_joystick
 
