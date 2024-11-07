@@ -17,6 +17,7 @@
 .loop:
     dex
     sta WSYNC
+    sta HMOVE
     bne .loop
   ENDM
 
@@ -106,7 +107,8 @@ FLAG_DINO_LEFT_LEG =  #%00000010
 FLAG_DINO_JUMPING =   #%00000100
 FLAG_SPLASH_SCREEN =  #%00000001
 FLAG_DINO_CROUCHING = #%00010000
-FLAG_DINO_CROUCHING_OR_JUMPING = #%00010100
+
+FLAG_DINO_CROUCHING_OR_JUMPING = FLAG_DINO_CROUCHING | FLAG_DINO_JUMPING
 
 TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
@@ -500,15 +502,16 @@ clouds_sub_kernel:;-------->>> 20 scanlines <<<----
   DEBUG_SUB_KERNEL #$40,#20
 
 sky_sub_kernel_setup:;----->>> 2 scanlines <<<-----
-  lda BG_COLOUR    ; 3
-  sta COLUBK       ; 3
+  ; sta WSYNC   from previous scanline
+  ; sta HMOVE   3 cycles (3 so far in this scanline)
 
-  INSERT_NOPS 7    ; 14 Fix the dino_x position for the rest of the kernel
-                   ;    (notice I'm not starving for ROM atm of writing this)
-  sta RESM0        ; 3  TV beam should now be at a dino coarse x position
-  sta RESP0        ; 3  M0 will be 3 cycles (9 px) far from P0
+  ; TODO: These instructions could be replaced by something more useful
+  lda BG_COLOUR    ; 3 (6) - this can't be replaced by any other 3 cycle inst
+  INSERT_NOPS 7    ; 14 (20)
 
-  ldy #SKY_MAX_Y
+  sta RESM0        ; 3 (23) M0 will be 3 cycles (9 cc/px) far from P0
+  sta RESP0        ; 3 (26) TV beam should now be at a dino coarse x pos
+  ldy #SKY_MAX_Y   ; 2 (28)
 
   ; T0D0: set the coarse position of the cactus/pterodactile
 
@@ -624,8 +627,14 @@ dino_crouching_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------
 _crouching_region_1:
   ; 1st scanline ==============================================================
   ; TODO: Copy the obstacle drawing code from the catus kernel here
+
+  ; TODO: There are some cycles to burn before the last scanline from the Sky
+  ; kernel is done, use it to setup stuff like obstacles
+
   sta WSYNC
   sta HMOVE
+  
+
   ; 2nd scanline ==============================================================
   sta WSYNC
   sta HMOVE
@@ -698,22 +707,22 @@ _cactus__end_of_1st_scanline:
   sta HMCLR
 
   sta WSYNC                             ; 3
-  sta HMOVE                             ; 3
+  sta HMOVE                             ; 3 (3)
 
-  dey                                   ; 2
-  cpy #CACTUS_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
-                                        ; kernel, +1 turns Y ≥ C into Y > C
-  bcs cactus_area_sub_kernel                   ; 2/3
+  dey                                   ; 2 (5)
+  cpy #CACTUS_AREA_MIN_Y+#1             ; 2 (7) - +1 turns Y ≥ C into Y > C
+  bcs cactus_area_sub_kernel            ; 2/3 (9 / 10)
 
 floor_sub_kernel:
-  lda #87
-  sta COLUBK
+  lda #87                               ; 2 (11)
+  sta COLUBK                            ; 3 (14)
   ; 1st scanline SETUP ==============================================================
-  tya                                   ; 2   A = current scanline (Y)
-  sec                                   ; 2
-  sbc DINO_TOP_Y_INT                        ; 3 - A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT                      ; 2
-  bcs _floor__y_within_dino                   ; 2/3
+  tya                                   ; 2 (17)  A = current scanline (Y)
+  sec                                   ; 2 (19)
+  sbc DINO_TOP_Y_INT                    ; 3 (21)  A = X - DINO_TOP_Y_INT
+  adc #DINO_HEIGHT                      ; 2 (23)
+
+  bcs _floor__y_within_dino             ; 2/3
 
 _floor__y_not_within_dino:
   lda #0                                ; 3   Disable the misile for P0
@@ -833,7 +842,7 @@ void_area_sub_kernel:
 splash_screen_kernel:
   DEBUG_SUB_KERNEL #$7A,#35
 
-_splash__dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------
+_splash__dino_sub_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------G
   lda BG_COLOUR    ; 3
   sta COLUBK       ; 3
 
@@ -968,10 +977,10 @@ DINO_SPRITE_1:
 ;     ██   |█       |       |   ..   |▒▒   █  | +5      %11000100
 ;     █    |█       |       |   .    |▒    █  | +5      %10000100
 ;     ██   |██      |       |   ..   |▒▒   ██ | +5      %11000110
-;           76543210        |          12345678
-;                           \--------/
-;                         these █ pixels to be
-;                         drawn using the missile
+;           76543210        |          12345678  ↑
+;                           \--------/           these offsets have to be
+;                      █ pixels will be          undone when drawing
+;                   drawn using the missile 0
 ;
   .ds 1             ; <------ clears GRP0 so the last row doesn't repeat
   .byte %11000110   ;  ▒▒   ██ 
@@ -1147,37 +1156,43 @@ DINO_MIS_OFFSETS:
   ;      |
   ;      + enable the ball when this bit is ON
   ;
-  ;                     ▒ missile pixels, █ GRP0 pixels  X overlapping pixels
+  ; Legend:
+  ;    █ GRP0 pixels
+  ;    ▒ missile pixels
+  ;    ░ ball
+  ;    X overlapping pixels
+  ;    ▯ Non drawn by the current kernel
+
 DINO_MIS_OFFSETS_END = *
 
 
 ; Crouching sprite diagram:
-; Legend: ░ ball   ▓ missile 0   █ player 0  X collision
 ;
-; 2 sub-kernels for crouching:
-;                                 GRP0
-;                              /-8 bits-\
-; 1st sub-kernel:              | ██████ |
-;                 ░  ▓▓▓▓▓▓▓▓  |██ █████|   <-- missile set to size 8
-;                 ░░░░░XXX▓▓▓▓▓|████████|   \
-;                 ░░░░░XXX▓▓▓▓▓|████████|   |  both ball and missile
-;                  ░░░░XXXX▓▓▓▓|████████|    > are set to size 8
-;                  ░░░░XXXX▓▓▓▓|████    |   |  in all these scan lines
-;                   ░░░XXXXX▓▓▓| █████  |   /
-; 2nd sub-kernel:   |███ ██  ▓▓   <-- missile set to size 2
-;                   |██   ██ |
-;                   \-8 bits-/
-;                      GRP0
+; Legend:
+;    █ GRP0 pixels
+;    ▒ missile pixels
+;    ░ ball
+;    X overlapping pixels
+;    ▯ Non drawn by the current kernel
 ;
-;                   |█       |
-;                   |██      |
-;                   |        |
-; In the 1st sub-kernel, 3 objects are used, ball, m0 and p0
-; In the 2nd sub-kernel, only 2 objects are used, m0 and p0
+;                 ⏐   ▯▯   ⏐    \
+;                 ⏐   ▯    ⏐     > will be drawn by the floor kernel
+;                 ⏐   ▯▯   ⏐▯▯  /
+;                 ⏐   ███ █⏐█  ▓▓          <-- missile set to size 2
+;                 ⏐  ░░░XXX⏐XX▓▓▓ █████    \
+;                 ⏐ ░░░░XXX⏐X▓▓▓▓████      |  in all these scan lines
+;                 ⏐ ░░░░XXX⏐X▓▓▓▓████████   > both ball and missile
+;                 ⏐░░░░░XXX⏐▓▓▓▓▓████████  |  are set to size 8
+;                 ⏐░░░░░XXX⏐▓▓▓▓▓████████  /
+;                 ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████  <-- ball size 1 and missile size 8
+;                 ⏐        ⏐      ██████
+;                 ↑        ↑               HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+;                 |       GRP0 position (cycle 23)
+;      BALL and M0 position (cycle 20)
 ;
-; This is the sprite data for the 1st crouching sub-kernel:
-DINO_CROUCHING_GRP0_1:
+DINO_CROUCHING_SPRITE:
   .ds 1             ; |        |
+  .byte %11101100   ; |███ ██  |
   .byte %01111100   ; | █████  |
   .byte %11110000   ; |████    |
   .byte %11111111   ; |████████|
@@ -1187,62 +1202,63 @@ DINO_CROUCHING_GRP0_1:
   .byte %01111110   ; | ██████ |
   .ds 1             ; |        |
 
-DINO_CROUCHING_GRP0_2:
-  .ds 1             ; |        |
-  .byte %11000000   ; |██      |
-  .byte %10000000   ; |█       |
-  .byte %11000110   ; |██   ██ |
-  .byte %11101100   ; |███ ██  |
-  .ds 1             ; |        |
+DINO_CROUCHING_SPRITE_OFFSETS:
+; Again, for reference:
+;       LEFT  <---------------------------------------------------------> RIGHT
+;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
+;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
+
+            ; ⏐   ▯▯   ⏐
+            ; ⏐   ▯    ⏐              GRP0 offset
+  .ds 1     ; ⏐   ▯▯   ⏐▯▯
+  .byte $20 ; ⏐   ███ █⏐█  ▓▓            -2
+  .byte $B0 ; ⏐  ░░░XXX⏐XX▓▓▓ █████      +5
+  .byte $B0 ; ⏐ ░░░░XXX⏐X▓▓▓▓████        +5
+  .byte $B0 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████    +5
+  .byte $B0 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████    +5
+  .byte $B0 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████    +5
+  .byte $B0 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████    +5
+  .byte $B0 ; ⏐        ⏐      ██████     +5
+  .ds 1     ; ↑        ↑
+            ; |       GRP0 position (cycle 23)
+            ; BALL/M0 position (cycle 20)
+
+DINO_CROUCHING_SPRITE_OFFSETS_END = *
+
 
 DINO_CROUCHING_MIS_OFFSET_1:
-
-;                   |        |
-;                   |██      |
-;                   |█       |
-;                   |██   ██ |
-; 2nd sub-kernel:   |███ ██  ▓▓   <-- missile set to size 2
-;                   ░░░XXXXX▓▓▓| █████  |   /
-;                  ░░░░XXXX▓▓▓▓|████    |   |  in all these scan lines
-;                  ░░░░XXXX▓▓▓▓|████████|    > are set to size 8
-;                 ░░░░░XXX▓▓▓▓▓|████████|   |  both ball and missile
-;                 ░░░░░XXX▓▓▓▓▓|████████|   \
-;                 ░  ▓▓▓▓▓▓▓▓  |██ █████|   <-- missile set to size 8
-; 1st sub-kernel:              | ██████ |
+                  ;                        offset           size
   .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+                  ;    ▯▯   ⏐
+                  ;    ▯    ⏐              GRP                                                                                                                                                                .byte %00000000 ; |   ██   |██      |       0                0
+                  ;    ▯▯   ⏐▯▯                                                                                                                                                                               .byte %00000000 ; |   █    |█       |       0                0
+  .byte %00000010 ;    ███ █⏐█  ▓▓                                                                                                                                                                            .byte %00000000 ; |   ██   |█       |       0                0
+  .byte %00000010 ;   ░░░XXX⏐XX▓▓▓ █████                                                                                                                                                                      .byte %00000000 ; |   ███ █|█       |       0                0
+  .byte %00000010 ;  ░░░░XXX⏐X▓▓▓▓████                                                                                                                                                                        .byte %00000000 ; |  ██████|██      |       0                0
+  .byte %00000010 ;  ░░░░XXX⏐X▓▓▓▓████████                                                                                                                                                                    .byte %11110010 ; | ▒██████|██      |      +1                1
+  .byte %00000010 ; ░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001010 ; |▒▒▒X████|███     |       0                4
+  .byte %00000010 ; ░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|███ █   |       0                8
+  .byte %00000010 ; ░  ▓▓▓▓▓⏐▓▓▓  ██ █████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|█████   |       0                8
+  .byte %00000010 ;         ⏐      ██████                                                                                                                                                                     .byte %00000110 ; |▒▒  ████|███     |       0                2
+  ↑        ↑                                                                                                                                                                                 .byte %00000010 ; |▒    ███|███     |       0                1
+  |       GRP0 position (cycl                                                                                                                                                                .byte %01110010 ; |▒     ██|██████  |       0                1
+  BALL/M0 position (cycle 20)                                                                                                                                                                .byte %00000000 ; |       █|████    |       0                0
+  .byte %00000010 ; |       ▒|████████|      +8                1
+  .byte %00000010 ; |       ▒|████████|      +8                1
+  .byte %00000010 ; |       ▒|████████|      +8                1
+  .byte %10000010 ; |       ▒|█ ██████|      +8                1
+  .byte %00000000 ; |        |███████ |       0                0
+  .ds 1; ^
+  ;      |
+  ;      + enable the ball when this bit is ON
+  ;
+  ; Legend:
+  ;    █ GRP0 pixels
+  ;    ▒ missile pixels
+  ;    ░ ball
+  ;    X overlapping pixels
+  ;    ▯ Non drawn by the current kernel
 
-  .byte %00000000 ;    |        |  |        |
-  .byte %00000000 ;    |██      |  |        |
-  .byte %00000000 ;    |█       |  |        |
-  .byte %00000000 ;    |██   ██ |  |        |
-  .byte %00000000 ;    |███ ██  |▓▓|        |
-  .byte %00000000 ;   ░|░░XXXXX▓|▓▓| █████  |
-  .byte %00000000 ;  ░░|░░XXXX▓▓|▓▓|████    |
-  .byte %00000000 ;  ░░|░░XXXX▓▓|▓▓|████████|
-  .byte %00000000 ; ░░░|░░XXX▓▓▓|▓▓|████████|
-  .byte %00000000 ; ░░░|░░XXX▓▓▓|▓▓|████████|
-  .byte %00000000 ; ░  |▓▓▓▓▓▓▓▓|  |██ █████|
-  .byte %00000000 ;    |        |  | ██████ |
-
-;  .byte %00000000 ; |   ██   |██      |       0                0
-;  .byte %00000000 ; |   █    |█       |       0                0
-;  .byte %00000000 ; |   ██   |█       |       0                0
-;  .byte %00000000 ; |   ███ █|█       |       0                0
-;  .byte %00000000 ; |  ██████|██      |       0                0
-;  .byte %11110010 ; | ▒██████|██      |      +1                1
-;  .byte %00001010 ; |▒▒▒M████|███     |       0                4
-;  .byte %00001110 ; |▒▒▒▒▒MMM|███ █   |       0                8
-;  .byte %00001110 ; |▒▒▒▒▒MMM|█████   |       0                8
-;  .byte %00000110 ; |▒▒  ████|███     |       0                2
-;  .byte %00000010 ; |▒    ███|███     |       0                1
-;  .byte %01110010 ; |▒     ██|██████  |       0                1
-;  .byte %00000000 ; |       █|████    |       0                0
-;  .byte %00000010 ; |       ▒|████████|      +8                1
-;  .byte %00000010 ; |       ▒|████████|      +8                1
-;  .byte %00000010 ; |       ▒|████████|      +8                1
-;  .byte %10000010 ; |       ▒|█ ██████|      +8                1
-;  .byte %00000000 ; |        |███████ |       0                0
-;  .ds 1;
 
 ;=============================================================================
 ; ROM SETUP
