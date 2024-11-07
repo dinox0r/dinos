@@ -498,112 +498,130 @@ score_sub_kernel:;---------->>> 10 scanlines <<<---
 clouds_sub_kernel_setup:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30,#2
 
-clouds_sub_kernel:;-------->>> 19 scanlines <<<----
-  DEBUG_SUB_KERNEL #$40,#19
+clouds_sub_kernel:;-------->>> 18 scanlines <<<----
+  DEBUG_SUB_KERNEL #$40,#18
 
-sky_sub_kernel_setup:;----->>> 2 scanlines <<<-----
-  ; sta WSYNC   from previous scanline
-  ; sta HMOVE   3 cycles (3 so far in this scanline)
+sky_sub_kernel_setup:;----->>> 3 scanlines <<<-----
+
+; old version
+  ;; sta WSYNC   from previous scanline
+  ;; sta HMOVE   3 cycles (3 so far in this scanline)
+  ;; bne .loop   not taken, so 2 cycles (5) (from the DEBUG_SUB_KERNEL macro)
+
+  ; lda BG_COLOUR    ; 3 (6) - this can't be replaced by any other 3 cycle inst
+  ; INSERT_NOPS 7    ; 14 (20)
+
+  ; sta RESM0        ; 3 (23) M0 will be 3 cycles (9 cc/px) far from P0
+  ; sta RESP0        ; 3 (26) TV beam should now be at a dino coarse x pos
+  ; ldy #SKY_MAX_Y   ; 2 (28)
+  ; sta WSYNC
+; old version
+  sta WSYNC     ; 3 (8)
 
   ; 1st scanline ==============================================================
+                ; - (0)
+  sta HMOVE     ; 3 (3)
+
   ; Set GRP0 coarse position
-
+  ;
   ; TODO: These instructions could be replaced by something more useful
-  INSERT_NOPS 10    ; 20 (23)
+  INSERT_NOPS 11    ; 22 (25)
 
-  sta RESP0        ; 3 (26) TV beam should now be at a dino coarse x pos
-  sta WSYNC        ; 3 (29)
-                   ; -- 0 (0) --
+  sta RESP0        ; 3 (28) TV beam should now be at a dino coarse x pos
+  sta WSYNC        ; 3 (31)
+
   ; 2nd scanline ==============================================================
-  ; Set M0 coarse position
+                   ; - (0)
   sta HMOVE        ; 3 (3)
 
+  ; Set M0 coarse position
+  ;
   ; If dino is crouching, M0 needs to be in the same exact position as GRP0
   ; that is, M0 needs to be strobed at cycle 23. Otherwise, M0 needs to be
   ; strobed at cycle 20
   lda #FLAG_DINO_CROUCHING   ; 2 (5)
   bit GAME_FLAGS             ; 3 (8)
-  bne _dino_is_crouching ; 2/3 (10 / 11)
+  bne _dino_is_crouching     ; 2/3 (10 / 11)
 
   INSERT_NOPS 5        ; 10 (20)
-  sta RESM0            ; 3 (23)
-  jmp _m0_coarse_position_set
+  sta RESM0            ; 3 (23) <-- 2 cycles before GRP0!!
+  jmp _m0_coarse_position_set  ; 3 (26)
 
 _dino_is_crouching:
   INSERT_NOPS 6        ; 12 (23)
-  sta RESM0
+  sta RESM0            ; 3 (26) <-- same place as GRP0
 
 _m0_coarse_position_set:
-  ldy #SKY_MAX_Y   ; 2 (?)
+  ldy #SKY_MAX_Y   ; 2 (28)
 
   ; T0D0: set the coarse position of the cactus/pterodactile
 
-  sta WSYNC        ; 3
-
 sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
-  sta HMOVE        ; 3
+  sta WSYNC        ; 3 (31)
 
   ; 1st scanline ==============================================================
-  tya                                   ; 2   A = current scanline (Y)
-  sec                                   ; 2
-  sbc DINO_TOP_Y_INT                        ; 3 - A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT                      ; 2
-  bcs _sky__y_within_dino                   ; 2/3
+                                 ; - (0)
+  sta HMOVE                      ; 3 (3)
+  tya                            ; 2 (5)  A = current scanline (Y)
+  sec                            ; 2 (7)
+  sbc DINO_TOP_Y_INT             ; 3 (10) A = X - DINO_TOP_Y_INT
+  adc #DINO_HEIGHT               ; 2 (12)
+  bcs _sky__y_within_dino        ; 2/3 (14/15)
 
-_sky__y_not_within_dino:
-  lda #0                                ; 3   Disable the misile for P0
-  sta DINO_SPRITE                       ; 3
-  sta DINO_SPRITE_OFFSET
-  sta MISILE_P0
-  jmp _sky__end_of_1st_scanline                 ; 3
+_sky__y_not_within_dino:         ; (14)
+  lda #0                         ; 3 (17)  Disable the misile for P0
+  sta DINO_SPRITE                ; 3 (20)
+  sta DINO_SPRITE_OFFSET         ; 3 (23)
+  sta MISILE_P0                  ; 3 (26)
+  jmp _sky__end_of_1st_scanline  ; 3 (29)
 
 _sky__y_within_dino:
   ; graphics
-  lda (PTR_DINO_SPRITE),y               ; 5+
-  sta DINO_SPRITE                       ; 3
+  lda (PTR_DINO_SPRITE),y        ; 5+ (20)
+  sta DINO_SPRITE                ; 3  (23)
 
   ; graphics offset
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta HMP0                              ; 3
+  lda (PTR_DINO_OFFSET),y        ; 5+ (28)
+  sta HMP0                       ; 3  (31)
 
   ; missile
-  lda (PTR_DINO_MIS),y                  ; 5+
-  sta MISILE_P0                         ; 3
-  sta HMM0                              ; 3
-  asl
-  asl
-  sta NUSIZ0
+  lda (PTR_DINO_MIS),y           ; 5+ (36)
+  sta MISILE_P0                  ; 3  (39)
+  sta HMM0                       ; 3  (41)
+  asl                            ; 2  (43)
+  asl                            ; 2  (45)
+  sta NUSIZ0                     ; 3  (48)
 
 
 _sky__end_of_1st_scanline:
-  sta WSYNC                             ; 3 (3)
-  sta HMOVE                             ; 3 (6)
+  sta WSYNC                      ; 3 (32 / )
 
   ; 2nd scanline ==============================================================
-  lda DINO_SPRITE                       ; 3 (9)
-  ;lda #0                               ; 3 (9) for debugging, hides GRP0
-  sta GRP0                              ; 3 (12)
-  lda MISILE_P0                         ; 3 (15)
-  sta ENAM0                             ; 3 (18)
+                                 ; - (0)
+  sta HMOVE                      ; 3 (3)
+  lda DINO_SPRITE                ; 3 (9)
+  ;lda #0                        ; 3 (9) for debugging, hides GRP0
+  sta GRP0                       ; 3 (12)
+  lda MISILE_P0                  ; 3 (15)
+  sta ENAM0                      ; 3 (18)
 
 
   ; The HMxx registers don’t play nice if you set them within 24 CPU cycles of
   ; strobing HMOVE—otherwise, you might get some funky TIA behavior. The NOPs 
   ; here just give things a bit of breathing room.
-  INSERT_NOPS 10                        ; 20 (38)
-  sta HMCLR                             ; 3 (41)
+  INSERT_NOPS 10            ; 20 (38)
+  sta HMCLR                 ; 3 (41)
 
-  sta WSYNC                             ; 3 (3)
-  sta HMOVE                             ; 3 (6)
 
-  dey                                   ; 2 (8)
+  ; Cactus/Crouching area very first scanline
+  dey                       ; 2 (5)
   ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
   ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
   ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1                    ; 2 (10)
-  bcs sky_sub_kernel                   ; 2/3 (12 / 13)
+  cpy #SKY_MIN_Y+#1          ; 2 (7)
+  bcs sky_sub_kernel         ; 2/3 (9 / 10)
 
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
@@ -649,19 +667,17 @@ dino_crouching_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------
 ; Legend:    ▒ missile pixels    █ GRP0 pixels    X overlapping pixels
 
 _crouching_region_1:
+  sta WSYNC                 ; 3 (3)
   ; 1st scanline ==============================================================
   ; TODO: Copy the obstacle drawing code from the catus kernel here
+                            ; - (0)
+  sta HMOVE                 ; 3 (3)
 
-  ; TODO: There are some cycles to burn before the last scanline from the Sky
-  ; kernel is done, use it to setup stuff like obstacles
-
-  sta WSYNC
-  sta HMOVE
-  
+  sta WSYNC                 ; 3 (3)
 
   ; 2nd scanline ==============================================================
-  sta WSYNC
-  sta HMOVE
+                            ; - (0)
+  sta HMOVE                 ; 3 (3)
 
   dey                                   ; 2
   cpy #CROUCHING_REGION_1_MIN_Y+#1      ; Similarly that what we did in the sky
@@ -669,35 +685,42 @@ _crouching_region_1:
   bcs _crouching_region_1               ; 2/3
 
 _crouching_region_2:
+  sta WSYNC                 ; 3 (3)
   ; 1st scanline ==============================================================
   ; TODO: Copy the obstacle drawing code from the catus kernel here
+                            ; - (0)
+  sta HMOVE                 ; 3 (3)
+
   sta WSYNC
-  sta HMOVE
+
   ; 2nd scanline ==============================================================
-  sta WSYNC
-  sta HMOVE
+                            ; - (0)
+  sta HMOVE                 ; 3 (3)
 
   dey                                   ; 2
   cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
-  bcs _crouching_region_1               ; 2/3
+  bcs _crouching_region_2               ; 2/3
   jmp floor_sub_kernel
 
 cactus_area_sub_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
+  sta WSYNC                 ; 3 (3)
 
   ; 1st scanline ==============================================================
-  tya                                   ; 2 (5)  A = currrent scanline (Y)
-  sec                                   ; 2 (7)
-  sbc DINO_TOP_Y_INT                    ; 3 (10) A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT                      ; 2 (12)
-  bcs _cactus__y_within_dino            ; 2/3 (14 / 15)
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
+  tya                         ; 2 (5)  A = currrent scanline (Y)
+  sec                         ; 2 (7)
+  sbc DINO_TOP_Y_INT          ; 3 (10) A = X - DINO_TOP_Y_INT
+  adc #DINO_HEIGHT            ; 2 (12)
+  bcs _cactus__y_within_dino  ; 2/3 (14 / 15)
 
 _cactus__y_not_within_dino:
-  lda #0                                ; 3 (17)  Disable the misile for P0
-  sta DINO_SPRITE                       ; 3 (20)
-  sta DINO_SPRITE_OFFSET                ; 3 (23)
-  sta MISILE_P0                         ; 3 (26)
-  jmp _cactus__end_of_1st_scanline      ; 3 (29)
+  lda #0                              ; 3 (17)  Disable the misile for P0
+  sta DINO_SPRITE                     ; 3 (20)
+  sta DINO_SPRITE_OFFSET              ; 3 (23)
+  sta MISILE_P0                       ; 3 (26)
+  jmp _cactus__end_of_1st_scanline    ; 3 (29)
 
 _cactus__y_within_dino:
   ; graphics
@@ -716,12 +739,12 @@ _cactus__y_within_dino:
   asl                                   ; 2  (45)
   sta NUSIZ0                            ; 3  (48)
 
-
 _cactus__end_of_1st_scanline:
   sta WSYNC                             ; 3
-  sta HMOVE                             ; 3
 
   ; 2nd scanline ==============================================================
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
@@ -730,17 +753,19 @@ _cactus__end_of_1st_scanline:
   INSERT_NOPS 10                        ; 20
   sta HMCLR
 
-  sta WSYNC                             ; 3
-  sta HMOVE                             ; 3 (3)
-
   dey                                   ; 2 (5)
   cpy #CACTUS_AREA_MIN_Y+#1             ; 2 (7) - +1 turns Y ≥ C into Y > C
   bcs cactus_area_sub_kernel            ; 2/3 (9 / 10)
 
 floor_sub_kernel:
+
   lda #87                               ; 2 (11)
   sta COLUBK                            ; 3 (14)
+  sta WSYNC                             ; 3
+
   ; 1st scanline SETUP ==============================================================
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
   tya                                   ; 2 (17)  A = current scanline (Y)
   sec                                   ; 2 (19)
   sbc DINO_TOP_Y_INT                    ; 3 (21)  A = X - DINO_TOP_Y_INT
@@ -762,9 +787,10 @@ _floor__y_within_dino:
 
 _floor__end_of_1st_scanline:
   sta WSYNC                             ; 3
-  sta HMOVE                             ; 3
 
   ; 2nd scanline ==============================================================
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
 
   lda DINO_COLOUR
   sta COLUPF
@@ -794,11 +820,15 @@ _floor__end_of_1st_scanline:
   INSERT_NOPS 12                        ; 24
   sta HMCLR
 
-  sta WSYNC                             ; 3
-  sta HMOVE                             ; 3
   dey
 
 ground_area_sub_kernel:
+  sta WSYNC                             ; 3
+  ; 1st scanline ==============================================================
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
+  nop
+
   lda BG_COLOUR
   sta COLUBK
 
@@ -807,7 +837,6 @@ ground_area_sub_kernel:
   sta PF1
   sta PF2
 
-  ; 1st scanline ==============================================================
   tya                                   ; 2   A = current scanline (Y)
   sec                                   ; 2
   sbc DINO_TOP_Y_INT                        ; 3 - A = X - DINO_TOP_Y_INT
@@ -832,9 +861,10 @@ _ground__y_within_dino:
 
 _ground__end_of_1st_scanline:
   sta WSYNC                             ; 3
-  sta HMOVE                             ; 3
 
   ; 2nd scanline ==============================================================
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
@@ -850,6 +880,9 @@ _ground__end_of_1st_scanline:
   cpy #GROUND_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
   bcs ground_area_sub_kernel           ; 2/3
+
+  sta WSYNC                             ; 3
+  sta HMOVE
 
 
 void_area_sub_kernel:
