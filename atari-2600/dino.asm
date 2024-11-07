@@ -498,26 +498,50 @@ score_sub_kernel:;---------->>> 10 scanlines <<<---
 clouds_sub_kernel_setup:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30,#2
 
-clouds_sub_kernel:;-------->>> 20 scanlines <<<----
-  DEBUG_SUB_KERNEL #$40,#20
+clouds_sub_kernel:;-------->>> 19 scanlines <<<----
+  DEBUG_SUB_KERNEL #$40,#19
 
 sky_sub_kernel_setup:;----->>> 2 scanlines <<<-----
   ; sta WSYNC   from previous scanline
   ; sta HMOVE   3 cycles (3 so far in this scanline)
 
-  ; TODO: These instructions could be replaced by something more useful
-  lda BG_COLOUR    ; 3 (6) - this can't be replaced by any other 3 cycle inst
-  INSERT_NOPS 7    ; 14 (20)
+  ; 1st scanline ==============================================================
+  ; Set GRP0 coarse position
 
-  sta RESM0        ; 3 (23) M0 will be 3 cycles (9 cc/px) far from P0
+  ; TODO: These instructions could be replaced by something more useful
+  INSERT_NOPS 10    ; 20 (23)
+
   sta RESP0        ; 3 (26) TV beam should now be at a dino coarse x pos
-  ldy #SKY_MAX_Y   ; 2 (28)
+  sta WSYNC        ; 3 (29)
+                   ; -- 0 (0) --
+  ; 2nd scanline ==============================================================
+  ; Set M0 coarse position
+  sta HMOVE        ; 3 (3)
+
+  ; If dino is crouching, M0 needs to be in the same exact position as GRP0
+  ; that is, M0 needs to be strobed at cycle 23. Otherwise, M0 needs to be
+  ; strobed at cycle 20
+  lda #FLAG_DINO_CROUCHING   ; 2 (5)
+  bit GAME_FLAGS             ; 3 (8)
+  bne _dino_is_crouching ; 2/3 (10 / 11)
+
+  INSERT_NOPS 5        ; 10 (20)
+  sta RESM0            ; 3 (23)
+  jmp _m0_coarse_position_set
+
+_dino_is_crouching:
+  INSERT_NOPS 6        ; 12 (23)
+  sta RESM0
+
+_m0_coarse_position_set:
+  ldy #SKY_MAX_Y   ; 2 (?)
 
   ; T0D0: set the coarse position of the cactus/pterodactile
 
-  sta WSYNC                ; 3
+  sta WSYNC        ; 3
 
 sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
+  sta HMOVE        ; 3
 
   ; 1st scanline ==============================================================
   tya                                   ; 2   A = current scanline (Y)
@@ -1187,8 +1211,8 @@ DINO_MIS_OFFSETS_END = *
 ;                 ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████  <-- ball size 1 and missile size 8
 ;                 ⏐        ⏐      ██████
 ;                 ↑        ↑               HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-;                 |       GRP0 position (cycle 23)
-;      BALL and M0 position (cycle 20)
+;                 |     M0/GRP0 position (cycle 23)
+;      BALL position (cycle 20)
 ;
 DINO_CROUCHING_SPRITE:
   .ds 1             ; |        |
@@ -1220,34 +1244,28 @@ DINO_CROUCHING_SPRITE_OFFSETS:
   .byte $B0 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████    +5
   .byte $B0 ; ⏐        ⏐      ██████     +5
   .ds 1     ; ↑        ↑
-            ; |       GRP0 position (cycle 23)
-            ; BALL/M0 position (cycle 20)
+            ; |       M0/GRP0 position (cycle 23)
+            ; BALL position (cycle 20)
 
 DINO_CROUCHING_SPRITE_OFFSETS_END = *
 
 
 DINO_CROUCHING_MIS_OFFSET_1:
-                  ;                        offset           size
-  .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-                  ;    ▯▯   ⏐
-                  ;    ▯    ⏐              GRP                                                                                                                                                                .byte %00000000 ; |   ██   |██      |       0                0
-                  ;    ▯▯   ⏐▯▯                                                                                                                                                                               .byte %00000000 ; |   █    |█       |       0                0
-  .byte %00000010 ;    ███ █⏐█  ▓▓                                                                                                                                                                            .byte %00000000 ; |   ██   |█       |       0                0
-  .byte %00000010 ;   ░░░XXX⏐XX▓▓▓ █████                                                                                                                                                                      .byte %00000000 ; |   ███ █|█       |       0                0
-  .byte %00000010 ;  ░░░░XXX⏐X▓▓▓▓████                                                                                                                                                                        .byte %00000000 ; |  ██████|██      |       0                0
-  .byte %00000010 ;  ░░░░XXX⏐X▓▓▓▓████████                                                                                                                                                                    .byte %11110010 ; | ▒██████|██      |      +1                1
-  .byte %00000010 ; ░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001010 ; |▒▒▒X████|███     |       0                4
-  .byte %00000010 ; ░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|███ █   |       0                8
-  .byte %00000010 ; ░  ▓▓▓▓▓⏐▓▓▓  ██ █████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|█████   |       0                8
-  .byte %00000010 ;         ⏐      ██████                                                                                                                                                                     .byte %00000110 ; |▒▒  ████|███     |       0                2
-  ↑        ↑                                                                                                                                                                                 .byte %00000010 ; |▒    ███|███     |       0                1
-  |       GRP0 position (cycl                                                                                                                                                                .byte %01110010 ; |▒     ██|██████  |       0                1
-  BALL/M0 position (cycle 20)                                                                                                                                                                .byte %00000000 ; |       █|████    |       0                0
-  .byte %00000010 ; |       ▒|████████|      +8                1
-  .byte %00000010 ; |       ▒|████████|      +8                1
-  .byte %00000010 ; |       ▒|████████|      +8                1
-  .byte %10000010 ; |       ▒|█ ██████|      +8                1
-  .byte %00000000 ; |        |███████ |       0                0
+                  ;                               offset           size
+                  ;                         HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+                  ; ⏐   ▯▯   ⏐                      
+                  ; ⏐   ▯    ⏐
+  .ds 1           ; ⏐   ▯▯   ⏐▯▯                                                                                                                                                                               .byte %00000000 ; |   █    |█       |       0                0
+  .byte %00000010 ; ⏐   ███ █⏐█  ▓▓                                                                                                                                                                            .byte %00000000 ; |   ██   |█       |       0                0
+  .byte %00000010 ; ⏐  ░░░XXX⏐XX▓▓▓ █████                                                                                                                                                                      .byte %00000000 ; |   ███ █|█       |       0                0
+  .byte %00000010 ; ⏐ ░░░░XXX⏐X▓▓▓▓████                                                                                                                                                                        .byte %00000000 ; |  ██████|██      |       0                0
+  .byte %00000010 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████                                                                                                                                                                    .byte %11110010 ; | ▒██████|██      |      +1                1
+  .byte %00000010 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001010 ; |▒▒▒X████|███     |       0                4
+  .byte %00000010 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|███ █   |       0                8
+  .byte %00000010 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|█████   |       0                8
+  .byte %00000010 ; ⏐        ⏐      ██████                                                                                                                                                                     .byte %00000110 ; |▒▒  ████|███     |       0                2
+  ;                 ↑        ↑
+  ; BALL pos (cycle 20)   M0/GRP0 position (cycle 23)                                                                                                                                                                .byte %01110010 ; |▒     ██|██████  |       0                1
   .ds 1; ^
   ;      |
   ;      + enable the ball when this bit is ON
