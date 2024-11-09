@@ -56,15 +56,15 @@ INIT_DINO_TOP_Y = #INIT_DINO_POS_Y+#DINO_HEIGHT
 
 SKY_LINES = #31
 CACTUS_LINES = #31
-FLOOR_LINES = #2
-GROUND_LINES = #8
+FLOOR_LINES = #1
+GROUND_LINES = #9
 
 DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GROUND_LINES
 SKY_MAX_Y = #DINO_PLAY_AREA_LINES
 SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
 CACTUS_AREA_MAX_Y = #SKY_MIN_Y
 CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
-GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y
+GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y-#FLOOR_LINES
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
 ; The 1st region of the crouching area covers 15 + 7 = 22 double scanlines:
@@ -525,7 +525,7 @@ sky_sub_kernel_setup:;----->>> 3 scanlines <<<-----
   ; Set GRP0 coarse position
   ;
   ; TODO: These instructions could be replaced by something more useful
-  INSERT_NOPS 11    ; 22 (25)
+  INSERT_NOPS 11   ; 22 (25)
 
   sta RESP0        ; 3 (28) TV beam should now be at a dino coarse x pos
   sta WSYNC        ; 3 (31)
@@ -534,22 +534,28 @@ sky_sub_kernel_setup:;----->>> 3 scanlines <<<-----
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
+  ; Maybe a more useful instruction here? We need this 3 cycles so 
+  ; the numbers below add up
+  lda COLUBK       ; 3 (6)
+
   ; Set M0 coarse position
   ;
   ; If dino is crouching, M0 needs to be in the same exact position as GRP0
-  ; that is, M0 needs to be strobed at cycle 23. Otherwise, M0 needs to be
-  ; strobed at cycle 20
-  lda #FLAG_DINO_CROUCHING   ; 2 (5)
-  bit GAME_FLAGS             ; 3 (8)
-  bne _dino_is_crouching     ; 2/3 (10 / 11)
+  ; that is, M0 needs to be strobed at cycle 25. Otherwise, M0 needs to be
+  ; strobed at cycle 22
+  lda #FLAG_DINO_CROUCHING   ; 2 (8)
+  bit GAME_FLAGS             ; 3 (11)
+  beq _dino_is_not_crouching ; 2/3 (13 / 14)
 
-  INSERT_NOPS 5        ; 10 (20)
-  sta RESM0            ; 3 (23) <-- 2 cycles before GRP0!!
-  jmp _m0_coarse_position_set  ; 3 (26)
+  INSERT_NOPS 6        ; 12 (25)
 
-_dino_is_crouching:
-  INSERT_NOPS 6        ; 12 (23)
-  sta RESM0            ; 3 (26) <-- same place as GRP0
+  sta RESM0            ; 3 (28) <-- same place as GRP0
+  jmp _m0_coarse_position_set  ; 3 (31)
+
+_dino_is_not_crouching:
+  INSERT_NOPS 4        ; 8 (22)
+
+  sta RESM0            ; 3 (25) <-- 3 cycles before GRP0
 
 _m0_coarse_position_set:
   ldy #SKY_MAX_Y   ; 2 (28)
@@ -622,11 +628,12 @@ _sky__end_of_1st_scanline:
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
   cpy #SKY_MIN_Y+#1          ; 2 (7)
   bcs sky_sub_kernel         ; 2/3 (9 / 10)
+_sky__end_of_2nd_scanline:
 
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
 _check_if_crouching:
-  lda #83
+  lda #93    ; for debugging, light pink
   sta COLUBK
 
   ; Check if dino is crouching, then jump to the appropiate kernel if so
@@ -872,9 +879,6 @@ _ground__end_of_1st_scanline:
   sta ENAM0                             ; 3
   INSERT_NOPS 10                        ; 20
   sta HMCLR
-
-  sta WSYNC                             ; 3
-  sta HMOVE                             ; 3
 
   dey                                   ; 2
   cpy #GROUND_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
