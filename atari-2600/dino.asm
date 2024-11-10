@@ -37,6 +37,13 @@
     REPEND
   ENDM
 
+  MAC DECODE_MISSILE_OFFSET_AND_SIZE ; 13 cycles
+    sta MISILE_P0       ; 3 (3)
+    sta HMM0            ; 3 (6)
+    asl                 ; 2 (8)
+    asl                 ; 2 (10)
+    sta NUSIZ0          ; 3 (13)
+  ENDM
 ;=============================================================================
 ; SUBROUTINES
 ;=============================================================================
@@ -67,14 +74,14 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y-#FLOOR_LINES
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
-; The 1st region of the crouching area covers 15 + 7 = 22 double scanlines:
+; The 1st region of the crouching area covers 15 + 8 = 23 double scanlines:
 ; 15 empty 2x scanlines from the top to where the dino's head would be when
-; standing, plus an additional 7 scanlines without the dino, since is now
-; crouching. The 2nd region is 9 2x scanlines, because the dino crouching
-; sprite spans 9 scanlines without the legs (which are drawn by the floor
+; standing, plus an additional 8 scanlines without the dino, since is now
+; crouching. The 2nd region is 8 2x scanlines, because the dino crouching
+; sprite spans 8 scanlines without the legs (which are drawn by the floor
 ; kernel)
-CROUCHING_LINES_REGION_1 = #15+#7
-CROUCHING_LINES_REGION_2 = #9
+CROUCHING_LINES_REGION_1 = #15+#8
+CROUCHING_LINES_REGION_2 = #8
 CROUCHING_LINES = #CROUCHING_LINES_REGION_1+#CROUCHING_LINES_REGION_2
 
   IF CROUCHING_LINES != CACTUS_LINES
@@ -120,21 +127,24 @@ TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
   SEG.U variables
   ORG $80
 
-DINO_TOP_Y_INT     .byte   ; 1 byte   (1)
-DINO_TOP_Y_FRACT   .byte   ; 1 byte   (2)
-BG_COLOUR          .byte   ; 1 byte   (3)
-DINO_COLOUR        .byte   ; 1 byte   (4)
-DINO_SPRITE        .byte   ; 1 byte   (5)
-DINO_SPRITE_OFFSET .byte   ; 1 byte   (6)
-MISILE_P0          .byte   ; 1 byte   (7)
-GAME_FLAGS         .byte   ; 1 byte   (9)
-PTR_DINO_SPRITE    .word   ; 2 bytes  (11)
-PTR_DINO_OFFSET    .word   ; 2 bytes  (13)
-PTR_DINO_MIS       .word   ; 2 bytes  (15)
-RND_SEED           .word   ; 2 bytes  (17)
-FRAME_COUNT        .word   ; 2 bytes  (19)
-DINO_VY_INT        .byte   ;
-DINO_VY_FRACT      .byte   ; 2 bytes  (21)
+DINO_TOP_Y_INT       .byte   ; 1 byte   (1)
+DINO_TOP_Y_FRACT     .byte   ; 1 byte   (2)
+BG_COLOUR            .byte   ; 1 byte   (3)
+DINO_COLOUR          .byte   ; 1 byte   (4)
+DINO_SPRITE          .byte   ; 1 byte   (5)
+DINO_SPRITE_OFFSET   .byte   ; 1 byte   (6)
+MISILE_P0            .byte   ; 1 byte   (7)
+GAME_FLAGS           .byte   ; 1 byte   (8)
+PTR_DINO_SPRITE      .word   ; 2 bytes  (10)
+PTR_DINO_SPRITE_2    .word   ; 2 bytes  (12)
+PTR_DINO_OFFSET      .word   ; 2 bytes  (14)
+PTR_DINO_OFFSET_2    .word   ; 2 bytes  (16)
+PTR_DINO_MIS         .word   ; 2 bytes  (18)
+PTR_DINO_MIS_2       .word   ; 2 bytes  (20)
+RND_SEED             .word   ; 2 bytes  (22)
+FRAME_COUNT          .word   ; 2 bytes  (23)
+DINO_VY_INT          .byte   ; 1 byte   (24)
+DINO_VY_FRACT        .byte   ; 1 byte   (25)
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -397,6 +407,24 @@ _update_jump_pos:
 
 _crouching:
 
+  echo "DINO_CROUCHING_SPRITE=",#DINO_CROUCHING_SPRITE
+  echo "CROUCHING_REGION_2_MIN_Y=",#CROUCHING_REGION_2_MIN_Y
+
+  lda #<[DINO_CROUCHING_SPRITE - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_SPRITE_2
+  lda #>[DINO_CROUCHING_SPRITE - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_SPRITE_2+1
+
+  lda #<[DINO_CROUCHING_SPRITE_OFFSETS - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_OFFSET_2
+  lda #>[DINO_CROUCHING_SPRITE_OFFSETS - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_OFFSET_2+1
+
+  lda #<[DINO_CROUCHING_MIS_OFFSET - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_MIS_2
+  lda #>[DINO_CROUCHING_MIS_OFFSET - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_MIS_2+1
+
 _update_leg_anim:
   ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
@@ -592,12 +620,7 @@ _sky__y_within_dino:
 
   ; missile
   lda (PTR_DINO_MIS),y           ; 5+ (36)
-  sta MISILE_P0                  ; 3  (39)
-  sta HMM0                       ; 3  (41)
-  asl                            ; 2  (43)
-  asl                            ; 2  (45)
-  sta NUSIZ0                     ; 3  (48)
-
+  DECODE_MISSILE_OFFSET_AND_SIZE ; 13
 
 _sky__end_of_1st_scanline:
   sta WSYNC                      ; 3 (32 / )
@@ -646,7 +669,7 @@ dino_crouching_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------
 ; 1. Obstacles only: This region draws obstacles (either cacti or pterodactyl)
 ;    *without* the dino, following the same logic as in
 ;    'cactus_area_sub_kernel.' It covers 15 + 7 = 22 double scanlines:
-;    15 empty 2x scanlines from the top to where the dino's head would be when
+;    15 empty 2x scanlines from the top to where the dino'shead would be when
 ;    standing, plus an additional 7 scanlines since the dino is now crouching.
 ;
 ; 2. Dino head and body: This sub-kernel draws the dino's head and body, as 
@@ -660,7 +683,7 @@ dino_crouching_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------
 ;                 ░░░░░XXX▓▓▓▓▓|████████|   |  Both the ball and missile are
 ;                  ░░░░XXXX▓▓▓▓|████████|    > set to size 8 in all these
 ;                  ░░░░XXXX▓▓▓▓|████    |   |  scanlines.
-;                   ░░░XXXXX▓▓▓| █████  |   /
+;                   ░░XXXXXX▓▓ | █████  |   /
 ;                  |███ ██  |▓▓   <-- missile set to size 2
 ;                   \      /
 ;                  GRP0 (8 pixels)
@@ -676,15 +699,18 @@ dino_crouching_sub_kernel: ;------------------>>> 31 2x scanlines <<<-----------
 _crouching_region_1:
   sta WSYNC                 ; 3 (3)
   ; 1st scanline ==============================================================
-  ; TODO: Copy the obstacle drawing code from the catus kernel here
                             ; - (0)
   sta HMOVE                 ; 3 (3)
+
+  ; TODO: Copy the obstacle drawing code from the catus kernel here
 
   sta WSYNC                 ; 3 (3)
 
   ; 2nd scanline ==============================================================
                             ; - (0)
   sta HMOVE                 ; 3 (3)
+
+  ; TODO: Copy the obstacle drawing code from the catus kernel here
 
   dey                                   ; 2
   cpy #CROUCHING_REGION_1_MIN_Y+#1      ; Similarly that what we did in the sky
@@ -698,16 +724,35 @@ _crouching_region_2:
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
+  lda (PTR_DINO_SPRITE_2),y           ; 5+ (36)
+  sta DINO_SPRITE
+
+  lda (PTR_DINO_OFFSET_2),y           ; 5+ (36)
+  sta HMP0
+
+  lda (PTR_DINO_MIS_2),y
+  DECODE_MISSILE_OFFSET_AND_SIZE    ; 13
+
   sta WSYNC
 
   ; 2nd scanline ==============================================================
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
+  lda DINO_SPRITE                       ; 3
+  ;lda #0                               ; for debugging, hides GRP0
+  sta GRP0                              ; 3
+  lda MISILE_P0                         ; 3
+  sta ENAM0                             ; 3
+  INSERT_NOPS 10                        ; 20
+  sta HMCLR
+
   dey                                   ; 2
   cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
   bcs _crouching_region_2               ; 2/3
+
+
   jmp floor_sub_kernel
 
 cactus_area_sub_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
@@ -1240,7 +1285,7 @@ DINO_MIS_OFFSETS_END = *
 ;                 ⏐   ▯    ⏐     > will be drawn by the floor kernel
 ;                 ⏐   ▯▯   ⏐▯▯  /
 ;                 ⏐   ███ █⏐█  ▓▓          <-- missile set to size 2
-;                 ⏐  ░░░XXX⏐XX▓▓▓ █████    \
+;                 ⏐  ░░XXXX⏐XX▓▓  █████    \
 ;                 ⏐ ░░░░XXX⏐X▓▓▓▓████      |  in all these scan lines
 ;                 ⏐ ░░░░XXX⏐X▓▓▓▓████████   > both ball and missile
 ;                 ⏐░░░░░XXX⏐▓▓▓▓▓████████  |  are set to size 8
@@ -1272,13 +1317,13 @@ DINO_CROUCHING_SPRITE_OFFSETS:
             ; ⏐   ▯▯   ⏐
             ; ⏐   ▯    ⏐              GRP0 offset
   .ds 1     ; ⏐   ▯▯   ⏐▯▯
-  .byte $20 ; ⏐   ███ █⏐█  ▓▓            -2
-  .byte $B0 ; ⏐  ░░░XXX⏐XX▓▓▓ █████      +5
-  .byte $B0 ; ⏐ ░░░░XXX⏐X▓▓▓▓████        +5
-  .byte $B0 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████    +5
-  .byte $B0 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████    +5
-  .byte $B0 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████    +5
-  .byte $B0 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████    +5
+  .byte $40 ; ⏐   ███ █⏐█  ▓▓            -4
+  .byte $00 ; ⏐  ░░XXXX⏐XX▓▓  █████       0
+  .byte $00 ; ⏐ ░░░░XXX⏐X▓▓▓▓████         0
+  .byte $00 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████     0
+  .byte $00 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████     0
+  .byte $00 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████     0
+  .byte $00 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████     0
   .byte $B0 ; ⏐        ⏐      ██████     +5
   .ds 1     ; ↑        ↑
             ; |       M0/GRP0 position (cycle 23)
@@ -1287,25 +1332,23 @@ DINO_CROUCHING_SPRITE_OFFSETS:
 DINO_CROUCHING_SPRITE_OFFSETS_END = *
 
 
-DINO_CROUCHING_MIS_OFFSET_1:
-                  ;                               offset           size
-                  ;                         HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-                  ; ⏐   ▯▯   ⏐                      
-                  ; ⏐   ▯    ⏐
-  .ds 1           ; ⏐   ▯▯   ⏐▯▯                                                                                                                                                                               .byte %00000000 ; |   █    |█       |       0                0
-  .byte %00000010 ; ⏐   ███ █⏐█  ▓▓                                                                                                                                                                            .byte %00000000 ; |   ██   |█       |       0                0
-  .byte %00000010 ; ⏐  ░░░XXX⏐XX▓▓▓ █████                                                                                                                                                                      .byte %00000000 ; |   ███ █|█       |       0                0
-  .byte %00000010 ; ⏐ ░░░░XXX⏐X▓▓▓▓████                                                                                                                                                                        .byte %00000000 ; |  ██████|██      |       0                0
-  .byte %00000010 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████                                                                                                                                                                    .byte %11110010 ; | ▒██████|██      |      +1                1
-  .byte %00000010 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001010 ; |▒▒▒X████|███     |       0                4
-  .byte %00000010 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|███ █   |       0                8
-  .byte %00000010 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████                                                                                                                                                                    .byte %00001110 ; |▒▒▒▒▒XXX|█████   |       0                8
-  .byte %00000010 ; ⏐        ⏐      ██████                                                                                                                                                                     .byte %00000110 ; |▒▒  ████|███     |       0                2
+DINO_CROUCHING_MIS_OFFSET:
+  ;                                          offset           size
+  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+  ; Enable M0 bit   ⏐   ▯▯   ⏐
+  ;            ⏐    ⏐   ▯    ⏐
+  .ds 1 ;      ↓    ⏐   ▯▯   ⏐▯▯
+  .byte %10010110 ; ⏐   ███ █⏐█  ▓▓            +7               2
+  .byte %00001110 ; ⏐  ░░XXXX⏐XX▓▓  █████       0               8
+  .byte %00001110 ; ⏐ ░░░░XXX⏐X▓▓▓▓████         0               8
+  .byte %00001110 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████     0               8
+  .byte %00001110 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████     0               8
+  .byte %11011110 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████    +3               8
+  .byte %01011110 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████    -5               8
+  .byte %00000000 ; ⏐        ⏐      ██████      0               0
   ;                 ↑        ↑
-  ; BALL pos (cycle 20)   M0/GRP0 position (cycle 23)                                                                                                                                                                .byte %01110010 ; |▒     ██|██████  |       0                1
-  .ds 1; ^
-  ;      |
-  ;      + enable the ball when this bit is ON
+  ; BALL pos (cycle 20)   M0/GRP0 position (cycle 23)
+  .ds 1;
   ;
   ; Legend:
   ;    █ GRP0 pixels
