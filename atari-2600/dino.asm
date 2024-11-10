@@ -44,6 +44,14 @@
     asl                 ; 2 (10)
     sta NUSIZ0          ; 3 (13)
   ENDM
+
+  MAC CHECK_Y_WITHIN_DINO       ; 9 cycles
+    tya                         ; 2 (2) A = current scanline (Y)
+    sec                         ; 2 (2)
+    sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
+    adc #DINO_HEIGHT            ; 2 (2)
+  ENDM
+
 ;=============================================================================
 ; SUBROUTINES
 ;=============================================================================
@@ -62,8 +70,8 @@ INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y+#DINO_HEIGHT
 
 SKY_LINES = #31
-CACTUS_LINES = #31
-FLOOR_LINES = #1
+CACTUS_LINES = #30
+FLOOR_LINES = #2
 GROUND_LINES = #9
 
 DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GROUND_LINES
@@ -74,13 +82,13 @@ CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y-#FLOOR_LINES
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
 
-; The 1st region of the crouching area covers 15 + 8 = 23 double scanlines:
+; The 1st region of the crouching area covers 15 + 7 = 22 double scanlines:
 ; 15 empty 2x scanlines from the top to where the dino's head would be when
-; standing, plus an additional 8 scanlines without the dino, since is now
+; standing, plus an additional 7 scanlines without the dino, since is now
 ; crouching. The 2nd region is 8 2x scanlines, because the dino crouching
-; sprite spans 8 scanlines without the legs (which are drawn by the floor
-; kernel)
-CROUCHING_LINES_REGION_1 = #15+#8
+; sprite spans 8 scanlines without the legs (which are drawn by the legs
+; and floor kernel)
+CROUCHING_LINES_REGION_1 = #15+#7
 CROUCHING_LINES_REGION_2 = #8
 CROUCHING_LINES = #CROUCHING_LINES_REGION_1+#CROUCHING_LINES_REGION_2
 
@@ -595,11 +603,7 @@ sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
 
   ; 1st scanline ==============================================================
                                  ; - (0)
-  sta HMOVE                      ; 3 (3)
-  tya                            ; 2 (5)  A = current scanline (Y)
-  sec                            ; 2 (7)
-  sbc DINO_TOP_Y_INT             ; 3 (10) A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT               ; 2 (12)
+  CHECK_Y_WITHIN_DINO         ; 9 (12)
   bcs _sky__y_within_dino        ; 2/3 (14/15)
 
 _sky__y_not_within_dino:         ; (14)
@@ -753,7 +757,7 @@ _crouching_region_2:
   bcs _crouching_region_2               ; 2/3
 
 
-  jmp floor_sub_kernel
+  jmp legs_and_floor_sub_kernel
 
 cactus_area_sub_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
   sta WSYNC                 ; 3 (3)
@@ -761,10 +765,7 @@ cactus_area_sub_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
   ; 1st scanline ==============================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
-  tya                         ; 2 (5)  A = currrent scanline (Y)
-  sec                         ; 2 (7)
-  sbc DINO_TOP_Y_INT          ; 3 (10) A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT            ; 2 (12)
+  CHECK_Y_WITHIN_DINO         ; 9 (12)
   bcs _cactus__y_within_dino  ; 2/3 (14 / 15)
 
 _cactus__y_not_within_dino:
@@ -785,11 +786,7 @@ _cactus__y_within_dino:
 
   ; missile
   lda (PTR_DINO_MIS),y                  ; 5+ (36)
-  sta MISILE_P0                         ; 3  (39)
-  sta HMM0                              ; 3  (41)
-  asl                                   ; 2  (43)
-  asl                                   ; 2  (45)
-  sta NUSIZ0                            ; 3  (48)
+  DECODE_MISSILE_OFFSET_AND_SIZE        ; 13
 
 _cactus__end_of_1st_scanline:
   sta WSYNC                             ; 3
@@ -809,38 +806,87 @@ _cactus__end_of_1st_scanline:
   cpy #CACTUS_AREA_MIN_Y+#1             ; 2 (7) - +1 turns Y ≥ C into Y > C
   bcs cactus_area_sub_kernel            ; 2/3 (9 / 10)
 
-floor_sub_kernel:
+legs_and_floor_sub_kernel:
 
-  lda #87                               ; 2 (11)
+  lda #47                              ; 2 (11)
   sta COLUBK                            ; 3 (14)
   sta WSYNC                             ; 3
 
-  ; 1st scanline SETUP ==============================================================
+  ;============================================================================
+  ; 2x SCANLINE #1
+  ;============================================================================
+  ; 1st scanline (SETUP) ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
-  tya                                   ; 2 (17)  A = current scanline (Y)
-  sec                                   ; 2 (19)
-  sbc DINO_TOP_Y_INT                    ; 3 (21)  A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT                      ; 2 (23)
 
-  bcs _floor__y_within_dino             ; 2/3
+  CHECK_Y_WITHIN_DINO         ; 9 (12)
 
-_floor__y_not_within_dino:
-  lda #0                                ; 3   Disable the misile for P0
-  sta DINO_SPRITE                       ; 3
+  bcs _scanline1__y_within_dino   ; 2/3
+
+_scanline1__y_not_within_dino:
+  lda #0                          ; 3   Disable the misile for P0
+  sta DINO_SPRITE                 ; 3
   sta DINO_SPRITE_OFFSET
-  jmp _floor__end_of_1st_scanline     ; 3
+  jmp _scanline1__end_of_setup ; 3
 
-_floor__y_within_dino:
+_scanline1__y_within_dino:
   ; graphics
   lda (PTR_DINO_SPRITE),y               ; 5+
   sta DINO_SPRITE                       ; 3
 
+  lda (PTR_DINO_OFFSET),y               ; 5+
+  sta DINO_SPRITE_OFFSET                     ; 3
+_scanline1__end_of_setup:
+  sta WSYNC
 
-_floor__end_of_1st_scanline:
-  sta WSYNC                             ; 3
+  ; 2nd scanline (DRAWING) ========================================================
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
 
-  ; 2nd scanline ==============================================================
+  lda DINO_SPRITE                       ; 3
+  ;lda #0                               ; for debugging, hides GRP0
+  sta GRP0                              ; 3
+  lda DINO_SPRITE_OFFSET
+
+  INSERT_NOPS 12                        ; 24
+  sta HMP0
+
+  dey
+
+  lda #77                              ; 2 (11)
+  sta COLUBK                            ; 3 (14)
+  sta WSYNC
+  ;============================================================================
+  ; 2x SCANLINE #2
+  ;============================================================================
+  ; 1st scanline (SETUP) ========================================================
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
+  CHECK_Y_WITHIN_DINO         ; 9 (12)
+
+  bcs _scanline2__y_within_dino   ; 2/3
+
+_scanline2__y_not_within_dino:
+  lda #0                          ; 3   Disable the misile for P0
+  sta DINO_SPRITE                 ; 3
+  sta DINO_SPRITE_OFFSET
+  jmp _scanline2__end_of_setup ; 3
+
+_scanline2__y_within_dino:
+  ; graphics
+  lda (PTR_DINO_SPRITE),y               ; 5+
+  sta DINO_SPRITE                       ; 3
+
+  lda (PTR_DINO_OFFSET),y
+  lda DINO_SPRITE_OFFSET
+
+  INSERT_NOPS 12                        ; 24
+  sta HMP0
+
+  sta WSYNC
+
+_scanline2__end_of_setup:
+  ; 2nd scanline (DRAWING) ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
 
@@ -860,10 +906,9 @@ _floor__end_of_1st_scanline:
   lda #255
   sta PF2
 
+  ; Experimenting changing background color instead of playfield
 ;lda DINO_COLOUR
 ;  sta COLUBK
-
-
 ;ldx BG_COLOUR
 ;  lda DINO_COLOUR
 ;  stx COLUBK
@@ -889,10 +934,7 @@ ground_area_sub_kernel:
   sta PF1
   sta PF2
 
-  tya                                   ; 2   A = current scanline (Y)
-  sec                                   ; 2
-  sbc DINO_TOP_Y_INT                        ; 3 - A = X - DINO_TOP_Y_INT
-  adc #DINO_HEIGHT                      ; 2
+  CHECK_Y_WITHIN_DINO
   bcs _ground__y_within_dino                   ; 2/3
 
 _ground__y_not_within_dino:
@@ -941,6 +983,8 @@ void_area_sub_kernel:
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; END GAME KERNEL
 ;=============================================================================
+
+;##############################################################################
 
 ;=============================================================================
 ; SPLASH SCREEN KERNEL
