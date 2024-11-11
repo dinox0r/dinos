@@ -539,19 +539,8 @@ clouds_sub_kernel:;-------->>> 18 scanlines <<<----
 
 sky_sub_kernel_setup:;----->>> 3 scanlines <<<-----
 
-; old version
-  ;; sta WSYNC   from previous scanline
-  ;; sta HMOVE   3 cycles (3 so far in this scanline)
-  ;; bne .loop   not taken, so 2 cycles (5) (from the DEBUG_SUB_KERNEL macro)
-
-  ; lda BG_COLOUR    ; 3 (6) - this can't be replaced by any other 3 cycle inst
-  ; INSERT_NOPS 7    ; 14 (20)
-
-  ; sta RESM0        ; 3 (23) M0 will be 3 cycles (9 cc/px) far from P0
-  ; sta RESP0        ; 3 (26) TV beam should now be at a dino coarse x pos
-  ; ldy #SKY_MAX_Y   ; 2 (28)
-  ; sta WSYNC
-; old version
+  ; sta HMOVE   3 cycles (3 so far in this scanline)
+  ; bne .loop   not taken, so 2 cycles (5) (from the DEBUG_SUB_KERNEL macro)
   sta WSYNC     ; 3 (8)
 
   ; 1st scanline ==============================================================
@@ -749,7 +738,9 @@ _crouching_region_2:
   lda MISILE_P0                         ; 3
   sta ENAM0                             ; 3
   INSERT_NOPS 10                        ; 20
+
   sta HMCLR
+
 
   dey                                   ; 2
   cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the sky
@@ -842,6 +833,8 @@ _scanline1__end_of_setup:
   ; 2nd scanline (DRAWING) ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
+  lda #0
+  sta ENAM0
 
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
@@ -1342,9 +1335,9 @@ DINO_MIS_OFFSETS_END = *
 ;
 DINO_CROUCHING_SPRITE:
   .ds 1             ; |        |
-  .byte %11101100   ; |███ ██  |
-  .byte %01111100   ; | █████  |
-  .byte %11110000   ; |████    |
+  .byte %10110011   ; |█ ██  ██|
+  .byte %00011111   ; |   █████|
+  .byte %00111100   ; |  ████  |
   .byte %11111111   ; |████████|
   .byte %11111111   ; |████████|
   .byte %11111111   ; |████████|
@@ -1358,20 +1351,20 @@ DINO_CROUCHING_SPRITE_OFFSETS:
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-            ; ⏐   ▯▯   ⏐
-            ; ⏐   ▯    ⏐              GRP0 offset
-  .ds 1     ; ⏐   ▯▯   ⏐▯▯
-  .byte $40 ; ⏐   ███ █⏐█  ▓▓            -4
-  .byte $00 ; ⏐  ░░XXXX⏐XX▓▓  █████       0
-  .byte $00 ; ⏐ ░░░░XXX⏐X▓▓▓▓████         0
-  .byte $00 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████     0
-  .byte $00 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████     0
-  .byte $00 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████     0
-  .byte $00 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████     0
-  .byte $B0 ; ⏐        ⏐      ██████     +5
-  .ds 1     ; ↑        ↑
-            ; |       M0/GRP0 position (cycle 23)
-            ; BALL position (cycle 20)
+            ; ⏐   ▯▯    ⏐
+            ; ⏐   ▯     ⏐                     GRP0 offset
+  .ds 1     ; ⏐   ▯▯   ▯⏐▯
+  .byte $60 ; ⏐   ▓▓█ ██⏐  ██            -6
+  .byte $00 ; ⏐  ░░XXXXX⏐X▓▓  █████       0
+  .byte $20 ; ⏐ ░░░░XXXX⏐▓▓▓▓████        -2
+  .byte $00 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0
+  .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
+  .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
+  .byte $00 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0
+  .byte $C0 ; ⏐         ⏐     ██████     +4
+  .ds 1     ; ↑         ↑
+            ; |       M0/GRP0 position (cycle 25)
+            ; BALL position (cycle 22)
 
 DINO_CROUCHING_SPRITE_OFFSETS_END = *
 
@@ -1379,19 +1372,19 @@ DINO_CROUCHING_SPRITE_OFFSETS_END = *
 DINO_CROUCHING_MIS_OFFSET:
   ;                                          offset           size
   ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  ; Enable M0 bit   ⏐   ▯▯   ⏐
-  ;            ⏐    ⏐   ▯    ⏐
-  .ds 1 ;      ↓    ⏐   ▯▯   ⏐▯▯
-  .byte %10010110 ; ⏐   ███ █⏐█  ▓▓            +7               2
-  .byte %00001110 ; ⏐  ░░XXXX⏐XX▓▓  █████       0               8
-  .byte %00001110 ; ⏐ ░░░░XXX⏐X▓▓▓▓████         0               8
-  .byte %00001110 ; ⏐ ░░░░XXX⏐X▓▓▓▓████████     0               8
-  .byte %00001110 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████     0               8
-  .byte %11011110 ; ⏐░░░░░XXX⏐▓▓▓▓▓████████    +3               8
-  .byte %01011110 ; ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████    -5               8
-  .byte %00000000 ; ⏐        ⏐      ██████      0               0
-  ;                 ↑        ↑
-  ; BALL pos (cycle 20)   M0/GRP0 position (cycle 23)
+  ; Enable M0 bit   ⏐   ▯▯    ⏐
+  ;            ⏐    ⏐   ▯     ⏐
+  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
+  .byte %00010110 ; ⏐   ▓▓█ ██⏐  ██            -1               2
+  .byte %00011110 ; ⏐  ░░XXXXX⏐X▓▓  █████      -1               8
+  .byte %00001110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████         0               8
+  .byte %00001110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0               8
+  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
+  .byte %11101110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████    +2               8
+  .byte %01011110 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████    -5               8
+  .byte %00000000 ; ⏐         ⏐     ██████      0               0
+  ;                 ↑         ↑
+  ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
   .ds 1;
   ;
   ; Legend:
