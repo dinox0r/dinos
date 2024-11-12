@@ -591,7 +591,9 @@ sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta WSYNC        ; 3 (31)
 
   ; 1st scanline ==============================================================
-                                 ; - (0)
+            ; - (0)
+  sta HMOVE ; 3 (3)
+
   CHECK_Y_WITHIN_DINO         ; 9 (12)
   bcs _sky__y_within_dino        ; 2/3 (14/15)
 
@@ -801,10 +803,24 @@ legs_and_floor_sub_kernel:
 
   lda #47                              ; 2 (11)
   sta COLUBK                            ; 3 (14)
+
+  ; If dino was crouching, we need to offset GPR0 2 pixels to the left 
+  ; otherwise the HMP0 offset won't match with the legs
+  lda #FLAG_DINO_CROUCHING
+  bit GAME_FLAGS
+  beq _scanline1_dino_is_not_crouching
+  ;lda #$20
+  ;sta HMP0
+
+  sta WSYNC
+  sta HMOVE
+  jmp _scanline1_dino_is_crouching
+
+_scanline1_dino_is_not_crouching:
   sta WSYNC                             ; 3
 
   ;============================================================================
-  ; 2x SCANLINE #1
+  ; 1st DOUBLE SCANLINE
   ;============================================================================
   ; 1st scanline (SETUP) ========================================================
                               ; - (0)
@@ -812,21 +828,23 @@ legs_and_floor_sub_kernel:
 
   CHECK_Y_WITHIN_DINO         ; 9 (12)
 
-  bcs _scanline1__y_within_dino   ; 2/3
+  bcs _scanline1__y_within_dino  ; 2/3 (14/15)
 
 _scanline1__y_not_within_dino:
-  lda #0                          ; 3   Disable the misile for P0
-  sta DINO_SPRITE                 ; 3
-  sta DINO_SPRITE_OFFSET
-  jmp _scanline1__end_of_setup ; 3
+  lda #0                         ; 2 (16)
+  sta DINO_SPRITE                ; 3 (19)
+  sta DINO_SPRITE_OFFSET         ; 3 (21)
+  jmp _scanline1__end_of_setup   ; 3 (24)
 
 _scanline1__y_within_dino:
-  ; graphics
-  lda (PTR_DINO_SPRITE),y               ; 5+
-  sta DINO_SPRITE                       ; 3
+  lda (PTR_DINO_OFFSET),y        ; 5 (28)
+  sta DINO_SPRITE_OFFSET         ; 3 (31)
 
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta DINO_SPRITE_OFFSET                     ; 3
+_scanline1_dino_is_crouching:
+  ; graphics
+  lda (PTR_DINO_SPRITE),y        ; 5 (20)
+  sta DINO_SPRITE                ; 3 (23)
+
 _scanline1__end_of_setup:
   sta WSYNC
 
@@ -839,18 +857,20 @@ _scanline1__end_of_setup:
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  lda DINO_SPRITE_OFFSET
 
   INSERT_NOPS 12                        ; 24
+
+  lda DINO_SPRITE_OFFSET
   sta HMP0
 
   dey
+
 
   lda #77                              ; 2 (11)
   sta COLUBK                            ; 3 (14)
   sta WSYNC
   ;============================================================================
-  ; 2x SCANLINE #2
+  ; 2nd DOUBLE SCANLINE
   ;============================================================================
   ; 1st scanline (SETUP) ========================================================
                               ; - (0)
@@ -926,6 +946,7 @@ ground_area_sub_kernel:
   sta PF0
   sta PF1
   sta PF2
+  sta ENAM0
 
   CHECK_Y_WITHIN_DINO
   bcs _ground__y_within_dino                   ; 2/3
@@ -955,8 +976,6 @@ _ground__end_of_1st_scanline:
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  lda MISILE_P0                         ; 3
-  sta ENAM0                             ; 3
   INSERT_NOPS 10                        ; 20
   sta HMCLR
 
@@ -1318,25 +1337,25 @@ DINO_MIS_OFFSETS_END = *
 ;    X overlapping pixels
 ;    ▯ Non drawn by the current kernel
 ;
-;                 ⏐   ▯▯   ⏐    \
-;                 ⏐   ▯    ⏐     > will be drawn by the floor kernel
-;                 ⏐   ▯▯   ⏐▯▯  /
-;                 ⏐   ███ █⏐█  ▓▓          <-- missile set to size 2
-;                 ⏐  ░░XXXX⏐XX▓▓  █████    \
-;                 ⏐ ░░░░XXX⏐X▓▓▓▓████      |  in all these scan lines
-;                 ⏐ ░░░░XXX⏐X▓▓▓▓████████   > both ball and missile
-;                 ⏐░░░░░XXX⏐▓▓▓▓▓████████  |  are set to size 8
-;                 ⏐░░░░░XXX⏐▓▓▓▓▓████████  /
-;                 ⏐░  ▓▓▓▓▓⏐▓▓▓  ██ █████  <-- ball size 1 and missile size 8
-;                 ⏐        ⏐      ██████
-;                 ↑        ↑               HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+;                 ⏐   ▯▯    ⏐   \
+;                 ⏐   ▯     ⏐    > will be drawn by the floor kernel
+;                 ⏐   ▯▯   ▯⏐▯  /
+;                 ⏐   ███ ██⏐  ▓▓          <-- missile set to size 2
+;                 ⏐  ░░░░░░░⏐░██  █▓▓▓▓    \
+;                 ⏐ ░░░░XXXX⏐▓▓▓▓████      |  in all these scan lines
+;                 ⏐ ░░░░XXXX⏐▓▓▓▓████████   > both ball and missile
+;                 ⏐░░░░░XXX▓⏐▓▓▓▓████████  |  are set to size 8
+;                 ⏐░░░░░XXX▓⏐▓▓▓▓████████  /
+;                 ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████  <-- ball size 1 and missile size 8
+;                 ⏐         ⏐     ██████
+;                 ↑         ↑              HMM0 bits 7,6,5,4   NUSIZE bits 5,4
 ;                 |     M0/GRP0 position (cycle 23)
 ;      BALL position (cycle 20)
 ;
 DINO_CROUCHING_SPRITE:
   .ds 1             ; |        |
-  .byte %10110011   ; |█ ██  ██|
-  .byte %00011111   ; |   █████|
+  .byte %11101100   ; |███ ██  |
+  .byte %00011001   ; |   ██  █|
   .byte %00111100   ; |  ████  |
   .byte %11111111   ; |████████|
   .byte %11111111   ; |████████|
@@ -1351,11 +1370,13 @@ DINO_CROUCHING_SPRITE_OFFSETS:
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
+            ;          █|██ ██  
+            ;             ██  █
             ; ⏐   ▯▯    ⏐
             ; ⏐   ▯     ⏐                     GRP0 offset
   .ds 1     ; ⏐   ▯▯   ▯⏐▯
-  .byte $60 ; ⏐   ▓▓█ ██⏐  ██            -6
-  .byte $00 ; ⏐  ░░XXXXX⏐X▓▓  █████       0
+  .byte $40 ; ⏐   ███ ██⏐  ▓▓            -5
+  .byte $40 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      -4
   .byte $20 ; ⏐ ░░░░XXXX⏐▓▓▓▓████        -2
   .byte $00 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0
   .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
@@ -1375,9 +1396,9 @@ DINO_CROUCHING_MIS_OFFSET:
   ; Enable M0 bit   ⏐   ▯▯    ⏐
   ;            ⏐    ⏐   ▯     ⏐
   .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
-  .byte %00010110 ; ⏐   ▓▓█ ██⏐  ██            -1               2
-  .byte %00011110 ; ⏐  ░░XXXXX⏐X▓▓  █████      -1               8
-  .byte %00001110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████         0               8
+  .byte %01000110 ; ⏐   ███ ██⏐  ▓▓            -4               2
+  .byte %10001010 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +8               4
+  .byte %11101110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██        +2               8
   .byte %00001110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0               8
   .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
   .byte %11101110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████    +2               8
