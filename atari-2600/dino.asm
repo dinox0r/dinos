@@ -142,6 +142,7 @@ DINO_COLOUR          .byte   ; 1 byte   (4)
 DINO_SPRITE          .byte   ; 1 byte   (5)
 DINO_SPRITE_OFFSET   .byte   ; 1 byte   (6)
 MISILE_P0            .byte   ; 1 byte   (7)
+ENABLE_BALL          .byte   ; 1 byte
 GAME_FLAGS           .byte   ; 1 byte   (8)
 PTR_DINO_SPRITE      .word   ; 2 bytes  (10)
 PTR_DINO_SPRITE_2    .word   ; 2 bytes  (12)
@@ -149,6 +150,7 @@ PTR_DINO_OFFSET      .word   ; 2 bytes  (14)
 PTR_DINO_OFFSET_2    .word   ; 2 bytes  (16)
 PTR_DINO_MIS         .word   ; 2 bytes  (18)
 PTR_DINO_MIS_2       .word   ; 2 bytes  (20)
+PTR_DINO_BALL        .word   ; 2 bytes
 RND_SEED             .word   ; 2 bytes  (22)
 FRAME_COUNT          .word   ; 2 bytes  (23)
 DINO_VY_INT          .byte   ; 1 byte   (24)
@@ -433,6 +435,12 @@ _crouching:
   lda #>[DINO_CROUCHING_MIS_OFFSET - CROUCHING_REGION_2_MIN_Y]
   sta PTR_DINO_MIS_2+1
 
+  lda #<[DINO_CROUCHING_BALL - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_BALL
+  lda #>[DINO_CROUCHING_BALL - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_BALL+1
+
+
 _update_leg_anim:
   ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
@@ -572,8 +580,10 @@ sky_sub_kernel_setup:;----->>> 3 scanlines <<<-----
   bit GAME_FLAGS             ; 3 (11)
   beq _dino_is_not_crouching ; 2/3 (13 / 14)
 
-  INSERT_NOPS 6        ; 12 (25)
+  INSERT_NOPS 3        ; 6 (19)
 
+  lda COLUBK           ; 3 (22)
+  sta RESBL            ; 3 (25)
   sta RESM0            ; 3 (28) <-- same place as GRP0
   jmp _m0_coarse_position_set  ; 3 (31)
 
@@ -728,12 +738,21 @@ _crouching_region_2:
   lda (PTR_DINO_MIS_2),y
   DECODE_MISSILE_OFFSET_AND_SIZE    ; 13
 
+  lda (PTR_DINO_BALL),y
+  sta ENABLE_BALL     ; 3 (3)
+  sta HMBL            ; 3 (6)
+  asl                 ; 2 (8)
+  asl                 ; 2 (10)
+  sta CTRLPF          ; 3 (13)
+
   sta WSYNC
 
   ; 2nd scanline ==============================================================
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
+  lda ENABLE_BALL
+  sta ENABL
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
@@ -1355,8 +1374,8 @@ DINO_MIS_OFFSETS_END = *
 DINO_CROUCHING_SPRITE:
   .ds 1             ; |        |
   .byte %11101100   ; |███ ██  |
-  .byte %00011001   ; |   ██  █|
-  .byte %00111100   ; |  ████  |
+  .byte %00111001   ; |  ███  █|
+  .byte %11110000   ; |████    |
   .byte %11111111   ; |████████|
   .byte %11111111   ; |████████|
   .byte %11111111   ; |████████|
@@ -1376,8 +1395,8 @@ DINO_CROUCHING_SPRITE_OFFSETS:
             ; ⏐   ▯     ⏐                     GRP0 offset
   .ds 1     ; ⏐   ▯▯   ▯⏐▯
   .byte $40 ; ⏐   ███ ██⏐  ▓▓            -5
-  .byte $40 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      -4
-  .byte $20 ; ⏐ ░░░░XXXX⏐▓▓▓▓████        -2
+  .byte $60 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      -6
+  .byte $00 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0
   .byte $00 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0
   .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
   .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
@@ -1389,6 +1408,23 @@ DINO_CROUCHING_SPRITE_OFFSETS:
 
 DINO_CROUCHING_SPRITE_OFFSETS_END = *
 
+DINO_CROUCHING_BALL:
+  ;                                          offset           size
+  ;                                    HMBL bits 7,6,5,4  CTRLPF bits 5,4
+  ; Enable BALL bit ⏐   ▯▯    ⏐
+  ;            ⏐    ⏐   ▯     ⏐
+  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
+  .byte %00100000 ; ⏐   ███ ██⏐  ▓▓             0               0
+  .byte %11111110 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +1               8
+  .byte %00001110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0               8
+  .byte %11111110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████    +1               8
+  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
+  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
+  .byte %00000010 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0               1
+  .byte %11110000 ; ⏐         ⏐     ██████     +1               0
+  ;          ↑↑     ↑         ↑
+  ;          ⏐⏐     ⏐     M0/GRP0 position (cycle 25)
+  ;     BALL size   BALL pos (cycle 22)
 
 DINO_CROUCHING_MIS_OFFSET:
   ;                                          offset           size
