@@ -155,6 +155,7 @@ RND_SEED             .word   ; 2 bytes  (22)
 FRAME_COUNT          .word   ; 2 bytes  (23)
 DINO_VY_INT          .byte   ; 1 byte   (24)
 DINO_VY_FRACT        .byte   ; 1 byte   (25)
+UP_PRESSED_FRAMES    .byte   ; 1 byte   (25)
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -295,9 +296,19 @@ _check_joystick_down:
 _check_joystick_up:
   lda #%00010000 ; up (player 0)
   bit SWCHA
-  bne _end_check_joystick
+  bne _reset_up_counter  ; not pressing UP, reset up counter
 
 _on_joystick_up:
+  inc UP_PRESSED_FRAMES
+  bne _keep_checking_joystick_up  ; if up-counter > 255 then up-counter = 255
+  lda #255
+  sta UP_PRESSED_FRAMES
+
+_keep_checking_joystick_up:
+  lda UP_PRESSED_FRAMES
+  cmp #10
+  bcs _end_check_joystick
+
   ; if it's already jumping, ignore
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
@@ -317,12 +328,15 @@ _on_joystick_down:
   ; if it's already crouching or jumping, ignore
   lda #FLAG_DINO_CROUCHING_OR_JUMPING
   bit GAME_FLAGS
-  bne _end_check_joystick
+  bne _reset_up_counter
 
   ora GAME_FLAGS ; A <- A | GAME_FLAGS  => #FLAG_DINO_CROUCHING | GAME_FLAGS
   sta GAME_FLAGS
-
-  jmp _end_check_joystick
+  ;
+  ; fall through to reset the up-counter
+_reset_up_counter:
+  lda #0
+  sta UP_PRESSED_FRAMES
 
 _end_check_joystick:
 
@@ -1451,6 +1465,14 @@ DINO_CROUCHING_MIS_OFFSET:
   ;    X overlapping pixels
   ;    ▯ Non drawn by the current kernel
 
+;             -4               2
+;    ██      +8               4
+;    ██       +2               8
+;  ██████      0               8
+; █  █████     0               8
+; █  ██  █    +2               8
+;    ██  █    -5               8
+;    ██        0               0
 
 ;=============================================================================
 ; ROM SETUP
