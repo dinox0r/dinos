@@ -1403,8 +1403,6 @@ DINO_CROUCHING_SPRITE_OFFSETS:
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-            ;          █|██ ██  
-            ;             ██  █
             ; ⏐   ▯▯    ⏐
             ; ⏐   ▯     ⏐                     GRP0 offset
   .ds 1     ; ⏐   ▯▯   ▯⏐▯
