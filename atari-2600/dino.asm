@@ -1463,6 +1463,41 @@ DINO_CROUCHING_MIS_OFFSET:
   ;    X overlapping pixels
   ;    ▯ Non drawn by the current kernel
 
+PTERO_WINGS_CLOSED:
+  ;                                          offset           size
+  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+  ; Enable M0 bit   ⏐         ⏐         |
+  ;            ⏐    ⏐         ⏐         |
+  .ds 1 ;      ↓    ⏐         ⏐         |
+  .byte %01000110 ; ⏐         ⏐         |      -4               2
+  .byte %01000110 ; ⏐         ⏐         |      -4               2
+  .byte %10001010 ; ⏐         ⏐         |      +8               4
+  .byte %11101110 ; ⏐     ███ ⏐         |      +2               8
+  .byte %00001110 ; ⏐    ████ ⏐         |       0               8
+  .byte %00001110 ; ⏐   ██████⏐         |       0               8
+  .byte %11101110 ; ⏐  ███████⏐██████   |      +2               8
+  .byte %01011110 ; ⏐        █⏐█████████|▓▓    -5               8
+  .byte %00000000 ; ⏐         ⏐████████ |       0               0
+  .byte %10001010 ; ⏐         ⏐█████████|▓     +8               4
+  .byte %11101110 ; ⏐         ⏐███████  |      +2               8
+  .byte %00001110 ; ⏐         ⏐███      |       0               8
+  .byte %00001110 ; ⏐         ⏐██       |       0               8
+  .byte %11101110 ; ⏐         ⏐██       |      +2               8
+  .byte %01011110 ; ⏐         ⏐█        |      -5               8
+  .byte %00000000 ; ⏐         ⏐         |       0               0
+  ;                 ↑         ↑
+  ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
+  .ds 1;
+
+  ;
+  ; Legend:
+  ;    █ GRP0 pixels
+  ;    ▒ missile pixels
+  ;    ░ ball
+  ;    X overlapping pixels
+  ;    ▯ Non drawn by the current kernel
+
+
 ;             -4               2
 ;    ██      +8               4
 ;    ██       +2               8
