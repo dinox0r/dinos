@@ -75,7 +75,7 @@ FLOOR_LINES = #2
 GROUND_LINES = #9
 
 DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GROUND_LINES
-SKY_MAX_Y = #DINO_PLAY_AREA_LINES
+SKY_MAX_Y = #DINbO_PLAY_AREA_LINES
 SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
 CACTUS_AREA_MAX_Y = #SKY_MIN_Y
 CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
@@ -157,6 +157,15 @@ DINO_VY_INT          .byte   ; 1 byte   (24)
 DINO_VY_FRACT        .byte   ; 1 byte   (25)
 UP_PRESSED_FRAMES    .byte   ; 1 byte   (25)
 
+OBSTACLE_TYPE        .byte
+OBSTACLE_Y           .byte
+OBSTACLE_X_INT       .byte   ; 1 byte
+OBSTACLE_X_FRACT     .byte   ; 1 byte
+
+PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
+PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
+PTR_OBSTACLE_MIS     .word   ; 2 bytes
+
 ;=============================================================================
 ; ROM / GAME CODE
 ;=============================================================================
@@ -192,6 +201,7 @@ clear_zero_page_memory:
   pha  ; the stack and ZP RAM are the very same 128 bytes
   bne clear_zero_page_memory
 
+game_init:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
@@ -220,6 +230,14 @@ clear_zero_page_memory:
   sta PTR_DINO_MIS
   lda #>[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_MIS+1
+
+  lda #1
+  sta OBSTACLE_TYPE
+  lda #SKY_MAX_Y-#4
+  sta OBSTACLE_Y
+  lda #50
+  sta OBSTACLE_X_INT
+
 
 ;=============================================================================
 ; FRAME
@@ -346,7 +364,7 @@ _end_check_joystick:
   jmp in_splash_screen
 
 ; -----------------------------------------------------------------------------
-; GAME SCREEN
+; GAME SCREEN SETUP
 ; -----------------------------------------------------------------------------
 in_grame_screen:
 
@@ -485,6 +503,23 @@ _swap_legs:
   sta GAME_FLAGS
 
 _end_legs_anim:
+
+obstacle_setup:
+  ; Update the obstacle's x-position
+  ; start a new scaline (this will waste a few cycles from the setup frame 
+  ; time, so I should revisit this to make sure that the beam is not at the 
+  ; beginning of a scanline or something)
+  sta WSYNC
+  clc
+  lda OBSTACLE_X_INT
+  adc #68
+  ; wait X+68 TIA colour cycles (pixels)
+_obstacle_coarse_x_pos:
+  dec
+  bne _obstacle_coarse_x_pos
+  sta RESP1
+
+
 
   jmp end_frame_setup
 
@@ -1434,7 +1469,7 @@ DINO_CROUCHING_BALL:
   .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
   .byte %00000010 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0               1
   .byte %11110000 ; ⏐         ⏐     ██████     +1               0
-  ;          ↑↑     ↑         ↑
+  .ds 1 ;    ↑↑     ↑         ↑
   ;          ⏐⏐     ⏐     M0/GRP0 position (cycle 25)
   ;     BALL size   BALL pos (cycle 22)
 
@@ -1452,9 +1487,8 @@ DINO_CROUCHING_MIS_OFFSET:
   .byte %11101110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████    +2               8
   .byte %01011110 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████    -5               8
   .byte %00000000 ; ⏐         ⏐     ██████      0               0
-  ;                 ↑         ↑
+  .ds 1           ; ↑         ↑
   ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
-  .ds 1;
   ;
   ; Legend:
   ;    █ GRP0 pixels
@@ -1463,28 +1497,95 @@ DINO_CROUCHING_MIS_OFFSET:
   ;    X overlapping pixels
   ;    ▯ Non drawn by the current kernel
 
-PTERO_WINGS_CLOSED:
-  ;                                          offset           size
+PTERO_WINGS_CLOSED_SPRITE:
+  ; Sprite drawn as a combination
+  ; of GRP0 and M0 (after applying offsets)
+  ;    "unpacked" GRP0 and M0
+  ;                                  /- GRP0 -\
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;   ███ ⏐         |                ⏐    ███ ⏐
+  ;  ████ ⏐         |                ⏐   ████ ⏐
+  ; ██████⏐         |                ⏐  ██████⏐
+  ;█████XX⏐▓▓▓▓▓▓   |                ⏐ █████XX⏐▓▓▓▓▓▓
+  ;      █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐▓▓▓▓▓▓▓▓
+  ;       ⏐████████ |                ⏐████████⏐
+  ;       ⏐██████▓▓▓|▓               ⏐  ██████⏐▓▓▓▓
+  ;       ⏐███████  |                ⏐ ███████⏐
+  ;       ⏐███      |                ⏐     ███⏐
+  ;       ⏐██       |                ⏐     ██ ⏐
+  ;       ⏐██       |                ⏐     ██ ⏐
+  ;       ⏐█        |                ⏐     █  ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;
+
+  .ds 1            ;⏐        ⏐
+  .byte %00000100  ;⏐     █  ⏐
+  .byte %00000110  ;⏐     ██ ⏐
+  .byte %10000110  ;⏐     ██ ⏐
+  .byte %00000111  ;⏐     ███⏐
+  .byte %01111111  ;⏐ ███████⏐
+  .byte %00111111  ;⏐  ██████⏐
+  .byte %11111111  ;⏐████████⏐
+  .byte %00001111  ;⏐    ████⏐
+  .byte %01111111  ;⏐ ███████⏐
+  .byte %00111111  ;⏐  ██████⏐
+  .byte %00011110  ;⏐   ████ ⏐
+  .byte %00001110  ;⏐    ███ ⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
+  .ds 1            ;⏐        ⏐
+
+PTERO_WINGS_CLOSED_SPRITE_OFFSETS:
+
+; Again, for reference:
+;       LEFT  <---------------------------------------------------------> RIGHT
+;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
+;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
+
+  .byte $00  ;⏐        ⏐
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .ds 1            ;⏐        ⏐
+
+
+PTERO_WINGS_CLOSED_MIS_OFFSETS:
   ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
   ; Enable M0 bit   ⏐         ⏐         |
   ;            ⏐    ⏐         ⏐         |
   .ds 1 ;      ↓    ⏐         ⏐         |
-  .byte %01000110 ; ⏐         ⏐         |      -4               2
-  .byte %01000110 ; ⏐         ⏐         |      -4               2
-  .byte %10001010 ; ⏐         ⏐         |      +8               4
-  .byte %11101110 ; ⏐     ███ ⏐         |      +2               8
-  .byte %00001110 ; ⏐    ████ ⏐         |       0               8
-  .byte %00001110 ; ⏐   ██████⏐         |       0               8
-  .byte %11101110 ; ⏐  ███████⏐██████   |      +2               8
-  .byte %01011110 ; ⏐        █⏐█████████|▓▓    -5               8
-  .byte %00000000 ; ⏐         ⏐████████ |       0               0
-  .byte %10001010 ; ⏐         ⏐█████████|▓     +8               4
-  .byte %11101110 ; ⏐         ⏐███████  |      +2               8
-  .byte %00001110 ; ⏐         ⏐███      |       0               8
-  .byte %00001110 ; ⏐         ⏐██       |       0               8
-  .byte %11101110 ; ⏐         ⏐██       |      +2               8
-  .byte %01011110 ; ⏐         ⏐█        |      -5               8
   .byte %00000000 ; ⏐         ⏐         |       0               0
+  .byte %00000000 ; ⏐         ⏐█        |      -5               8
+  .byte %00000000 ; ⏐         ⏐██       |      +2               8
+  .byte %00000000 ; ⏐         ⏐██       |       0               8
+  .byte %00000000 ; ⏐         ⏐███      |       0               8
+  .byte %00000000 ; ⏐         ⏐███████  |      +2               8
+  .byte %00000000 ; ⏐         ⏐█████████|▓     +8               4
+  .byte %00000000 ; ⏐         ⏐████████ |       0               0
+  .byte %00000000 ; ⏐        █⏐█████████|▓▓    -5               8
+  .byte %00000000 ; ⏐  ███████⏐██████   |      +2               8
+  .byte %00000000 ; ⏐   ██████⏐         |       0               8
+  .byte %00000000 ; ⏐    ████ ⏐         |       0               8
+  .byte %00000000 ; ⏐     ███ ⏐         |      +2               8
+  .byte %00000000 ; ⏐         ⏐         |      +8               4
+  .byte %00000000 ; ⏐         ⏐         |      -4               2
+  .byte %00000000 ; ⏐         ⏐         |      -4               2
   ;                 ↑         ↑
   ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
   .ds 1;
