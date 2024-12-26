@@ -633,12 +633,14 @@ _m0_coarse_position_set:
 
   ; T0D0: set the coarse position of the cactus/pterodactile
 _set_obstacle_position:
-  clc
-  lda OBSTACLE_X_INT ; 3 (28) OBSTACLE_X_INT is pre-loaded with 72 for testing
-  adc #68            ; 2 (30) 68 TIA colour cycles ~ 22.5 6507 CPU cycles from
+  clc                ; 2 (27) Clear the carry for the addition below
+  lda OBSTACLE_X_INT ; 3 (30) OBSTACLE_X_INT is pre-loaded with 72 for testing
+  adc #68            ; 2 (32) 68 TIA colour cycles ~ 22.5 6507 CPU cycles from
                      ;        HBLANK to the start of visible px in the screen
-  sta HMCLR          ; 3 (31)
-  sec                ; 2 (33)
+  sta HMCLR          ; 3 (35) Clear any previous HMMx
+  sec                ; 2 (37) Set carry to do subtraction. Remember SBC is 
+                     ;        actually an ADC with A2 complement
+                     ;        A-B = A + ~B + 1 (<- this 1 is the carry you set)
 
   sta WSYNC          ; 3 (36)
   ; 3rd scanline ==============================================================
