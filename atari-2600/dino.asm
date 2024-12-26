@@ -238,6 +238,9 @@ game_init:
   lda #50
   sta OBSTACLE_X_INT
 
+  ; TODO: Remove after testing obstacle positioning
+  lda #72
+  sta OBSTACLE_X_INT
 
 ;=============================================================================
 ; FRAME
@@ -504,23 +507,6 @@ _swap_legs:
 
 _end_legs_anim:
 
-obstacle_setup:
-  ; Update the obstacle's x-position
-  ; start a new scaline (this will waste a few cycles from the setup frame 
-  ; time, so I should revisit this to make sure that the beam is not at the 
-  ; beginning of a scanline or something)
-  sta WSYNC
-  clc
-  lda OBSTACLE_X_INT
-  adc #68
-  ; wait X+68 TIA colour cycles (pixels)
-_obstacle_coarse_x_pos:
-  dec
-  bne _obstacle_coarse_x_pos
-  sta RESP1
-
-
-
   jmp end_frame_setup
 
 ; -----------------------------------------------------------------------------
@@ -592,12 +578,13 @@ clouds_sub_kernel_setup:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30,#2
 
 clouds_sub_kernel:;-------->>> 18 scanlines <<<----
-  DEBUG_SUB_KERNEL #$40,#18
+  DEBUG_SUB_KERNEL #$40,#16
 
-sky_sub_kernel_setup:;----->>> 3 scanlines <<<-----
+sky_sub_kernel_setup:;----->>> 4 scanlines <<<-----
+  ; From the DEBUG_SUB_KERNEL macro:
+  ;  sta HMOVE   3 cycles (3 so far in this scanline)
+  ;  bne .loop   not taken, so 2 cycles (5)
 
-  ; sta HMOVE   3 cycles (3 so far in this scanline)
-  ; bne .loop   not taken, so 2 cycles (5) (from the DEBUG_SUB_KERNEL macro)
   sta WSYNC     ; 3 (8)
 
   ; 1st scanline ==============================================================
@@ -617,8 +604,9 @@ sky_sub_kernel_setup:;----->>> 3 scanlines <<<-----
   sta HMOVE        ; 3 (3)
 
   ; Maybe a more useful instruction here? We need this 3 cycles so 
-  ; the numbers below add up
-  lda COLUBK       ; 3 (6)
+  ; the numbers below add up (don't think of strobing HMCLR, remember that
+  ; you can't touch HMMx registers 24 cyles after strobing HMOVE
+  sta COLUBK       ; 3 (6)
 
   ; Set M0 coarse position
   ;
@@ -642,9 +630,26 @@ _dino_is_not_crouching:
   sta RESM0            ; 3 (25) <-- 3 cycles before GRP0
 
 _m0_coarse_position_set:
-  ldy #SKY_MAX_Y   ; 2 (28)
 
   ; T0D0: set the coarse position of the cactus/pterodactile
+_set_obstacle_position:
+  clc
+  lda OBSTACLE_X_INT ; 3 (28) OBSTACLE_X_INT is pre-loaded with 72 for testing
+  adc #68            ; 2 (30) 68 TIA colour cycles ~ 22.5 6507 CPU cycles from
+                     ;        HBLANK to the start of visible px in the screen
+  sta HMCLR          ; 3 (31)
+  sec                ; 2 (33)
+
+  sta WSYNC          ; 3 (36)
+  ; 3rd scanline ==============================================================
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
+_set_obstacle_coarse_x_pos:
+  sbc #15                        ; 2 (5) Divide by 15 (sucessive subtractions)
+  bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
+  
+  ldy #SKY_MAX_Y   ; 2 (xx)
+
 
 sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta WSYNC        ; 3 (31)
