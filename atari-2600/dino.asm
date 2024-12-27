@@ -635,21 +635,29 @@ _m0_coarse_position_set:
 _set_obstacle_position:
   clc                ; 2 (27) Clear the carry for the addition below
   lda OBSTACLE_X_INT ; 3 (30) OBSTACLE_X_INT is pre-loaded with 72 for testing
-  adc #68            ; 2 (32) 68 TIA colour cycles ~ 22.5 6507 CPU cycles from
+  adc #59            ; 2 (32) 68 TIA colour cycles ~ 22.5 6507 CPU cycles from
                      ;        HBLANK to the start of visible px in the screen
+                     ;        minus 9 TIA cycles (3 CPU cycles) from the
+                     ;        'sta HMOVE' needed at the start of the scanline
+                     ;        68 - 9 = 59
   sta HMCLR          ; 3 (35) Clear any previous HMMx
   sec                ; 2 (37) Set carry to do subtraction. Remember SBC is 
                      ;        actually an ADC with A2 complement
                      ;        A-B = A + ~B + 1 (<- this 1 is the carry you set)
 
-  sta WSYNC          ; 3 (36)
+  sta WSYNC          ; 3 (40)
   ; 3rd scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
 _set_obstacle_coarse_x_pos:
   sbc #15                        ; 2 (5) Divide by 15 (sucessive subtractions)
   bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
-  
+  sta RESP1
+  ; at this point 3 * 3 + 3 * 5 * obstacle_x + 3 * 4 TIA cycles have passed
+  ; 3 * 3 come from 'sta HMOVE'
+  ; 3 * 5 * obstacle_x come from 'sbc #15 / bcs (branch taken)'
+  ; 3 * 4 come from 'sbc #15 / bcs (branch not taken)'
+
   ldy #SKY_MAX_Y   ; 2 (xx)
 
 
