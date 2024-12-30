@@ -577,10 +577,10 @@ score_sub_kernel:;---------->>> 10 scanlines <<<---
 clouds_sub_kernel_setup:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30,#2
 
-clouds_sub_kernel:;-------->>> 18 scanlines <<<----
-  DEBUG_SUB_KERNEL #$40,#16
+clouds_sub_kernel:;-------->>> 15 scanlines <<<----
+  DEBUG_SUB_KERNEL #$40,#15
 
-sky_sub_kernel_setup:;----->>> 4 scanlines <<<-----
+sky_sub_kernel_setup:;----->>> 5 scanlines <<<-----
   ; From the DEBUG_SUB_KERNEL macro:
   ;  sta HMOVE   3 cycles (3 so far in this scanline)
   ;  bne .loop   not taken, so 2 cycles (5)
@@ -636,15 +636,14 @@ _set_obstacle_position:
   clc                ; 2 (27) Clear the carry for the addition below
   lda OBSTACLE_X_INT ; 3 (30) OBSTACLE_X_INT is pre-loaded with 72 for testing
 
-
+  ; TODO: Improve the explanation of the 37
   ; tia cycles = x + 68 - 9 - 9 - 12 
-  ; 68 TIA colour cycles ~ 22.5 6507 CPU cycles from
-  ; HBLANK to the start of visible px in the screen
-  ; minus 9 TIA cycles (3 CPU cycles) from the
-  ; 'sta HMOVE' needed at the start of the scanline
-  ; 68 - 9 = 59
-  ; 12 TIA cycles from the last 'divide by 15' iterat
-  adc #38            ; 2 (32) 
+  ; 68 TIA colour cycles ~ 22.5 6507 CPU cycles from HBLANK to the start of 
+  ; visible px in the screen, minus 9 TIA cycles (3 CPU cycles) from the
+  ; 'sta HMOVE' needed at the start of the scanline 68 - 9 = 59. 12 TIA cycles 
+  ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
+  ; this adds up to 38, but -1 shift the range from [-8, 6] to [-7, 7]
+  adc #37            ; 2 (32) 
   sta HMCLR          ; 3 (35) Clear any previous HMMx
   sec                ; 2 (37) Set carry to do subtraction. Remember SBC is 
                      ;        actually an ADC with A2 complement
@@ -659,12 +658,28 @@ _set_obstacle_coarse_x_pos:
   bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
   sta RESP1
   ; the fine adjustment offset will range between -8 to 6
-  ; see the accompanying simulation.py script
-
+  ; try the accompanying simulation.py script to confirm this
   sta WSYNC
+  ; 4th scanline ==============================================================
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
 
-  ldy #SKY_MAX_Y   ; 2 (xx)
+  ; do the fine offset in the next scanline, I'm avoiding doing it in the
+  ; same scanline as the coarse positioning because for x > 150 the strobing
+  ; will occur near the end of the scanline leaving barely room for strobing
+  ; wsync
+  INSERT_NOPS 10              ; 20 (23)
+  tay                         ; 2 (25)
+  lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
+  sta HMP1                    ; 3 (33)
 
+  sta WSYNC                   ; 3 (36)
+  ; 5th scanline ==============================================================
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
+  ldy #SKY_MAX_Y   ; 2 (5)
+  INSERT_NOPS 10   ; 20 (25)
+  sta HMCLR        ; 3 (28)
 
 sky_sub_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta WSYNC        ; 3 (31)
@@ -1628,6 +1643,30 @@ PTERO_WINGS_CLOSED_MIS_OFFSETS:
 ;    ██  █    -5               8
 ;    ██        0               0
 
+;-----------------------------------------------------------------------------
+; Remainder to offset table
+;-----------------------------------------------------------------------------
+; Again, for reference:
+;       LEFT  <---------------------------------------------------------> RIGHT
+;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
+;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
+  ORG $ffe0
+  .byte $00  ; offset -7
+  .byte $00  ; offset -6
+  .byte $00  ; offset -5
+  .byte $00  ; offset -4
+  .byte $00  ; offset -3
+  .byte $00  ; offset -2
+  .byte $00  ; offset -1
+FINE_POSITION_OFFSET:
+  .byte $00  ; offset  0
+  .byte $00  ; offset  1
+  .byte $00  ; offset  2
+  .byte $00  ; offset  3
+  .byte $00  ; offset  4
+  .byte $00  ; offset  5
+  .byte $00  ; offset  6
+  .byte $00  ; offset  7
 ;=============================================================================
 ; ROM SETUP
 ;=============================================================================
