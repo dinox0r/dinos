@@ -1,5 +1,6 @@
 documentation/atari2600.pdf
 dino.bin
+dino.rom
 dino.txt
 *.lst
 *.sym
