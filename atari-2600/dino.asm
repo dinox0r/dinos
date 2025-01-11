@@ -843,16 +843,8 @@ _crouching_region_2:
   lda (PTR_DINO_MIS0_COPY),y              ; 5 (24)
   DECODE_MISSILE_PLAYER 0             ; 13 (37)
 
-  DECODE_MISSILE_PLAYER 1
   lda (PTR_DINO_MIS1),y               ; 5 (42)
-  sta ENABLE_BALL                     ; 3 (45)
-  sta HMBL                            ; 3 (47)
-  ;sta ENABLE_M1                       ; 3 (45)
-  ;sta HMM1                            ; 3 (47)
-  asl                                 ; 2 (49)
-  asl                                 ; 2 (51)
-  sta CTRLPF                         ; 3 (54)
-  ;sta NUSIZ1                          ; 3 (54)
+  DECODE_MISSILE_PLAYER 1             ; 13 
 
   sta WSYNC                           ; 3 (57)
 
