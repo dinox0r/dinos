@@ -1,6 +1,9 @@
   PROCESSOR 6502
 
   INCLUDE "vcs.h"
+  ; Including this just for the sbcs, sbeq, etc macros, that look like 
+  ; the branching instructions but add page boundary check
+  INCLUDE "macro.h"
 
   LIST ON           ; turn on program listing, for debugging on Stella
 
@@ -37,12 +40,12 @@
     REPEND
   ENDM
 
-  MAC DECODE_MISSILE_OFFSET_AN_SIZE ; 13 cycles
-    sta MISILE_P0       ; 3 (3)
-    sta HMM0            ; 3 (6)
-    asl                 ; 2 (8)
-    asl                 ; 2 (10)
-    sta NUSIZ0          ; 3 (13)
+  MAC DECODE_MISSILE_PLAYER ; 13 cycles
+    sta MISILE_P{1} ; 3 (3)
+    sta HMM{1}      ; 3 (6)
+    asl                     ; 2 (8)
+    asl                     ; 2 (10)
+    sta NUSIZ{1}    ; 3 (13)
   ENDM
 
   MAC CHECK_Y_WITHIN_DINO       ; 9 cycles
@@ -75,7 +78,7 @@ FLOOR_LINES = #2
 GROUND_LINES = #9
 
 DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GROUND_LINES
-SKY_MAX_Y = #DINbO_PLAY_AREA_LINES
+SKY_MAX_Y = #DINO_PLAY_AREA_LINES
 SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
 CACTUS_AREA_MAX_Y = #SKY_MIN_Y
 CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
@@ -99,6 +102,7 @@ CROUCHING_LINES = #CROUCHING_LINES_REGION_1+#CROUCHING_LINES_REGION_2
 
 ; Crouching area starts at the same location where the cactus area is
 CROUCHING_REGION_1_MAX_Y = #CACTUS_AREA_MAX_Y
+CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_LINES_REGION_1
 CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_LINES_REGION_1
 CROUCHING_REGION_2_MAX_Y = #CROUCHING_REGION_1_MIN_Y
 CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_LINES_REGION_2
@@ -142,21 +146,23 @@ DINO_COLOUR          .byte   ; 1 byte   (4)
 DINO_SPRITE          .byte   ; 1 byte   (5)
 DINO_SPRITE_OFFSET   .byte   ; 1 byte   (6)
 MISILE_P0            .byte   ; 1 byte   (7)
+MISILE_P1            .byte   ; 1 byte   (7)
 ENABLE_BALL          .byte   ; 1 byte
 GAME_FLAGS           .byte   ; 1 byte   (8)
 PTR_DINO_SPRITE      .word   ; 2 bytes  (10)
 PTR_DINO_SPRITE_2    .word   ; 2 bytes  (12)
 PTR_DINO_OFFSET      .word   ; 2 bytes  (14)
 PTR_DINO_OFFSET_2    .word   ; 2 bytes  (16)
-PTR_DINO_MIS         .word   ; 2 bytes  (18)
-PTR_DINO_MIS_2       .word   ; 2 bytes  (20)
-PTR_DINO_BALL        .word   ; 2 bytes
+PTR_DINO_MIS0         .word   ; 2 bytes  (18)
+PTR_DINO_MIS0_COPY       .word   ; 2 bytes  (20)
+PTR_DINO_MIS1        .word   ; 2 bytes
 RND_SEED             .word   ; 2 bytes  (22)
 FRAME_COUNT          .word   ; 2 bytes  (23)
 DINO_VY_INT          .byte   ; 1 byte   (24)
 DINO_VY_FRACT        .byte   ; 1 byte   (25)
 UP_PRESSED_FRAMES    .byte   ; 1 byte   (25)
 
+OBSTACLE_SPRITE      .byte
 OBSTACLE_TYPE        .byte
 OBSTACLE_Y           .byte
 OBSTACLE_X_INT       .byte   ; 1 byte
@@ -227,9 +233,9 @@ game_init:
   sta PTR_DINO_OFFSET+1
 
   lda #<[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
-  sta PTR_DINO_MIS
+  sta PTR_DINO_MIS0
   lda #>[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
-  sta PTR_DINO_MIS+1
+  sta PTR_DINO_MIS0+1
 
   lda #1
   sta OBSTACLE_TYPE
@@ -276,9 +282,9 @@ vsync:
 
   sta HMCLR             ; Clear horizontal motion registers
 
-  ; =======================
-  ; BEGIN FRAME SETUP/LOGIC
-  ; - - - - - - - - - - - - - - - - - - - - - - - -
+;==============================================================================
+; BEGIN FRAME SETUP (VBLANK TIME)
+;==============================================================================
 start_frame_setup:
   lda #BKG_LIGHT_GRAY   ;
   sta COLUBK            ; Set initial background
@@ -444,17 +450,13 @@ _update_jump_pos:
   sec
   lda #<DINO_MIS_OFFSETS_END
   sbc DINO_TOP_Y_INT
-  sta PTR_DINO_MIS
+  sta PTR_DINO_MIS0
   lda #>DINO_MIS_OFFSETS_END
   sbc #0
-  sta PTR_DINO_MIS+1
+  sta PTR_DINO_MIS0+1
   jmp _end_legs_anim
 
 _crouching:
-
-  echo "DINO_CROUCHING_SPRITE=",#DINO_CROUCHING_SPRITE
-  echo "CROUCHING_REGION_2_MIN_Y=",#CROUCHING_REGION_2_MIN_Y
-
   lda #<[DINO_CROUCHING_SPRITE - CROUCHING_REGION_2_MIN_Y]
   sta PTR_DINO_SPRITE_2
   lda #>[DINO_CROUCHING_SPRITE - CROUCHING_REGION_2_MIN_Y]
@@ -465,15 +467,15 @@ _crouching:
   lda #>[DINO_CROUCHING_SPRITE_OFFSETS - CROUCHING_REGION_2_MIN_Y]
   sta PTR_DINO_OFFSET_2+1
 
-  lda #<[DINO_CROUCHING_MIS_OFFSET - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_MIS_2
-  lda #>[DINO_CROUCHING_MIS_OFFSET - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_MIS_2+1
+  lda #<[DINO_CROUCHING_MISSILE_0 - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_MIS0_COPY
+  lda #>[DINO_CROUCHING_MISSILE_0 - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_MIS0_COPY+1
 
-  lda #<[DINO_CROUCHING_BALL - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_BALL
-  lda #>[DINO_CROUCHING_BALL - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_BALL+1
+  lda #<[DINO_CROUCHING_MISSILE_1 - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_MIS1
+  lda #>[DINO_CROUCHING_MISSILE_1 - CROUCHING_REGION_2_MIN_Y]
+  sta PTR_DINO_MIS1+1
 
 
 _update_leg_anim:
@@ -510,7 +512,7 @@ _end_legs_anim:
   jmp end_frame_setup
 
 ; -----------------------------------------------------------------------------
-; SPLASH SCREEN
+; SPLASH SCREEN SETUP
 ; -----------------------------------------------------------------------------
 in_splash_screen:
   lda FRAME_COUNT+1
@@ -544,15 +546,14 @@ _skip_opening_eyes:
 
 end_frame_setup:
 
-
-  ; - - - - - - - - - - - - - - - - - - - - - - - -
-  ; END FRAME SETUP/LOGIC
-  ; =======================
+;==============================================================================
+; END FRAME SETUP (VBLANK TIME)
+;==============================================================================
 
   lda #0
-vblank:
+remaining_vblank:
   lda INTIM
-  bne vblank
+  bne remaining_vblank
                ; 2752 cycles + 2 from bne, 2754 (out of 2812 vblank)
 
   sta WSYNC
@@ -560,10 +561,17 @@ vblank:
 
   lda GAME_FLAGS           ; if the splash screen is enabled then jump to the
   and #FLAG_SPLASH_SCREEN  ; splash screen kernel after disabling VBLANK
+
+  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ; TODO: These nops are to fix page boundary beq problem when
+  ; setting dino position. Remove after fixing it
+  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  INSERT_NOPS 9
+
   beq game_kernels
   jmp splash_screen_kernel
 
-;=============================================================================
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; GAME KERNEL
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 game_kernels:
@@ -615,26 +623,34 @@ sky_setup_kernel:;----->>> 5 scanlines <<<-----
   ; strobed at cycle 22
   lda #FLAG_DINO_CROUCHING   ; 2 (8)
   bit GAME_FLAGS             ; 3 (11)
-  beq _dino_is_not_crouching ; 2/3 (13 / 14)
-
-  INSERT_NOPS 3        ; 6 (19)
+  ; this nop shifts the _dino_is_not_crouching
+  ; label so it doesn't cross page boundary
+  nop
+  nop
+  ; using the sbeq macro here as is super important to get the timing
+  ; right in this section
+  sbeq _dino_is_not_crouching ; 2/3 (13/14)
+                       ; - (13)
+  INSERT_NOPS 1        ; 6 (19)
 
   lda COLUBK           ; 3 (22)
   sta RESBL            ; 3 (25)
   sta RESM0            ; 3 (28) <-- same place as GRP0
-  jmp _m0_coarse_position_set  ; 3 (31)
+  jmp _end_m0_coarse_position  ; 3 (31)
 
-_dino_is_not_crouching:
-  INSERT_NOPS 4        ; 8 (22)
+_dino_is_not_crouching: ; - (14)
+  INSERT_NOPS 2        ; 8 (22)
 
   sta RESM0            ; 3 (25) <-- 3 cycles before GRP0
 
-_m0_coarse_position_set:
+_end_m0_coarse_position: ; (25/31)
 
-  ; T0D0: set the coarse position of the cactus/pterodactile
+  ; Do the obstacle's coarse positioning preparations on the remaining of
+  ; M0's positioning scanline
+
 _set_obstacle_position:
-  clc                ; 2 (27) Clear the carry for the addition below
-  lda OBSTACLE_X_INT ; 3 (30) OBSTACLE_X_INT is pre-loaded with 72 for testing
+;  clc                ; 2 (27/33) Clear the carry for the addition below
+;  lda OBSTACLE_X_INT ; 3 (30/36) OBSTACLE_X_INT is pre-loaded with 72 for testing
 
   ; TODO: Improve the explanation of the 37
   ; tia cycles = x + 68 - 9 - 9 - 12 
@@ -643,39 +659,39 @@ _set_obstacle_position:
   ; 'sta HMOVE' needed at the start of the scanline 68 - 9 = 59. 12 TIA cycles 
   ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
   ; this adds up to 38, but -1 shift the range from [-8, 6] to [-7, 7]
-  adc #37            ; 2 (32) 
-  sta HMCLR          ; 3 (35) Clear any previous HMMx
-  sec                ; 2 (37) Set carry to do subtraction. Remember SBC is 
-                     ;        actually an ADC with A2 complement
-                     ;        A-B = A + ~B + 1 (<- this 1 is the carry you set)
-  sta WSYNC          ; 3 (40)
+;  adc #37          ; 2 (32/38) 
+;  sta HMCLR        ; 3 (35/41) Clear any previous HMMx
+;  sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
+                   ;           actually an ADC with A2 complement
+                   ;           A-B = A + ~B + 1 (<- this 1 is the carry you set)
+  sta WSYNC        ; 3 (40/46)
   ; 3rd scanline ==============================================================
                    ; - (0)
 
   sta HMOVE        ; 3 (3)
 _set_obstacle_coarse_x_pos:
-  sbc #15                        ; 2 (5) Divide by 15 (sucessive subtractions)
-  bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
-  sta RESP1
-  ; the fine adjustment offset will range between -8 to 6
-  ; try the accompanying simulation.py script to confirm this
+;  sbc #15                        ; 2 (5) Divide by 15 (sucessive subtractions)
+;  bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
+;  sta RESP1
+;  ; the fine adjustment offset will range between -8 to 6
+;  ; try the accompanying simulation.py script to confirm this
   sta WSYNC
-  ; 4th scanline ==============================================================
-                   ; - (0)
+;  ; 4th scanline ==============================================================
+;                   ; - (0)
   sta HMOVE        ; 3 (3)
-
-  ; do the fine offset in the next scanline, I'm avoiding doing it in the
-  ; same scanline as the coarse positioning because for x > 150 the strobing
-  ; will occur near the end of the scanline leaving barely room for strobing
-  ; wsync
-  INSERT_NOPS 10              ; 20 (23)
-  tay                         ; 2 (25)
-  lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
-  sta HMP1                    ; 3 (33)
-
+;
+;  ; do the fine offset in the next scanline, I'm avoiding doing it in the
+;  ; same scanline as the coarse positioning because for x > 150 the strobing
+;  ; will occur near the end of the scanline leaving barely room for strobing
+;  ; wsync
+;  INSERT_NOPS 10              ; 20 (23)
+;  tay                         ; 2 (25)
+;  lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
+;  sta HMP1                    ; 3 (33)
+;
   sta WSYNC                   ; 3 (36)
-  ; 5th scanline ==============================================================
-                   ; - (0)
+;  ; 5th scanline ==============================================================
+;                   ; - (0)
   sta HMOVE        ; 3 (3)
   ldy #SKY_MAX_Y   ; 2 (5)
   INSERT_NOPS 10   ; 20 (25)
@@ -687,6 +703,11 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ; 1st scanline ==============================================================
             ; - (0)
   sta HMOVE ; 3 (3)
+
+  ; Draw the obstacle first
+  ;lda OBSTACLE_SPRITE            ; 3 (6)
+  ;sta GRP1                       ; 3 (9)
+  ;lda 
 
   CHECK_Y_WITHIN_DINO            ; 9 (12)
   bcs _sky__y_within_dino        ; 2/3 (14/15)
@@ -708,8 +729,8 @@ _sky__y_within_dino:             ; (15)
   sta HMP0                       ; 3  (31)
 
   ; missile
-  lda (PTR_DINO_MIS),y           ; 5+ (36)
-  DECODE_MISSILE_OFFSET_AND_SIZE ; 13 (49)
+  lda (PTR_DINO_MIS0),y           ; 5+ (36)
+  DECODE_MISSILE_PLAYER 0        ; 13 (49)
 
 _sky__end_of_1st_scanline:
   sta WSYNC                      ; 3 (32 / 52)
@@ -819,15 +840,19 @@ _crouching_region_2:
   lda (PTR_DINO_OFFSET_2),y           ; 5 (16)
   sta HMP0                            ; 3 (19)
 
-  lda (PTR_DINO_MIS_2),y              ; 5 (24)
-  DECODE_MISSILE_OFFSET_AND_SIZE      ; 13 (37)
+  lda (PTR_DINO_MIS0_COPY),y              ; 5 (24)
+  DECODE_MISSILE_PLAYER 0             ; 13 (37)
 
-  lda (PTR_DINO_BALL),y               ; 5 (42)
+  DECODE_MISSILE_PLAYER 1
+  lda (PTR_DINO_MIS1),y               ; 5 (42)
   sta ENABLE_BALL                     ; 3 (45)
   sta HMBL                            ; 3 (47)
+  ;sta ENABLE_M1                       ; 3 (45)
+  ;sta HMM1                            ; 3 (47)
   asl                                 ; 2 (49)
   asl                                 ; 2 (51)
-  sta CTRLPF                          ; 3 (54)
+  sta CTRLPF                         ; 3 (54)
+  ;sta NUSIZ1                          ; 3 (54)
 
   sta WSYNC                           ; 3 (57)
 
@@ -881,8 +906,8 @@ _cactus__y_within_dino:
   sta HMP0                              ; 3  (31)
 
   ; missile
-  lda (PTR_DINO_MIS),y                  ; 5+ (36)
-  DECODE_MISSILE_OFFSET_AND_SIZE        ; 13
+  lda (PTR_DINO_MIS0),y                  ; 5+ (36)
+  DECODE_MISSILE_PLAYER 0        ; 13
 
 _cactus__end_of_1st_scanline:
   sta WSYNC                             ; 3
@@ -1419,7 +1444,7 @@ DINO_MIS_OFFSETS:
   .byte %00000000 ; |        |███████ |       0                0
   .ds 1; ^
   ;      |
-  ;      + enable the ball when this bit is ON
+  ;      + Also enable the ball when this bit is ON (used for the blinking)
   ;
   ; Legend:
   ;    █ GRP0 pixels
@@ -1490,27 +1515,9 @@ DINO_CROUCHING_SPRITE_OFFSETS:
 
 DINO_CROUCHING_SPRITE_OFFSETS_END = *
 
-DINO_CROUCHING_BALL:
+DINO_CROUCHING_MISSILE_0:
   ;                                          offset           size
-  ;                                    HMBL bits 7,6,5,4  CTRLPF bits 5,4
-  ; Enable BALL bit ⏐   ▯▯    ⏐
-  ;            ⏐    ⏐   ▯     ⏐
-  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
-  .byte %00100000 ; ⏐   ███ ██⏐  ▓▓             0               0
-  .byte %11111110 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +1               8
-  .byte %00001110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0               8
-  .byte %11111110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████    +1               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %00000010 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0               1
-  .byte %11110000 ; ⏐         ⏐     ██████     +1               0
-  .ds 1 ;    ↑↑     ↑         ↑
-  ;          ⏐⏐     ⏐     M0/GRP0 position (cycle 25)
-  ;     BALL size   BALL pos (cycle 22)
-
-DINO_CROUCHING_MIS_OFFSET:
-  ;                                          offset           size
-  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+  ;                                    HMM0 bits 7,6,5,4   NUSIZE0 bits 5,4
   ; Enable M0 bit   ⏐   ▯▯    ⏐
   ;            ⏐    ⏐   ▯     ⏐
   .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
@@ -1523,14 +1530,34 @@ DINO_CROUCHING_MIS_OFFSET:
   .byte %01011110 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████    -5               8
   .byte %00000000 ; ⏐         ⏐     ██████      0               0
   .ds 1           ; ↑         ↑
-  ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
+  ; Missile pos (cycle 22)   M0/GRP0 position (cycle 25)
+
+DINO_CROUCHING_MISSILE_1:
+  ;                                          offset           size
+  ;                                    HMM1 bits 7,6,5,4  NUSIZE1 bits 5,4
+  ;   Enable M1 bit ⏐   ▯▯    ⏐
+  ;            ⏐    ⏐   ▯     ⏐
+  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
+  .byte %00100000 ; ⏐   ███ ██⏐  ▓▓             0               0
+  .byte %11111110 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +1               8
+  .byte %00001110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0               8
+  .byte %11111110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████    +1               8
+  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
+  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
+  .byte %00000010 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0               1
+  .byte %11110000 ; ⏐         ⏐     ██████     +1               0
+  .ds 1 ;    ↑↑     ↑         ↑
+  ;          ⏐⏐     ⏐     M0/GRP0 position (cycle 25)
+  ;  Missile size   Missile pos (cycle 22)
+
   ;
   ; Legend:
   ;    █ GRP0 pixels
-  ;    ▒ missile pixels
-  ;    ░ ball
+  ;    ▒ missile 0 pixels
+  ;    ░ missile 1 pixels
   ;    X overlapping pixels
   ;    ▯ Non drawn by the current kernel
+
 
 PTERO_WINGS_CLOSED_SPRITE:
   ; Sprite drawn as a combination
