@@ -48,7 +48,22 @@
     sta NUSIZ{1}    ; 3 (13)
   ENDM
 
+  MAC DECODE_BALL ; 13 cycles
+    sta ENABLE_BALL ; 3 (3)
+    sta HMBL      ; 3 (6)
+    asl           ; 2 (8)
+    asl           ; 2 (10)
+    sta CTRLPF    ; 3 (13)
+  ENDM
+
   MAC CHECK_Y_WITHIN_DINO       ; 9 cycles
+    tya                         ; 2 (2) A = current scanline (Y)
+    sec                         ; 2 (2)
+    sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
+    adc #DINO_HEIGHT            ; 2 (2)
+  ENDM
+
+  MAC CHECK_Y_WITHIN_PTERO       ; 9 cycles
     tya                         ; 2 (2) A = current scanline (Y)
     sec                         ; 2 (2)
     sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
@@ -153,8 +168,8 @@ PTR_DINO_SPRITE      .word   ; 2 bytes  (10)
 PTR_DINO_SPRITE_2    .word   ; 2 bytes  (12)
 PTR_DINO_OFFSET      .word   ; 2 bytes  (14)
 PTR_DINO_OFFSET_2    .word   ; 2 bytes  (16)
-PTR_DINO_MIS0         .word   ; 2 bytes  (18)
-PTR_DINO_MIS0_COPY       .word   ; 2 bytes  (20)
+PTR_DINO_MIS0        .word   ; 2 bytes  (18)
+PTR_DINO_MIS0_COPY   .word   ; 2 bytes  (20)
 PTR_DINO_MIS1        .word   ; 2 bytes
 RND_SEED             .word   ; 2 bytes  (22)
 FRAME_COUNT          .word   ; 2 bytes  (23)
@@ -163,6 +178,7 @@ DINO_VY_FRACT        .byte   ; 1 byte   (25)
 UP_PRESSED_FRAMES    .byte   ; 1 byte   (25)
 
 OBSTACLE_SPRITE      .byte
+OBSTACLE_BALL_STATE  .byte
 OBSTACLE_TYPE        .byte
 OBSTACLE_Y           .byte
 OBSTACLE_X_INT       .byte   ; 1 byte
@@ -291,6 +307,7 @@ start_frame_setup:
 
   lda DINO_COLOUR       ; dino sprite colour
   sta COLUP0
+  sta COLUP1
 
   ; Check Joystick for Jump
 check_joystick:
@@ -634,7 +651,7 @@ sky_setup_kernel:;----->>> 5 scanlines <<<-----
   INSERT_NOPS 1        ; 6 (19)
 
   lda COLUBK           ; 3 (22)
-  sta RESBL            ; 3 (25)
+  sta RESM1            ; 3 (25)
   sta RESM0            ; 3 (28) <-- same place as GRP0
   jmp _end_m0_coarse_position  ; 3 (31)
 
@@ -707,33 +724,34 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ; Draw the obstacle first
   ;lda OBSTACLE_SPRITE            ; 3 (6)
   ;sta GRP1                       ; 3 (9)
-  ;lda 
+  ;lda OBSTACLE_BALL_STATE        ; 3 (12)
+  ;sta ENABL                      ; 3 (15)
 
-  CHECK_Y_WITHIN_DINO            ; 9 (12)
-  bcs _sky__y_within_dino        ; 2/3 (14/15)
+  CHECK_Y_WITHIN_DINO            ; 9 (24)
+  bcs _sky__y_within_dino        ; 2/3 (26/27)
 
-_sky__y_not_within_dino:         ; (14)
-  lda #0                         ; 3 (17)  Disable the misile for P0
-  sta DINO_SPRITE                ; 3 (20)
-  sta DINO_SPRITE_OFFSET         ; 3 (23)
-  sta MISILE_P0                  ; 3 (26)
-  jmp _sky__end_of_1st_scanline  ; 3 (29)
+_sky__y_not_within_dino:         ; (26)
+  lda #0                         ; 2 (28)  Disable the misile for P0
+  sta DINO_SPRITE                ; 3 (31)
+  sta DINO_SPRITE_OFFSET         ; 3 (34)
+  sta MISILE_P0                  ; 3 (37)
+  jmp _sky__end_of_1st_scanline  ; 3 (40)
 
-_sky__y_within_dino:             ; (15)
+_sky__y_within_dino:             ; (27)
   ; graphics
-  lda (PTR_DINO_SPRITE),y        ; 5+ (20)
-  sta DINO_SPRITE                ; 3  (23)
+  lda (PTR_DINO_SPRITE),y        ; 5 (32)
+  sta DINO_SPRITE                ; 3 (35)
 
   ; graphics offset
-  lda (PTR_DINO_OFFSET),y        ; 5+ (28)
-  sta HMP0                       ; 3  (31)
+  lda (PTR_DINO_OFFSET),y        ; 5 (40)
+  sta HMP0                       ; 3 (43)
 
   ; missile
-  lda (PTR_DINO_MIS0),y           ; 5+ (36)
-  DECODE_MISSILE_PLAYER 0        ; 13 (49)
+  lda (PTR_DINO_MIS0),y           ; 5 (48)
+  DECODE_MISSILE_PLAYER 0        ; 13 (61)
 
 _sky__end_of_1st_scanline:
-  sta WSYNC                      ; 3 (32 / 52)
+  sta WSYNC                      ; 3 (46 / 64)
 
   ; 2nd scanline ==============================================================
                                  ; - (0)
@@ -852,8 +870,8 @@ _crouching_region_2:
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
-  lda ENABLE_BALL
-  sta ENABL
+  lda MISILE_P1
+  sta ENAM1
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
@@ -1550,6 +1568,102 @@ DINO_CROUCHING_MISSILE_1:
   ;    X overlapping pixels
   ;    ▯ Non drawn by the current kernel
 
+PTERO_WINGS_OPEN_SPRITE:
+  ; Sprite drawn as a combination
+  ; of GRP1 and the BALL (after applying offsets)
+  ;    "unpacked" GRP1 and BALL
+  ;                                  /- GRP1 -\
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐▓        |                ⏐        ⏐
+  ;       ⏐▓▓       |                ⏐        ⏐
+  ;       ⏐ ▓▓      |                ⏐        ⏐
+  ;   ███ ⏐ ▓▓▓     |                ⏐    ███ ⏐
+  ;  ████ ⏐ ▓▓▓▓    |                ⏐   ████ ⏐
+  ; ██████⏐ ▓▓▓▓▓   |                ⏐  ██████⏐
+  ;█████XX⏐▓▓▓▓▓▓   |                ⏐ █████XX⏐▓▓▓▓▓▓
+  ;      █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐▓▓▓▓▓▓▓▓
+  ;       ⏐████████ |                ⏐████████⏐
+  ;       ⏐ █████▓▓▓|▓               ⏐  ██████⏐▓▓▓▓
+  ;       ⏐  █████  |                ⏐ ███████⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;       ⏐         |                ⏐        ⏐
+  ;
+  ; Legend:
+  ;    █ GRP0 pixels
+  ;    ▒ missile 0 pixels
+  ;    X overlapping pixels
+
+  .ds 1            ;⏐        ⏐
+  .byte %00000100  ;⏐        ⏐
+  .byte %00000110  ;⏐        ⏐
+  .byte %10000110  ;⏐        ⏐
+  .byte %00000111  ;⏐        ⏐
+  .byte %01111111  ;⏐ ███████⏐
+  .byte %00111111  ;⏐  ██████⏐
+  .byte %11111111  ;⏐████████⏐
+  .byte %00001111  ;⏐    ████⏐
+  .byte %01111111  ;⏐ ███████⏐
+  .byte %00111111  ;⏐  ██████⏐
+  .byte %00011110  ;⏐   ████ ⏐
+  .byte %00001110  ;⏐    ███ ⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
+  .ds 1            ;⏐        ⏐
+
+PTERO_WINGS_OPEN_SPRITE_OFFSETS:
+
+; Again, for reference:
+;       LEFT  <---------------------------------------------------------> RIGHT
+;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
+;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
+
+  .byte $00  ;⏐        ⏐
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .byte $00  ;
+  .ds 1            ;⏐        ⏐
+
+
+PTERO_WINGS_OPEN_BALL:
+  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+  ; Enable M0 bit   ⏐         ⏐         |
+  ;            ⏐    ⏐         ⏐         |
+  .ds 1 ;      ↓    ⏐         ⏐         |
+  .byte %00000000 ; ⏐         ⏐         |       0               0
+  .byte %00000000 ; ⏐         ⏐█        |      -5               8
+  .byte %00000000 ; ⏐         ⏐██       |      +2               8
+  .byte %00000000 ; ⏐         ⏐██       |       0               8
+  .byte %00000000 ; ⏐         ⏐███      |       0               8
+  .byte %00000000 ; ⏐         ⏐███████  |      +2               8
+  .byte %00000000 ; ⏐         ⏐█████████|▓     +8               4
+  .byte %00000000 ; ⏐         ⏐████████ |       0               0
+  .byte %00000000 ; ⏐        █⏐█████████|▓▓    -5               8
+  .byte %00000000 ; ⏐  ███████⏐██████   |      +2               8
+  .byte %00000000 ; ⏐   ██████⏐         |       0               8
+  .byte %00000000 ; ⏐    ████ ⏐         |       0               8
+  .byte %00000000 ; ⏐     ███ ⏐         |      +2               8
+  .byte %00000000 ; ⏐         ⏐         |      +8               4
+  .byte %00000000 ; ⏐         ⏐         |      -4               2
+  .byte %00000000 ; ⏐         ⏐         |      -4               2
+  ;                 ↑         ↑
+  ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
+  .ds 1;
 
 PTERO_WINGS_CLOSED_SPRITE:
   ; Sprite drawn as a combination
@@ -1574,6 +1688,10 @@ PTERO_WINGS_CLOSED_SPRITE:
   ;       ⏐█        |                ⏐     █  ⏐
   ;       ⏐         |                ⏐        ⏐
   ;
+  ; Legend:
+  ;    █ GRP0 pixels
+  ;    ▒ missile 0 pixels
+  ;    X overlapping pixels
 
   .ds 1            ;⏐        ⏐
   .byte %00000100  ;⏐     █  ⏐
@@ -1619,7 +1737,7 @@ PTERO_WINGS_CLOSED_SPRITE_OFFSETS:
   .ds 1            ;⏐        ⏐
 
 
-PTERO_WINGS_CLOSED_MIS_OFFSETS:
+PTERO_WINGS_CLOSED_BALL:
   ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
   ; Enable M0 bit   ⏐         ⏐         |
   ;            ⏐    ⏐         ⏐         |
