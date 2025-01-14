@@ -66,8 +66,8 @@
   MAC CHECK_Y_WITHIN_PTERO       ; 9 cycles
     tya                         ; 2 (2) A = current scanline (Y)
     sec                         ; 2 (2)
-    sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
-    adc #DINO_HEIGHT            ; 2 (2)
+    sbc OBSTACLE_Y          ; 3 (3) A = X - DINO_TOP_Y_INT
+    adc #PTERO_HEIGHT            ; 2 (2)
   ENDM
 
 ;=============================================================================
@@ -128,6 +128,8 @@ DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #98
 
+PTERO_HEIGHT = #17
+
 ;=============================================================================
 ; GAME_FLAGS
 ;=============================================================================
@@ -186,7 +188,7 @@ OBSTACLE_X_FRACT     .byte   ; 1 byte
 
 PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
 PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
-PTR_OBSTACLE_MIS     .word   ; 2 bytes
+PTR_OBSTACLE_BALL    .word   ; 2 bytes
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -253,14 +255,11 @@ game_init:
   lda #>[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_MIS0+1
 
+  ; TODO: Remove/Update after testing obstacle positioning
   lda #1
   sta OBSTACLE_TYPE
   lda #SKY_MAX_Y-#4
   sta OBSTACLE_Y
-  lda #50
-  sta OBSTACLE_X_INT
-
-  ; TODO: Remove after testing obstacle positioning
   lda #72
   sta OBSTACLE_X_INT
 
@@ -393,6 +392,32 @@ _end_check_joystick:
 ; GAME SCREEN SETUP
 ; -----------------------------------------------------------------------------
 in_grame_screen:
+
+  ; Update obstacle state
+  sec
+  lda #<PTERO_WINGS_OPEN_SPRITE
+  sbc OBSTACLE_Y
+  sta PTR_OBSTACLE_SPRITE
+  lda #>PTERO_WINGS_OPEN_SPRITE
+  sbc #0
+  sta PTR_OBSTACLE_SPRITE+1
+
+  sec
+  lda #<PTERO_WINGS_OPEN_SPRITE_OFFSETS
+  sbc OBSTACLE_Y
+  sta PTR_OBSTACLE_OFFSET
+  lda #>PTERO_WINGS_OPEN_SPRITE
+  sbc #0
+  sta PTR_OBSTACLE_OFFSET+1
+
+  sec
+  lda #<PTERO_WINGS_OPEN_BALL
+  sbc OBSTACLE_Y
+  sta PTR_OBSTACLE_BALL
+  lda #>PTERO_WINGS_OPEN_BALL
+  sbc #0
+  sta PTR_OBSTACLE_BALL+1
+
 
 _check_if_dino_is_jumping:
   lda #FLAG_DINO_JUMPING
@@ -579,12 +604,6 @@ remaining_vblank:
   lda GAME_FLAGS           ; if the splash screen is enabled then jump to the
   and #FLAG_SPLASH_SCREEN  ; splash screen kernel after disabling VBLANK
 
-  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ; TODO: These nops are to fix page boundary beq problem when
-  ; setting dino position. Remove after fixing it
-  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  INSERT_NOPS 9
-
   beq game_kernels
   jmp splash_screen_kernel
 
@@ -722,10 +741,10 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta HMOVE ; 3 (3)
 
   ; Draw the obstacle first
-  ;lda OBSTACLE_SPRITE            ; 3 (6)
-  ;sta GRP1                       ; 3 (9)
-  ;lda OBSTACLE_BALL_STATE        ; 3 (12)
-  ;sta ENABL                      ; 3 (15)
+  lda OBSTACLE_SPRITE            ; 3 (6)
+  sta GRP1                       ; 3 (9)
+  lda OBSTACLE_BALL_STATE        ; 3 (12)
+  sta ENABL                      ; 3 (15)
 
   CHECK_Y_WITHIN_DINO            ; 9 (24)
   bcs _sky__y_within_dino        ; 2/3 (26/27)
@@ -733,7 +752,8 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
 _sky__y_not_within_dino:         ; (26)
   lda #0                         ; 2 (28)  Disable the misile for P0
   sta DINO_SPRITE                ; 3 (31)
-  sta DINO_SPRITE_OFFSET         ; 3 (34)
+  ; TODO: Seems unnecessary, so commenting it, but check
+  ;sta DINO_SPRITE_OFFSET         ; 3 (34)
   sta MISILE_P0                  ; 3 (37)
   jmp _sky__end_of_1st_scanline  ; 3 (40)
 
@@ -756,33 +776,56 @@ _sky__end_of_1st_scanline:
   ; 2nd scanline ==============================================================
                                  ; - (0)
   sta HMOVE                      ; 3 (3)
-  lda DINO_SPRITE                ; 3 (9)
-  ;lda #0                        ; 3 (9) for debugging, hides GRP0
-  sta GRP0                       ; 3 (12)
-  lda MISILE_P0                  ; 3 (15)
-  sta ENAM0                      ; 3 (18)
+  ;lda #0                        ; 2 (5) for debugging, hides GRP0
+  lda DINO_SPRITE                ; 3 (6)
+  sta GRP0                       ; 3 (9)
+  lda MISILE_P0                  ; 3 (12)
+  sta ENAM0                      ; 3 (15)
+
+  CHECK_Y_WITHIN_PTERO           ; 9 (24)
+  bcs _sky__y_within_ptero       ; 2/3 (26/27)
+_sky__y_not_within_ptero:        ; - (26)
+  lda #0                         ; 2 (28)
+  sta OBSTACLE_SPRITE            ; 3 (31)
+  sta MISILE_P1                  ; 3 (33)
+  jmp _sky__end_of_2nd_scanline  ; 3 (36)
+
+_sky__y_within_ptero:            ; - (27)
+  ; graphics
+  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (32)
+  sta OBSTACLE_SPRITE            ; 3 (35)
+
+  ; missile
+  lda (PTR_OBSTACLE_BALL),y      ; 5 (40)
+  DECODE_MISSILE_PLAYER 1        ; 13 (53)
+
+  ; graphics offset
+  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (58)
+  sta HMP1                       ; 3 (61)
 
 
   ; The HMxx registers don’t play nice if you set them within 24 CPU cycles of
   ; strobing HMOVE—otherwise, you might get some funky TIA behavior. The NOPs 
   ; here just give things a bit of breathing room.
-  INSERT_NOPS 10            ; 20 (38)
-  sta HMCLR                 ; 3 (41)
+  lda #0                     ; 2 (63)
+  sta HMM0                   ; 3 (66)
+  ;sta HMCLR                 ; 3 ()
 
+
+_sky__end_of_2nd_scanline:  ; - (36/66)
 
   ; Cactus/Crouching area very first scanline
-  dey                       ; 2 (5)
+  dey                       ; 2 (38/68)
   ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
   ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
   ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1          ; 2 (7)
-  bcs sky_kernel             ; 2/3 (9 / 10)
-_sky__end_of_2nd_scanline:
-
+  cpy #SKY_MIN_Y+#1          ; 2 (40/70)
+  bcs sky_kernel             ; 2/3 (43 / 73)
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
+
 _check_if_crouching:
   lda #93    ; for debugging, light pink
   sta COLUBK
