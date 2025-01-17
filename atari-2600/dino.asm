@@ -63,9 +63,23 @@
     adc #DINO_HEIGHT            ; 2 (2)
   ENDM
 
+  ; Same as CHECK_Y_WITHIN_DINO but assumes carry is set
+  MAC CHECK_Y_WITHIN_DINO_IGNORING_CARRY       ; 7 cycles
+    tya                         ; 2 (2) A = current scanline (Y)
+    sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
+    adc #DINO_HEIGHT            ; 2 (2)
+  ENDM
+
   MAC CHECK_Y_WITHIN_PTERO       ; 9 cycles
     tya                         ; 2 (2) A = current scanline (Y)
     sec                         ; 2 (2)
+    sbc OBSTACLE_Y          ; 3 (3) A = X - DINO_TOP_Y_INT
+    adc #PTERO_HEIGHT            ; 2 (2)
+  ENDM
+
+  ; Same as CHECK_Y_WITHIN_PTERO but assumes carry is set
+  MAC CHECK_Y_WITHIN_PTERO_IGNORING_CARRY       ; 7 cycles
+    tya                         ; 2 (2) A = current scanline (Y)
     sbc OBSTACLE_Y          ; 3 (3) A = X - DINO_TOP_Y_INT
     adc #PTERO_HEIGHT            ; 2 (2)
   ENDM
