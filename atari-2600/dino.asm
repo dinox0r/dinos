@@ -41,7 +41,7 @@
   ENDM
 
   MAC DECODE_MISSILE_PLAYER ; 13 cycles
-    sta MISILE_P{1} ; 3 (3)
+    sta MISSILE_P{1} ; 3 (3)
     sta HMM{1}      ; 3 (6)
     asl                     ; 2 (8)
     asl                     ; 2 (10)
@@ -176,8 +176,8 @@ BG_COLOUR            .byte   ; 1 byte   (3)
 DINO_COLOUR          .byte   ; 1 byte   (4)
 DINO_SPRITE          .byte   ; 1 byte   (5)
 DINO_SPRITE_OFFSET   .byte   ; 1 byte   (6)
-MISILE_P0            .byte   ; 1 byte   (7)
-MISILE_P1            .byte   ; 1 byte   (7)
+MISSILE_P0            .byte   ; 1 byte   (7)
+MISSILE_P1            .byte   ; 1 byte   (7)
 ENABLE_BALL          .byte   ; 1 byte
 GAME_FLAGS           .byte   ; 1 byte   (8)
 PTR_DINO_SPRITE      .word   ; 2 bytes  (10)
@@ -764,11 +764,11 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   bcs _sky__y_within_dino        ; 2/3 (26/27)
 
 _sky__y_not_within_dino:         ; (26)
-  lda #0                         ; 2 (28)  Disable the misile for P0
+  lda #0                         ; 2 (28)  Disable the missile for P0
   sta DINO_SPRITE                ; 3 (31)
   ; TODO: Seems unnecessary, so commenting it, but check
   ;sta DINO_SPRITE_OFFSET         ; 3 (34)
-  sta MISILE_P0                  ; 3 (37)
+  sta MISSILE_P0                  ; 3 (37)
   jmp _sky__end_of_1st_scanline  ; 3 (40)
 
 _sky__y_within_dino:             ; (27)
@@ -783,71 +783,68 @@ _sky__y_within_dino:             ; (27)
   ; missile
   lda (PTR_DINO_MIS0),y           ; 5 (48)
   DECODE_MISSILE_PLAYER 0        ; 13 (61)
+  ; Afer above's invocation to DECODE_MISSILE_PLAYER, reg A will still 
+  ; contain the MISSILE_P0 data, thus we don't need to do
+  ; lda MISSILE_P0 here
+  ldx DINO_SPRITE       ; 3 (64) Prefetching sprite data in reg X to save a 
+                        ;        load on the next scanline
 
-_sky__end_of_1st_scanline:
-  sta WSYNC                      ; 3 (46 / 64)
+_sky__end_of_1st_scanline:       ; (46/64)
+  sec                            ; 2 (48/66) Set the carry for the sbc instruction
+                                 ; that will happen in the next scanline for the
+                                 ; Y-bounds check of the ptero
+  sta WSYNC                      ; 3 (48/66)
 
   ; 2nd scanline ==============================================================
                                  ; - (0)
   sta HMOVE                      ; 3 (3)
-  ;lda #0                        ; 2 (5) for debugging, hides GRP0
-  lda DINO_SPRITE                ; 3 (6)
-  sta GRP0                       ; 3 (9)
-  lda MISILE_P0                  ; 3 (12)
-  sta ENAM0                      ; 3 (15)
+  stx GRP0                       ; 3 (6)
+  sta ENAM0                      ; 3 (9)
 
-  CHECK_Y_WITHIN_PTERO           ; 9 (24)
-  bcs _sky__y_within_ptero       ; 2/3 (26/27)
-_sky__y_not_within_ptero:        ; - (26)
+  CHECK_Y_WITHIN_PTERO_IGNORING_CARRY  ; 7 (16)
+  bcs _sky__y_within_ptero   ; 2/3 (18/19)
+_sky__y_not_within_ptero:        ; - (18)
   lda #0                         ; 2 (28)
   sta OBSTACLE_SPRITE            ; 3 (31)
-  sta MISILE_P1                  ; 3 (33)
+  sta MISSILE_P1                  ; 3 (33)
   jmp _sky__end_of_2nd_scanline  ; 3 (36)
 
-_sky__y_within_ptero:            ; - (27)
+_sky__y_within_ptero:            ; - (19)
   ; graphics
-  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (32)
-  sta OBSTACLE_SPRITE            ; 3 (35)
+  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (23)
+  sta OBSTACLE_SPRITE            ; 3 (26)
 
   ; missile
-  lda (PTR_OBSTACLE_BALL),y      ; 5 (40)
-  DECODE_MISSILE_PLAYER 1        ; 13 (53)
-
-  ; graphics offset
-  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (58)
-  sta HMP1                       ; 3 (61)
-
+  lda (PTR_OBSTACLE_BALL),y      ; 5 (31)
+  DECODE_MISSILE_PLAYER 1        ; 13 (44)
 
   ; The HMxx registers don’t play nice if you set them within 24 CPU cycles of
   ; strobing HMOVE—otherwise, you might get some funky TIA behavior. The NOPs 
   ; here just give things a bit of breathing room.
-  lda #0                     ; 2 (63)
-  sta HMM0                   ; 3 (66)
-  ;sta HMCLR                 ; 3 ()
+  sta HMCLR                      ; 3 (47)
+  ; graphics offset
+  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (53)
+  sta HMP1                       ; 3 (56)
 
-
-_sky__end_of_2nd_scanline:  ; - (36/66)
+_sky__end_of_2nd_scanline:  ; - (36/56)
 
   ; Cactus/Crouching area very first scanline
-  dey                       ; 2 (38/68)
+  dey                       ; 2 (38/58)
   ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
   ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
   ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1          ; 2 (40/70)
-  bcs sky_kernel             ; 2/3 (43 / 73)
+  cpy #SKY_MIN_Y+#1          ; 2 (40/60)
+  bcs sky_kernel             ; 2/3 (taken 43/63) (not taken 42/62)
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
 
-_check_if_crouching:
-  lda #93    ; for debugging, light pink
-  sta COLUBK
-
+_check_if_crouching:         ; (42/62)
   ; Check if dino is crouching, then jump to the appropiate kernel if so
-  lda #FLAG_DINO_CROUCHING             ; 3 (15)
-  bit GAME_FLAGS                       ; 3 (18)
-  beq cactus_area_kernel           ; 2/3 (20 / 21)
+  lda #FLAG_DINO_CROUCHING   ; 3 (45/65)
+  bit GAME_FLAGS             ; 3 (48/68)
+  beq cactus_area_kernel     ; 2/3 (50/51,70/71)
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
 ; The crouching part is split into two regions:
@@ -927,12 +924,12 @@ _crouching_region_2:
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
-  lda MISILE_P1
+  lda MISSILE_P1
   sta ENAM1
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  lda MISILE_P0                         ; 3
+  lda MISSILE_P0                         ; 3
   sta ENAM0                             ; 3
   INSERT_NOPS 10                        ; 20
 
@@ -948,7 +945,7 @@ _crouching_region_2:
   jmp legs_and_floor_kernel
 
 cactus_area_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
-  sta WSYNC                 ; 3 (3)
+  sta WSYNC                 ; 3 (from sky_kernel: 74)
 
   ; 1st scanline ==============================================================
                               ; - (0)
@@ -957,10 +954,10 @@ cactus_area_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
   bcs _cactus__y_within_dino  ; 2/3 (14 / 15)
 
 _cactus__y_not_within_dino:
-  lda #0                              ; 3 (17)  Disable the misile for P0
+  lda #0                              ; 3 (17)  Disable the missile for P0
   sta DINO_SPRITE                     ; 3 (20)
   sta DINO_SPRITE_OFFSET              ; 3 (23)
-  sta MISILE_P0                       ; 3 (26)
+  sta MISSILE_P0                       ; 3 (26)
   jmp _cactus__end_of_1st_scanline    ; 3 (29)
 
 _cactus__y_within_dino:
@@ -985,7 +982,7 @@ _cactus__end_of_1st_scanline:
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  lda MISILE_P0                         ; 3
+  lda MISSILE_P0                         ; 3
   sta ENAM0                             ; 3
   INSERT_NOPS 10                        ; 20
   sta HMCLR
@@ -1045,7 +1042,6 @@ _scanline1__end_of_setup:
 
   ; 2nd scanline (DRAWING) ========================================================
                               ; - (0)
-  sta HMOVE                   ; 3 (3)
   lda #0
   sta ENAM0
 
@@ -1075,7 +1071,7 @@ _scanline1__end_of_setup:
   bcs _scanline2__y_within_dino   ; 2/3
 
 _scanline2__y_not_within_dino:
-  lda #0                          ; 3   Disable the misile for P0
+  lda #0                          ; 3   Disable the misSile for P0
   sta DINO_SPRITE                 ; 3
   sta DINO_SPRITE_OFFSET
   jmp _scanline2__end_of_setup ; 3
@@ -1147,7 +1143,7 @@ ground_area_kernel:
   bcs _ground__y_within_dino                   ; 2/3
 
 _ground__y_not_within_dino:
-  lda #0                                ; 3   Disable the misile for P0
+  lda #0                                ; 3   Disable the misSile for P0
   sta DINO_SPRITE                       ; 3
   sta DINO_SPRITE_OFFSET
   jmp _ground__end_of_1st_scanline     ; 3
@@ -1234,7 +1230,7 @@ _splash__dino_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<-------------
   lda DINO_MIS_OFFSETS-#1,y            ; 4
 
   ; missile
-  sta MISILE_P0                        ; 3
+  sta MISSILE_P0                        ; 3
   sta HMM0                             ; 3
   asl                                  ; 2
   asl                                  ; 2
@@ -1252,7 +1248,7 @@ _splash__dino_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<-------------
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
   sta GRP0                              ; 3
-  lda MISILE_P0                         ; 3
+  lda MISSILE_P0                         ; 3
   sta ENAM0                             ; 3
   and GAME_FLAGS               ; 3
   rol
