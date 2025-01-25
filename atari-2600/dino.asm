@@ -2,7 +2,7 @@
 
   INCLUDE "vcs.h"
   ; Including this just for the sbcs, sbeq, etc macros, that look like 
-  ; the branching instructions but add page boundary check
+  ; the branching instructions but add a page boundary check
   INCLUDE "macro.h"
 
   LIST ON           ; turn on program listing, for debugging on Stella
@@ -11,6 +11,9 @@
 ; MACROS
 ;=============================================================================
 
+  ; Paints N scanlines with the given background colour, used to draw
+  ; placeholder areas on the screen
+  ; --------------------------------------------------------------------
   MAC DEBUG_SUB_KERNEL
 .BGCOLOR SET {1}
 .KERNEL_LINES SET {2}
@@ -24,6 +27,8 @@
     bne .loop
   ENDM
 
+  ; Loads a 16 bit value from ROM into 2 consecutive bytes in zero page RAM
+  ; --------------------------------------------------------------------
   MAC LOAD_ADDRESS_TO_PTR
 .ADDRESS SET {1}
 .POINTER SET {2}
@@ -33,13 +38,17 @@
     sta .POINTER+1
   ENDM
 
-  MAC INSERT_NOPS  ; insert N nops
+  ; Insert N nop operations
+  ; --------------------------------------------------------------------
+  MAC INSERT_NOPS
 .NUM_NOPS SET {1}
     REPEAT .NUM_NOPS
       nop
     REPEND
   ENDM
 
+  ; TODO
+  ; --------------------------------------------------------------------
   MAC DECODE_MISSILE_PLAYER ; 13 cycles
     sta MISSILE_P{1} ; 3 (3)
     sta HMM{1}      ; 3 (6)
@@ -48,6 +57,8 @@
     sta NUSIZ{1}    ; 3 (13)
   ENDM
 
+  ; Same as DECODE_MISSILE_PLAYER but using the BALL register
+  ; --------------------------------------------------------------------
   MAC DECODE_BALL ; 13 cycles
     sta ENABLE_BALL ; 3 (3)
     sta HMBL      ; 3 (6)
@@ -56,6 +67,8 @@
     sta CTRLPF    ; 3 (13)
   ENDM
 
+  ; TODO
+  ; --------------------------------------------------------------------
   MAC CHECK_Y_WITHIN_DINO       ; 9 cycles
     tya                         ; 2 (2) A = current scanline (Y)
     sec                         ; 2 (2)
@@ -64,12 +77,15 @@
   ENDM
 
   ; Same as CHECK_Y_WITHIN_DINO but assumes carry is set
+  ; --------------------------------------------------------------------
   MAC CHECK_Y_WITHIN_DINO_IGNORING_CARRY       ; 7 cycles
     tya                         ; 2 (2) A = current scanline (Y)
     sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
     adc #DINO_HEIGHT            ; 2 (2)
   ENDM
 
+  ; TODO
+  ; --------------------------------------------------------------------
   MAC CHECK_Y_WITHIN_PTERO       ; 9 cycles
     tya                         ; 2 (2) A = current scanline (Y)
     sec                         ; 2 (2)
@@ -78,6 +94,7 @@
   ENDM
 
   ; Same as CHECK_Y_WITHIN_PTERO but assumes carry is set
+  ; --------------------------------------------------------------------
   MAC CHECK_Y_WITHIN_PTERO_IGNORING_CARRY       ; 7 cycles
     tya                         ; 2 (2) A = current scanline (Y)
     sbc OBSTACLE_Y          ; 3 (3) A = X - DINO_TOP_Y_INT
@@ -88,13 +105,14 @@
 ; SUBROUTINES
 ;=============================================================================
 
+; (nothing so far)
 
 ;=============================================================================
 ; CONSTANTS
 ;=============================================================================
-RND_MEM_LOC_1 = $c1   ; "random" memory locations to sample the upper/lower
-RND_MEM_LOC_2 = $e5   ; bytes when the machine starts. Hopefully this finds
-                      ; some garbage values that can be used as seed
+RND_MEM_LOC_1 = $c1  ; "random" memory locations to sample the upper/lower
+RND_MEM_LOC_2 = $e5  ; bytes when the machine starts. Hopefully this finds
+                     ; some garbage values that can be used as seed
 
 BKG_LIGHT_GRAY = #13
 DINO_HEIGHT = #20
@@ -124,12 +142,14 @@ CROUCHING_LINES_REGION_1 = #15+#7
 CROUCHING_LINES_REGION_2 = #8
 CROUCHING_LINES = #CROUCHING_LINES_REGION_1+#CROUCHING_LINES_REGION_2
 
+  ; The crouching kernel and the cactus kernel cover the same area of
+  ; the screen, hence they have to have the same Y position and height
   IF CROUCHING_LINES != CACTUS_LINES
     ECHO "Error: CROUCHING_LINES should be equal to CACTUS_LINES"
     ERR
   ENDIF
 
-; Crouching area starts at the same location where the cactus area is
+; Crouching area starts at the same location where the cactus area is at
 CROUCHING_REGION_1_MAX_Y = #CACTUS_AREA_MAX_Y
 CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_LINES_REGION_1
 CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_LINES_REGION_1
@@ -148,14 +168,18 @@ PTERO_HEIGHT = #17
 ; GAME_FLAGS
 ;=============================================================================
 ; bit 0: 1 -> splash screen mode / 0 -> game mode
-; bit 1: in game mode dino left/right leg up sprite
-; bit 2: in game mode dino jumping ON / OFF
-; bit 4: in game mode dino crouching ON / OFF
-; bit 7: in splash screen mode, dino blinking ON / OFF
+FLAG_SPLASH_SCREEN =  #%00000001
+
+; When in splash screen mode:
+;   bit 7: dino blinking ON / OFF
 FLAG_DINO_BLINKING =  #%10000000
+
+; When in game mode:
+;   bit 1: dino left/right leg up sprite
+;   bit 2: dino jumping ON / OFF
+;   bit 4: dino crouching ON / OFF
 FLAG_DINO_LEFT_LEG =  #%00000010
 FLAG_DINO_JUMPING =   #%00000100
-FLAG_SPLASH_SCREEN =  #%00000001
 FLAG_DINO_CROUCHING = #%00010000
 
 FLAG_DINO_CROUCHING_OR_JUMPING = FLAG_DINO_CROUCHING | FLAG_DINO_JUMPING
@@ -165,7 +189,7 @@ TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
 TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
 
 ;=============================================================================
-; MEMORY / VARIABLES
+; ZERO PAGE MEMORY / VARIABLES
 ;=============================================================================
   SEG.U variables
   ORG $80
@@ -199,6 +223,7 @@ OBSTACLE_TYPE        .byte
 OBSTACLE_Y           .byte
 OBSTACLE_X_INT       .byte   ; 1 byte
 OBSTACLE_X_FRACT     .byte   ; 1 byte
+OBSTACLE_X_FINE_OFFSET .byte ; 1 byte
 
 PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
 PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
@@ -409,26 +434,26 @@ in_grame_screen:
 
   ; Update obstacle state
   sec
-  lda #<PTERO_WINGS_OPEN_SPRITE
+  lda #<PTERO_WINGS_OPEN_SPRITE_END
   sbc OBSTACLE_Y
   sta PTR_OBSTACLE_SPRITE
-  lda #>PTERO_WINGS_OPEN_SPRITE
+  lda #>PTERO_WINGS_OPEN_SPRITE_END
   sbc #0
   sta PTR_OBSTACLE_SPRITE+1
 
   sec
-  lda #<PTERO_WINGS_OPEN_SPRITE_OFFSETS
+  lda #<PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
   sbc OBSTACLE_Y
   sta PTR_OBSTACLE_OFFSET
-  lda #>PTERO_WINGS_OPEN_SPRITE
+  lda #>PTERO_WINGS_OPEN_SPRITE_END
   sbc #0
   sta PTR_OBSTACLE_OFFSET+1
 
   sec
-  lda #<PTERO_WINGS_OPEN_BALL
+  lda #<PTERO_WINGS_OPEN_BALL_END
   sbc OBSTACLE_Y
   sta PTR_OBSTACLE_BALL
-  lda #>PTERO_WINGS_OPEN_BALL
+  lda #>PTERO_WINGS_OPEN_BALL_END
   sbc #0
   sta PTR_OBSTACLE_BALL+1
 
@@ -699,8 +724,8 @@ _end_m0_coarse_position: ; (25/31)
   ; M0's positioning scanline
 
 _set_obstacle_position:
-;  clc                ; 2 (27/33) Clear the carry for the addition below
-;  lda OBSTACLE_X_INT ; 3 (30/36) OBSTACLE_X_INT is pre-loaded with 72 for testing
+  clc                ; 2 (27/33) Clear the carry for the addition below
+  lda OBSTACLE_X_INT ; 3 (30/36) OBSTACLE_X_INT is pre-loaded with 72 for testing
 
   ; TODO: Improve the explanation of the 37
   ; tia cycles = x + 68 - 9 - 9 - 12 
@@ -709,9 +734,9 @@ _set_obstacle_position:
   ; 'sta HMOVE' needed at the start of the scanline 68 - 9 = 59. 12 TIA cycles 
   ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
   ; this adds up to 38, but -1 shift the range from [-8, 6] to [-7, 7]
-;  adc #37          ; 2 (32/38) 
-;  sta HMCLR        ; 3 (35/41) Clear any previous HMMx
-;  sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
+  adc #37          ; 2 (32/38) 
+  sta HMCLR        ; 3 (35/41) Clear any previous HMMx
+  sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
                    ;           actually an ADC with A2 complement
                    ;           A-B = A + ~B + 1 (<- this 1 is the carry you set)
   sta WSYNC        ; 3 (40/46)
@@ -720,35 +745,40 @@ _set_obstacle_position:
 
   sta HMOVE        ; 3 (3)
 _set_obstacle_coarse_x_pos:
-;  sbc #15                        ; 2 (5) Divide by 15 (sucessive subtractions)
-;  bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
-;  sta RESP1
-;  ; the fine adjustment offset will range between -8 to 6
-;  ; try the accompanying simulation.py script to confirm this
+  sbc #15                        ; 2 (5) Divide by 15 (sucessive subtractions)
+  bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
+  sta RESP1
+  ; the fine adjustment offset will range between -7 to 7
+  ; try the accompanying simulation.py script to confirm this
   sta WSYNC
-;  ; 4th scanline ==============================================================
-;                   ; - (0)
+  ; 4th scanline ==============================================================
+                   ; - (0)
   sta HMOVE        ; 3 (3)
-;
-;  ; do the fine offset in the next scanline, I'm avoiding doing it in the
-;  ; same scanline as the coarse positioning because for x > 150 the strobing
-;  ; will occur near the end of the scanline leaving barely room for strobing
-;  ; wsync
-;  INSERT_NOPS 10              ; 20 (23)
-;  tay                         ; 2 (25)
-;  lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
-;  sta HMP1                    ; 3 (33)
-;
+
+  ; do the fine offset in the next scanline, I'm avoiding doing it in the
+  ; same scanline as the coarse positioning because for x > 150 the strobing
+  ; will occur near the end of the scanline leaving barely room for strobing
+  ; wsync
+  INSERT_NOPS 10              ; 20 (23)
+  tay                         ; 2 (25)
+  lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
+  sta OBSTACLE_X_FINE_OFFSET  ; 3 (33)
+
   sta WSYNC                   ; 3 (36)
-;  ; 5th scanline ==============================================================
-;                   ; - (0)
+  ; 5th scanline ==============================================================
+                   ; - (0)
   sta HMOVE        ; 3 (3)
   ldy #SKY_MAX_Y   ; 2 (5)
-  INSERT_NOPS 10   ; 20 (25)
+  INSERT_NOPS 10   ; 20 (25) The usual "leave 24 cycles after HMOVE" shenanigan
   sta HMCLR        ; 3 (28)
 
+  lda #$8E
+  sta COLUBK
+
+  sec              ; 2 (30) Set the carry ahead of time for the next scanline
+
 sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
-  sta WSYNC        ; 3 (31)
+  sta WSYNC        ; 3 (33)
 
   ; 1st scanline ==============================================================
             ; - (0)
@@ -760,40 +790,40 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   lda OBSTACLE_BALL_STATE        ; 3 (12)
   sta ENABL                      ; 3 (15)
 
-  CHECK_Y_WITHIN_DINO            ; 9 (24)
-  bcs _sky__y_within_dino        ; 2/3 (26/27)
+  CHECK_Y_WITHIN_DINO_IGNORING_CARRY ; 7 (22)
+  bcs _sky__y_within_dino        ; 2/3 (24/25)
 
-_sky__y_not_within_dino:         ; (26)
-  lda #0                         ; 2 (28)  Disable the missile for P0
-  sta DINO_SPRITE                ; 3 (31)
+_sky__y_not_within_dino:         ; (24)
+  lda #0                         ; 2 (26)  Disable the missile for P0
+  sta DINO_SPRITE                ; 3 (29)
   ; TODO: Seems unnecessary, so commenting it, but check
   ;sta DINO_SPRITE_OFFSET         ; 3 (34)
   sta MISSILE_P0                  ; 3 (37)
   jmp _sky__end_of_1st_scanline  ; 3 (40)
 
-_sky__y_within_dino:             ; (27)
+_sky__y_within_dino:             ; (25)
   ; graphics
-  lda (PTR_DINO_SPRITE),y        ; 5 (32)
-  sta DINO_SPRITE                ; 3 (35)
+  lda (PTR_DINO_SPRITE),y        ; 5 (30)
+  sta DINO_SPRITE                ; 3 (33)
 
   ; graphics offset
-  lda (PTR_DINO_OFFSET),y        ; 5 (40)
-  sta HMP0                       ; 3 (43)
+  lda (PTR_DINO_OFFSET),y        ; 5 (38)
+  sta HMP0                       ; 3 (41)
 
   ; missile
-  lda (PTR_DINO_MIS0),y           ; 5 (48)
-  DECODE_MISSILE_PLAYER 0        ; 13 (61)
+  lda (PTR_DINO_MIS0),y           ; 5 (46)
+  DECODE_MISSILE_PLAYER 0        ; 13 (59)
   ; Afer above's invocation to DECODE_MISSILE_PLAYER, reg A will still 
   ; contain the MISSILE_P0 data, thus we don't need to do
   ; lda MISSILE_P0 here
-  ldx DINO_SPRITE       ; 3 (64) Prefetching sprite data in reg X to save a 
+  ldx DINO_SPRITE       ; 3 (62) Prefetching sprite data in reg X to save a 
                         ;        load on the next scanline
 
-_sky__end_of_1st_scanline:       ; (46/64)
-  sec                            ; 2 (48/66) Set the carry for the sbc instruction
+_sky__end_of_1st_scanline:       ; (46/62)
+  sec                            ; 2 (48/64) Set the carry for the sbc instruction
                                  ; that will happen in the next scanline for the
                                  ; Y-bounds check of the ptero
-  sta WSYNC                      ; 3 (48/66)
+  sta WSYNC                      ; 3 (48/67)
 
   ; 2nd scanline ==============================================================
                                  ; - (0)
@@ -804,24 +834,25 @@ _sky__end_of_1st_scanline:       ; (46/64)
   CHECK_Y_WITHIN_PTERO_IGNORING_CARRY  ; 7 (16)
   bcs _sky__y_within_ptero   ; 2/3 (18/19)
 _sky__y_not_within_ptero:        ; - (18)
-  lda #0                         ; 2 (28)
-  sta OBSTACLE_SPRITE            ; 3 (31)
-  sta MISSILE_P1                  ; 3 (33)
-  jmp _sky__end_of_2nd_scanline  ; 3 (36)
+  lda #0                         ; 2 (20)
+  sta OBSTACLE_SPRITE            ; 3 (23)
+  sta MISSILE_P1                  ; 3 (26)
+  jmp _sky__end_of_2nd_scanline  ; 3 (29)
 
 _sky__y_within_ptero:            ; - (19)
   ; graphics
-  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (23)
-  sta OBSTACLE_SPRITE            ; 3 (26)
-
-  ; missile
-  lda (PTR_OBSTACLE_BALL),y      ; 5 (31)
-  DECODE_MISSILE_PLAYER 1        ; 13 (44)
+  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (24)
+  sta OBSTACLE_SPRITE            ; 3 (27)
 
   ; The HMxx registers don’t play nice if you set them within 24 CPU cycles of
   ; strobing HMOVE—otherwise, you might get some funky TIA behavior. The NOPs 
   ; here just give things a bit of breathing room.
-  sta HMCLR                      ; 3 (47)
+  sta HMCLR                      ; 3 (30)
+
+  ; missile
+  lda (PTR_OBSTACLE_BALL),y      ; 5 (35)
+  DECODE_BALL                    ; 13 (48)
+
   ; graphics offset
   lda (PTR_OBSTACLE_OFFSET),y    ; 5 (53)
   sta HMP1                       ; 3 (56)
@@ -842,9 +873,17 @@ _sky__end_of_2nd_scanline:  ; - (36/56)
 
 _check_if_crouching:         ; (42/62)
   ; Check if dino is crouching, then jump to the appropiate kernel if so
-  lda #FLAG_DINO_CROUCHING   ; 3 (45/65)
-  bit GAME_FLAGS             ; 3 (48/68)
-  beq cactus_area_kernel     ; 2/3 (50/51,70/71)
+  lda #FLAG_DINO_CROUCHING   ; 2 (44/64)
+  bit GAME_FLAGS             ; 3 (47/67)
+  ; At this point, there are 2 counts, one comes from the Y coordinate not 
+  ; being within the ptero bounds (50 or whatever, we have room and can 
+  ; ignore for now), the other one comes from the Y coordinate being within
+  ; the ptero bounds, and has 67)
+  bne dino_crouching_kernel  ; 2/3 (67 -> 69/70)
+
+  ; need a jump here because a branch won't eventually work, the offset is
+  ; already too large, a few more instructions and it'll be gone
+  jmp cactus_area_kernel     ; 3 (69 -> 72)
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
 ; The crouching part is split into two regions:
@@ -879,7 +918,7 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 ; Legend:    ▒ missile pixels    █ GRP0 pixels    X overlapping pixels
 
 _crouching_region_1:
-  sta WSYNC                 ; 3 (3)
+  sta WSYNC                 ; 3 (from sky_kernel: 70 -> 73)
   ; 1st scanline ==============================================================
                             ; - (0)
   sta HMOVE                 ; 3 (3)
@@ -945,11 +984,15 @@ _crouching_region_2:
   jmp legs_and_floor_kernel
 
 cactus_area_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
-  sta WSYNC                 ; 3 (from sky_kernel: 74)
+  sta WSYNC                 ; 3 (from sky_kernel: 72 -> 75... phew!)
 
   ; 1st scanline ==============================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
+
+  lda #$BA
+  sta COLUBK
+
   CHECK_Y_WITHIN_DINO         ; 9 (12)
   bcs _cactus__y_within_dino  ; 2/3 (14 / 15)
 
@@ -979,13 +1022,13 @@ _cactus__end_of_1st_scanline:
   ; 2nd scanline ==============================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
-  lda DINO_SPRITE                       ; 3
-  ;lda #0                               ; for debugging, hides GRP0
-  sta GRP0                              ; 3
-  lda MISSILE_P0                         ; 3
-  sta ENAM0                             ; 3
-  INSERT_NOPS 10                        ; 20
-  sta HMCLR
+  lda DINO_SPRITE             ; 3
+  ;lda #0                     ; for debugging, hides GRP0
+  sta GRP0                    ; 3
+  lda MISSILE_P0              ; 3
+  sta ENAM0                   ; 3
+  INSERT_NOPS 10              ; 20
+  sta HMCLR                   ; 3
 
   dey                                   ; 2 (5)
   cpy #CACTUS_AREA_MIN_Y+#1             ; 2 (7) - +1 turns Y ≥ C into Y > C
@@ -1515,7 +1558,6 @@ DINO_MIS_OFFSETS:
   ;    ░ ball
   ;    X overlapping pixels
   ;    ▯ Non drawn by the current kernel
-
 DINO_MIS_OFFSETS_END = *
 
 
@@ -1575,7 +1617,6 @@ DINO_CROUCHING_SPRITE_OFFSETS:
   .ds 1     ; ↑         ↑
             ; |       M0/GRP0 position (cycle 25)
             ; BALL position (cycle 22)
-
 DINO_CROUCHING_SPRITE_OFFSETS_END = *
 
 DINO_CROUCHING_MISSILE_0:
@@ -1650,10 +1691,10 @@ PTERO_WINGS_OPEN_SPRITE:
   ;    X overlapping pixels
 
   .ds 1            ;⏐        ⏐
-  .byte %00000100  ;⏐        ⏐
-  .byte %00000110  ;⏐        ⏐
-  .byte %10000110  ;⏐        ⏐
-  .byte %00000111  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
   .byte %01111111  ;⏐ ███████⏐
   .byte %00111111  ;⏐  ██████⏐
   .byte %11111111  ;⏐████████⏐
@@ -1666,6 +1707,7 @@ PTERO_WINGS_OPEN_SPRITE:
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
   .ds 1            ;⏐        ⏐
+PTERO_WINGS_OPEN_SPRITE_END = *
 
 PTERO_WINGS_OPEN_SPRITE_OFFSETS:
 
@@ -1691,7 +1733,7 @@ PTERO_WINGS_OPEN_SPRITE_OFFSETS:
   .byte $00  ;
   .byte $00  ;
   .ds 1            ;⏐        ⏐
-
+PTERO_WINGS_OPEN_SPRITE_OFFSETS_END = *
 
 PTERO_WINGS_OPEN_BALL:
   ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
@@ -1717,6 +1759,7 @@ PTERO_WINGS_OPEN_BALL:
   ;                 ↑         ↑
   ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
   .ds 1;
+PTERO_WINGS_OPEN_BALL_END = *
 
 PTERO_WINGS_CLOSED_SPRITE:
   ; Sprite drawn as a combination
@@ -1814,6 +1857,7 @@ PTERO_WINGS_CLOSED_BALL:
   ;                 ↑         ↑
   ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
   .ds 1;
+PTERO_WINGS_CLOSED_BALL_END = *
 
   ;
   ; Legend:
