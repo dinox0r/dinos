@@ -229,6 +229,13 @@ PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
 PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
 PTR_OBSTACLE_BALL    .word   ; 2 bytes
 
+; This variables are performance variables to save cycles in tight spots
+; they could potentially be reused under different names by using a new
+; declaration (maybe use new ORG $something that directly points to the offset
+; of this variable to assign a new name)
+DINO_IS_CROUCHING         .byte   ; 1 byte (performance variable, to save 2
+                                  ; cycles in sky_kernel and others)
+
 ;=============================================================================
 ; ROM / GAME CODE
 ;=============================================================================
@@ -755,11 +762,15 @@ _set_obstacle_coarse_x_pos:
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
-  ; do the fine offset in the next scanline, I'm avoiding doing it in the
+  
+  ; Clear reg X to make sure no graphics are drawn in the first scanline of
+  ; the sky_kernel
+  ldx #0           ; 2 (5); do the fine offset in the next scanline, I'm avoiding doing it in the
+
   ; same scanline as the coarse positioning because for x > 150 the strobing
   ; will occur near the end of the scanline leaving barely room for strobing
   ; wsync
-  INSERT_NOPS 10              ; 20 (23)
+  INSERT_NOPS 9              ; 18 (23)
   tay                         ; 2 (25)
   lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
   sta OBSTACLE_X_FINE_OFFSET  ; 3 (33)
@@ -769,7 +780,14 @@ _set_obstacle_coarse_x_pos:
                    ; - (0)
   sta HMOVE        ; 3 (3)
   ldy #SKY_MAX_Y   ; 2 (5)
-  INSERT_NOPS 10   ; 20 (25) The usual "leave 24 cycles after HMOVE" shenanigan
+
+  ; Prefetch the IS_CROUCHING value to save 2 cycles doing the check
+  lda #FLAG_DINO_CROUCHING   ; 2 (7)
+  bit GAME_FLAGS             ; 3 (10)
+  sta DINO_IS_CROUCHING      ; 3 (13)
+
+  INSERT_NOPS 6    ; 12 (25) The usual "leave 24 cycles after HMOVE" shenanigan
+
   sta HMCLR        ; 3 (28)
 
   lda #$8E
@@ -1005,7 +1023,7 @@ _cactus__y_not_within_dino:
 
 _cactus__y_within_dino:
   ; graphics
-  lda (PTR_DINO_SPRITE),y               ; 5+ (20)
+  lax (PTR_DINO_SPRITE),y               ; 5+ (20)
   sta DINO_SPRITE                       ; 3  (23)
 
   ; graphics offset
