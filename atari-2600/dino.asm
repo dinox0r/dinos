@@ -229,13 +229,6 @@ PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
 PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
 PTR_OBSTACLE_BALL    .word   ; 2 bytes
 
-; This variables are performance variables to save cycles in tight spots
-; they could potentially be reused under different names by using a new
-; declaration (maybe use new ORG $something that directly points to the offset
-; of this variable to assign a new name)
-DINO_IS_CROUCHING         .byte   ; 1 byte (performance variable, to save 2
-                                  ; cycles in sky_kernel and others)
-
 ;=============================================================================
 ; ROM / GAME CODE
 ;=============================================================================
@@ -762,15 +755,11 @@ _set_obstacle_coarse_x_pos:
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
-  ; Clear reg X to make sure no graphics are drawn in the first scanline of
-  ; the sky_kernel
-  ldx #0           ; 2 (5)
-
   ; do the fine offset in the next scanline, I'm avoiding doing it in the
   ; same scanline as the coarse positioning because for x > 150 the strobing
   ; will occur near the end of the scanline leaving barely room for strobing
   ; wsync
-  INSERT_NOPS 9              ; 18 (23)
+  INSERT_NOPS 10              ; 20 (23)
   tay                         ; 2 (25)
   lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
   sta OBSTACLE_X_FINE_OFFSET  ; 3 (33)
@@ -780,67 +769,63 @@ _set_obstacle_coarse_x_pos:
                    ; - (0)
   sta HMOVE        ; 3 (3)
   ldy #SKY_MAX_Y   ; 2 (5)
-
-  ; Prefetch the IS_CROUCHING value to save 2 cycles doing the check
-  lda #FLAG_DINO_CROUCHING   ; 2 (7)
-  bit GAME_FLAGS             ; 3 (10)
-  sta DINO_IS_CROUCHING      ; 3 (13)
-
-  INSERT_NOPS 6    ; 12 (25) The usual "leave 24 cycles after HMOVE" shenanigan
+  INSERT_NOPS 10   ; 20 (25) The usual "leave 24 cycles after HMOVE" shenanigan
   sta HMCLR        ; 3 (28)
 
   lda #$8E
   sta COLUBK
 
-  ; sec              ; 2 (30) Set the carry ahead of time for the next scanline
+  sec              ; 2 (30) Set the carry ahead of time for the next scanline
 
 sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta WSYNC        ; 3 (33)
 
-; 1st scanline ================================================================
-_sky__begin_1st_scanline:
+  ; 1st scanline ==============================================================
             ; - (0)
   sta HMOVE ; 3 (3)
 
-  ; Draw the obstacle on the first scanline, and use the rest of the CPU budget
-  ; to setup what's to be drawn (the dino, if present) on the second scan line
-  stx GRP1                       ; 3 (9)
+  ; Draw the obstacle first
+  lda OBSTACLE_SPRITE            ; 3 (6)
+  sta GRP1                       ; 3 (9)
   lda OBSTACLE_BALL_STATE        ; 3 (12)
   sta ENABL                      ; 3 (15)
 
-  CHECK_Y_WITHIN_DINO            ; 9 (24)
+  CHECK_Y_WITHIN_DINO_IGNORING_CARRY ; 7 (22)
   bcs _sky__y_within_dino        ; 2/3 (24/25)
 
 _sky__y_not_within_dino:         ; (24)
   lda #0                         ; 2 (26)  Disable the missile for P0
   sta DINO_SPRITE                ; 3 (29)
+  ; TODO: Seems unnecessary, so commenting it, but check
+  ;sta DINO_SPRITE_OFFSET         ; 3 (34)
   sta MISSILE_P0                  ; 3 (37)
   jmp _sky__end_of_1st_scanline  ; 3 (40)
 
 _sky__y_within_dino:             ; (25)
   ; graphics
   lda (PTR_DINO_SPRITE),y        ; 5 (30)
-  tax                            ; 2 (32) Prefetching sprite data in reg X to 
-                                 ; save a load on the next scanline
+  sta DINO_SPRITE                ; 3 (33)
+
   ; graphics offset
   lda (PTR_DINO_OFFSET),y        ; 5 (38)
-  sta HMP0                       ; 3 (41) Straight into the motion reg
+  sta HMP0                       ; 3 (41)
 
   ; missile
   lda (PTR_DINO_MIS0),y           ; 5 (46)
   DECODE_MISSILE_PLAYER 0        ; 13 (59)
-  ; Afer above's invocation to DECODE_MISSILE_PLAYER, reg A will still
+  ; Afer above's invocation to DECODE_MISSILE_PLAYER, reg A will still 
   ; contain the MISSILE_P0 data, thus we don't need to do
   ; lda MISSILE_P0 here
+  ldx DINO_SPRITE       ; 3 (62) Prefetching sprite data in reg X to save a 
+                        ;        load on the next scanline
 
-_sky__end_of_1st_scanline: ; (46/62)
-  sec                      ; 2 (48/64) Set the carry for the sbc instruction
-                           ; that will happen in the next scanline during the
-                           ; Y-bounds check of the ptero
-  sta WSYNC                ; 3 (48/67)
+_sky__end_of_1st_scanline:       ; (46/62)
+  sec                            ; 2 (48/64) Set the carry for the sbc instruction
+                                 ; that will happen in the next scanline for the
+                                 ; Y-bounds check of the ptero
+  sta WSYNC                      ; 3 (48/67)
 
-; 2nd scanline ================================================================
-_sky__begin_2nd_scanline:
+  ; 2nd scanline ==============================================================
                                  ; - (0)
   sta HMOVE                      ; 3 (3)
   stx GRP0                       ; 3 (6)
@@ -850,15 +835,14 @@ _sky__begin_2nd_scanline:
   bcs _sky__y_within_ptero   ; 2/3 (18/19)
 _sky__y_not_within_ptero:        ; - (18)
   lda #0                         ; 2 (20)
-  tax                            ; 2 (22) clear reg X so no graphics are shown
-                                 ;        in the next scanline
-  sta OBSTACLE_BALL_STATE        ; 3 (26)
+  sta OBSTACLE_SPRITE            ; 3 (23)
+  sta MISSILE_P1                  ; 3 (26)
   jmp _sky__end_of_2nd_scanline  ; 3 (29)
 
 _sky__y_within_ptero:            ; - (19)
   ; graphics
   lda (PTR_OBSTACLE_SPRITE),y    ; 5 (24)
-  tax                            ; 2 (27)
+  sta OBSTACLE_SPRITE            ; 3 (27)
 
   ; The HMxx registers don’t play nice if you set them within 24 CPU cycles of
   ; strobing HMOVE—otherwise, you might get some funky TIA behavior. The NOPs 
@@ -889,12 +873,8 @@ _sky__end_of_2nd_scanline:  ; - (36/56)
 
 _check_if_crouching:         ; (42/62)
   ; Check if dino is crouching, then jump to the appropiate kernel if so
-  ; Instead of doing this here:
-  ;   lda #FLAG_DINO_CROUCHING   ; 2 (44/64)
-  ;   bit GAME_FLAGS             ; 3 (47/67)
-  ; DINO_IS_CROUCHING already has the result computed from sky_kernel_setup
-  lda DINO_IS_CROUCHING          ; 3 ()
-
+  lda #FLAG_DINO_CROUCHING   ; 2 (44/64)
+  bit GAME_FLAGS             ; 3 (47/67)
   ; At this point, there are 2 counts, one comes from the Y coordinate not 
   ; being within the ptero bounds (50 or whatever, we have room and can 
   ; ignore for now), the other one comes from the Y coordinate being within
@@ -1019,6 +999,7 @@ cactus_area_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
 _cactus__y_not_within_dino:
   lda #0                              ; 3 (17)  Disable the missile for P0
   sta DINO_SPRITE                     ; 3 (20)
+  sta DINO_SPRITE_OFFSET              ; 3 (23)
   sta MISSILE_P0                       ; 3 (26)
   jmp _cactus__end_of_1st_scanline    ; 3 (29)
 
@@ -1029,7 +1010,7 @@ _cactus__y_within_dino:
 
   ; graphics offset
   lda (PTR_DINO_OFFSET),y               ; 5+ (28)
-  sta HMP0                              ; 3  (31) Straight into the motion reg
+  sta HMP0                              ; 3  (31)
 
   ; missile
   lda (PTR_DINO_MIS0),y                  ; 5+ (36)
