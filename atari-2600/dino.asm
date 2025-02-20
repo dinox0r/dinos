@@ -919,46 +919,46 @@ _sky__y_within_ptero:            ; - (19)
   ; We still have to remove HMP0 and HMM0 fine offsets so they don't shift
   ; the dino again when jumping back to the 1st scanline, but the HMxx 
   ; registers don’t play nice if you set them within 24 CPU cycles of strobing 
-  ; HMOVE—otherwise. Here, enough time has passed to do the clearing before
-  ; updating the offsets for the ptero
+  ; HMOVE. At this point, enough time has passed to do this clearing, just 
+  ; before setting the fine offsets for the ptero
   sta HMCLR                      ; 3 (34)
-  ; thanks to LAX, reg X will have a copy of the data encoded in 
-  ; (*PTR_OBSTACLE_BALL) which means is a copy of the data prior to shifting, 
-  ; hence the HMBL can be applied, and at this point.
+  ; thanks to LAX, reg X will have a copy of the data encoded in
+  ; (*PTR_OBSTACLE_BALL) which means is a copy of the data prior to shifting,
+  ; hence the fine offsets for the ball can be applied.
   stx HMBL                       ; 3 (37)
   ; Afer above's LAX instruction, reg X will contain the orignal BALL data, so
   ; next scanline we can do 'stx ENABL' provided we don't overwrite reg X
 
   ; ptero graphics offset
-  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (24)
-  sta HMP1                       ; 3 (27)
+  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (42)
+  sta HMP1                       ; 3 (45)
 
   ; ptero graphics
-  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (50)
+  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (55)
   ; reg A contains the obstacle sprite data, next scanline we can do 'sta GRP1'
   ; provided we don't overwrite reg A until then
 
 
-_sky__end_of_2nd_scanline:  ; - (36/50)
+_sky__end_of_2nd_scanline:  ; - (36/55)
 
   ; Cactus/Crouching area very first scanline
-  dey                       ; 2 (38/52)
+  dey                       ; 2 (38/57)
   ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
   ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
   ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1          ; 2 (40/54)
+  cpy #SKY_MIN_Y+#1          ; 2 (40/59)
   bcs sky_kernel             ; 2/3 (taken 43/57) (not taken 42/56)
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
 
-_check_if_crouching:         ; - (42/57)
+_check_if_crouching:         ; - (42/61)
   ; At this point, there are 2 counts, one comes from the Y coordinate not 
   ; being within the ptero bounds (50 or whatever, we have room and can 
   ; ignore for now), the other one comes from the Y coordinate being within
   ; the ptero bounds, and has 67)
-  jmp (PTR_MIDDLE_SECTION_KERNEL)  ; 5 (42 -> 47, 57 -> 62)
+  jmp (PTR_MIDDLE_SECTION_KERNEL)  ; 5 (42 -> 47, 61 -> 66)
 
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
