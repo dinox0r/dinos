@@ -229,11 +229,14 @@ PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
 PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
 PTR_OBSTACLE_BALL    .word   ; 2 bytes
 
-; This variables are performance variables to save cycles in tight spots
-; they could potentially be reused under different names by using a new
+PTR_MIDDLE_SECTION_KERNEL .word  ; 2 bytes
+
+; This section is to include variables for performance, to save cycles in tight 
+; spots. They could potentially be reused under different names by using a new
 ; declaration (maybe use new ORG $something that directly points to the offset
 ; of this variable to assign a new name)
-DINO_IS_CROUCHING         .byte   ; 1 byte (performance variable, to save 2
+
+;DINO_IS_CROUCHING         .byte   ; 1 byte (performance variable, to save 2
                                   ; cycles in sky_kernel and others)
 
 ;=============================================================================
@@ -668,7 +671,7 @@ clouds_kernel_setup:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30,#2
 
 clouds_kernel:;-------->>> 15 scanlines <<<----
-  DEBUG_SUB_KERNEL #$40,#15
+  DEBUG_SUB_KERNEL #$4C,#15
 
 sky_setup_kernel:;----->>> 5 scanlines <<<-----
   ; From the DEBUG_SUB_KERNEL macro:
@@ -762,7 +765,6 @@ _set_obstacle_coarse_x_pos:
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
-  
   ; Clear reg X to make sure no graphics are drawn in the first scanline of
   ; the sky_kernel
   ldx #0           ; 2 (5); do the fine offset in the next scanline, I'm avoiding doing it in the
@@ -773,6 +775,7 @@ _set_obstacle_coarse_x_pos:
   INSERT_NOPS 9              ; 18 (23)
   tay                         ; 2 (25)
   lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
+  ; TODO Use this value to move GRP1 and BALL
   sta OBSTACLE_X_FINE_OFFSET  ; 3 (33)
 
   sta WSYNC                   ; 3 (36)
@@ -784,124 +787,179 @@ _set_obstacle_coarse_x_pos:
   ; Prefetch the IS_CROUCHING value to save 2 cycles doing the check
   lda #FLAG_DINO_CROUCHING   ; 2 (7)
   bit GAME_FLAGS             ; 3 (10)
-  sta DINO_IS_CROUCHING      ; 3 (13)
+  bne __assign_crouching_kernel  ; 2/3 (12/13)
 
-  INSERT_NOPS 6    ; 12 (25) The usual "leave 24 cycles after HMOVE" shenanigan
+  lda  #<cactus_area_kernel       ; 2 (14)
+  sta PTR_MIDDLE_SECTION_KERNEL   ; 3 (17)
+  lda  #>cactus_area_kernel       ; 2 (19)
+  sta PTR_MIDDLE_SECTION_KERNEL+1 ; 3 (22)
+  jmp __end_middle_section_kernel_setup ; 3 (25)
 
-  sta HMCLR        ; 3 (28)
+__assign_crouching_kernel:        ; - (13)
+  lda  #<dino_crouching_kernel    ; 2 (15)
+  sta PTR_MIDDLE_SECTION_KERNEL   ; 3 (18)
+  lda  #>dino_crouching_kernel    ; 2 (20)
+  sta PTR_MIDDLE_SECTION_KERNEL+1 ; 3 (23)
+__end_middle_section_kernel_setup:
 
-  lda #$8E
-  sta COLUBK
+  ; TODO can remove this sec
+  sec              ; 2 (27/25) Set the carry ahead of time for the next scanline
 
-  sec              ; 2 (30) Set the carry ahead of time for the next scanline
+  INSERT_NOPS 2    ; 4 (31/29) The usual "leave 24 cycles after HMOVE" shenanigan
+
+  sta HMCLR        ; 3 (34/32)
+
+  lda #$78         ; for debugging purposes
+  sta COLUBK       ;
+
+  ; We are assuming that reg A has the obstacle graphics, which go to GRP1
+  ; and that reg X has the BALL state for the obstacle additional graphics, 
+  ; so we have to 0 both before the first scanline of the sky kernel
+  lda #0
+  tax
 
 sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
-  sta WSYNC        ; 3 (33)
+
+  sta WSYNC        ; 3 (37/35)
 
   ; 1st scanline ==============================================================
             ; - (0)
   sta HMOVE ; 3 (3)
 
   ; Draw the obstacle first
-  lda OBSTACLE_SPRITE            ; 3 (6)
-  sta GRP1                       ; 3 (9)
-  lda OBSTACLE_BALL_STATE        ; 3 (12)
-  sta ENABL                      ; 3 (15)
+  sta GRP1                       ; 3 (6)
+  stx ENABL                      ; 3 (9)
 
-  CHECK_Y_WITHIN_DINO_IGNORING_CARRY ; 7 (22)
-  bcs _sky__y_within_dino        ; 2/3 (24/25)
 
-_sky__y_not_within_dino:         ; (24)
-  lda #0                         ; 2 (26)  Disable the missile for P0
-  sta DINO_SPRITE                ; 3 (29)
-  ; TODO: Seems unnecessary, so commenting it, but check
-  ;sta DINO_SPRITE_OFFSET         ; 3 (34)
-  sta MISSILE_P0                  ; 3 (37)
-  jmp _sky__end_of_1st_scanline  ; 3 (40)
+  ; CHECK_Y_WITHIN_DINO takes 9 cycles
+  CHECK_Y_WITHIN_DINO            ; 9 (18)
+  bcs _sky__y_within_dino        ; 2/3 (20/21)
 
-_sky__y_within_dino:             ; (25)
-  ; graphics
-  lda (PTR_DINO_SPRITE),y        ; 5 (30)
-  sta DINO_SPRITE                ; 3 (33)
+_sky__y_not_within_dino:         ; - (20)
+  lda #0                         ; 2 (20)  Disable the missile for P0
+  tax                            ; 2 (22)  Good time to write to HMMx regs!!
+  ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the ptero
+  ; in the second scanline. Doing HMCLR is fine because there won't be 
+  ; fine offsets for the dino (we are in y_no_within_dino)
+  sta HMCLR                      ; 3 (27)
+  jmp _sky__end_of_1st_scanline  ; 3 (30)
 
-  ; graphics offset
-  lda (PTR_DINO_OFFSET),y        ; 5 (38)
-  sta HMP0                       ; 3 (41)
+_sky__y_within_dino:             ; - (21)
+  ; dino missile
+  ; the data pointed by PTR_DINO_MIS0 has the following format:
+  ; bit index: 7 6 5 4 3 2 1 0
+  ;            \-----/ \-/ ^
+  ;             HMM0    |  |
+  ;                     |  +-- ENAM0
+  ;                   NUSIZ0 (need to be shifted to the left twice)
+  LAX (PTR_DINO_MIS0),y          ; 5 (26)
+  asl                            ; 2 (28)
+  asl                            ; 2 (30)
+  sta NUSIZ0                     ; 3 (33)
+  ; thanks to LAX, reg X will have a copy of the data encoded in *PTR_DINO_MIS0
+  ; which means prior to shifting, hence the HMM0 can be applied, and at this
+  ; point, more than 24 CPU cycles had passed since 'sta HMOVE', which means 
+  ; HMMx registers can be written to without side effects. First is to clear
+  ; the HMP1 and HMBL registers in one go using HMCLR, which also clears the 
+  ; other HMMx registers but is fine because from this point, the fine offsets
+  ; for the dino are written to HMM0 and HMP0
+  sta HMCLR                      ; 3 (36)
+  stx HMM0                       ; 3 (39)
+  ; Also thanks to the above's LAX instruction, reg X will contain the orignal
+  ; ENAM0 state which will be kept until the 2nd scanline. So no updates 
+  ; reg X can happen from this moment
 
-  ; missile
-  lda (PTR_DINO_MIS0),y           ; 5 (46)
-  DECODE_MISSILE_PLAYER 0        ; 13 (59)
-  ; Afer above's invocation to DECODE_MISSILE_PLAYER, reg A will still 
-  ; contain the MISSILE_P0 data, thus we don't need to do
-  ; lda MISSILE_P0 here
-  ldx DINO_SPRITE       ; 3 (62) Prefetching sprite data in reg X to save a 
-                        ;        load on the next scanline
+  ; dino graphics offset
+  lda (PTR_DINO_OFFSET),y        ; 5 (44)
+  sta HMP0                       ; 3 (47)
 
-_sky__end_of_1st_scanline:       ; (46/62)
-  sec                            ; 2 (48/64) Set the carry for the sbc instruction
+  ; dino graphics- leave them in reg A so they are ready to be used in the 2nd
+  ; scanline, this implies not touching reg A for the rest of this scan line
+  lda (PTR_DINO_SPRITE),y        ; 5 (52)
+
+_sky__end_of_1st_scanline:       ; - (?/52)
+  sec                            ; 2 (?/54) Set the carry for the sbc instruction
                                  ; that will happen in the next scanline for the
                                  ; Y-bounds check of the ptero
-  sta WSYNC                      ; 3 (48/67)
+  sta WSYNC                      ; 3 (48/57)
 
   ; 2nd scanline ==============================================================
                                  ; - (0)
   sta HMOVE                      ; 3 (3)
-  stx GRP0                       ; 3 (6)
-  sta ENAM0                      ; 3 (9)
+  sta GRP0                       ; 3 (6)
+  stx ENAM0                      ; 3 (9)
 
+  ; 'sec' is invoked at the end of the 1st scanline (saving 2 cycles here)
   CHECK_Y_WITHIN_PTERO_IGNORING_CARRY  ; 7 (16)
   bcs _sky__y_within_ptero   ; 2/3 (18/19)
 _sky__y_not_within_ptero:        ; - (18)
   lda #0                         ; 2 (20)
-  sta OBSTACLE_SPRITE            ; 3 (23)
-  sta MISSILE_P1                  ; 3 (26)
-  jmp _sky__end_of_2nd_scanline  ; 3 (29)
+  tax                            ; 2 (22)
+  nop                            ; 2 (24) needed to reach 24 cycles afte
+  nop                            ; 2 (26) strobing HMOVE
+  ; Remove HMP0 and HMM0 fine offsets so they don't keep shifting the dino
+  ; when jumping back to the 1st scanline. Doing HMCLR is fine because there
+  ; won't be fine offsets for the ptero (we are in y_not_within_ptero)
+  sta HMCLR                      ; 3 (29)
+  jmp _sky__end_of_2nd_scanline  ; 3 (32)
 
 _sky__y_within_ptero:            ; - (19)
-  ; graphics
-  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (24)
-  sta OBSTACLE_SPRITE            ; 3 (27)
+  ; ptero ball
+  ; the data pointed by PTR_OBSTACLE_BALL has the following format:
+  ; bit index: 7 6 5 4 3 2 1 0
+  ;            \-----/ \-/ ^
+  ;             HMBL    |  |
+  ;                     |  +-- ENABL
+  ;                   CTRLPF (needs to be shifted to the left twice)
+  ; ball
+  LAX (PTR_OBSTACLE_BALL),y      ; 5 (24)
+  asl                            ; 2 (26)
+  asl                            ; 2 (28)
+  sta CTRLPF                     ; 3 (31)
+  ; We still have to remove HMP0 and HMM0 fine offsets so they don't shift
+  ; the dino again when jumping back to the 1st scanline, but the HMxx 
+  ; registers don’t play nice if you set them within 24 CPU cycles of strobing 
+  ; HMOVE—otherwise. Here, enough time has passed to do the clearing before
+  ; updating the offsets for the ptero
+  sta HMCLR                      ; 3 (34)
+  ; thanks to LAX, reg X will have a copy of the data encoded in 
+  ; (*PTR_OBSTACLE_BALL) which means is a copy of the data prior to shifting, 
+  ; hence the HMBL can be applied, and at this point.
+  stx HMBL                       ; 3 (37)
+  ; Afer above's LAX instruction, reg X will contain the orignal BALL data, so
+  ; next scanline we can do 'stx ENABL' provided we don't overwrite reg X
 
-  ; The HMxx registers don’t play nice if you set them within 24 CPU cycles of
-  ; strobing HMOVE—otherwise, you might get some funky TIA behavior. The NOPs 
-  ; here just give things a bit of breathing room.
-  sta HMCLR                      ; 3 (30)
+  ; ptero graphics offset
+  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (24)
+  sta HMP1                       ; 3 (27)
 
-  ; missile
-  lda (PTR_OBSTACLE_BALL),y      ; 5 (35)
-  DECODE_BALL                    ; 13 (48)
+  ; ptero graphics
+  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (50)
+  ; reg A contains the obstacle sprite data, next scanline we can do 'sta GRP1'
+  ; provided we don't overwrite reg A until then
 
-  ; graphics offset
-  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (53)
-  sta HMP1                       ; 3 (56)
 
-_sky__end_of_2nd_scanline:  ; - (36/56)
+_sky__end_of_2nd_scanline:  ; - (36/50)
 
   ; Cactus/Crouching area very first scanline
-  dey                       ; 2 (38/58)
+  dey                       ; 2 (38/52)
   ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
   ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
   ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1          ; 2 (40/60)
-  bcs sky_kernel             ; 2/3 (taken 43/63) (not taken 42/62)
+  cpy #SKY_MIN_Y+#1          ; 2 (40/54)
+  bcs sky_kernel             ; 2/3 (taken 43/57) (not taken 42/56)
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
 
-_check_if_crouching:         ; (42/62)
-  ; Check if dino is crouching, then jump to the appropiate kernel if so
-  lda #FLAG_DINO_CROUCHING   ; 2 (44/64)
-  bit GAME_FLAGS             ; 3 (47/67)
+_check_if_crouching:         ; - (42/57)
   ; At this point, there are 2 counts, one comes from the Y coordinate not 
   ; being within the ptero bounds (50 or whatever, we have room and can 
   ; ignore for now), the other one comes from the Y coordinate being within
   ; the ptero bounds, and has 67)
-  bne dino_crouching_kernel  ; 2/3 (67 -> 69/70)
+  jmp (PTR_MIDDLE_SECTION_KERNEL)  ; 5 (42 -> 47, 57 -> 62)
 
-  ; need a jump here because a branch won't eventually work, the offset is
-  ; already too large, a few more instructions and it'll be gone
-  jmp cactus_area_kernel     ; 3 (69 -> 72)
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
 ; The crouching part is split into two regions:
@@ -936,7 +994,7 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 ; Legend:    ▒ missile pixels    █ GRP0 pixels    X overlapping pixels
 
 _crouching_region_1:
-  sta WSYNC                 ; 3 (from sky_kernel: 70 -> 73)
+  sta WSYNC                 ; 3 (from sky_kernel: 62 -> 65)
   ; 1st scanline ==============================================================
                             ; - (0)
   sta HMOVE                 ; 3 (3)
@@ -1002,7 +1060,7 @@ _crouching_region_2:
   jmp legs_and_floor_kernel
 
 cactus_area_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
-  sta WSYNC                 ; 3 (from sky_kernel: 72 -> 75... phew!)
+  sta WSYNC                 ; 3 (from sky_kernel: 62 -> 65)
 
   ; 1st scanline ==============================================================
                               ; - (0)
@@ -1023,7 +1081,7 @@ _cactus__y_not_within_dino:
 
 _cactus__y_within_dino:
   ; graphics
-  lax (PTR_DINO_SPRITE),y               ; 5+ (20)
+  LAX (PTR_DINO_SPRITE),y               ; 5+ (20) LAX undocumented opcode
   sta DINO_SPRITE                       ; 3  (23)
 
   ; graphics offset
