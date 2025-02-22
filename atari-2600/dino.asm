@@ -217,13 +217,12 @@ DINO_VY_INT          .byte   ; 1 byte   (24)
 DINO_VY_FRACT        .byte   ; 1 byte   (25)
 UP_PRESSED_FRAMES    .byte   ; 1 byte   (25)
 
-OBSTACLE_SPRITE      .byte
-OBSTACLE_BALL_STATE  .byte
 OBSTACLE_TYPE        .byte
 OBSTACLE_Y           .byte
 OBSTACLE_X_INT       .byte   ; 1 byte
 OBSTACLE_X_FRACT     .byte   ; 1 byte
-OBSTACLE_X_FINE_OFFSET .byte ; 1 byte
+OBSTACLE_VX_INT   .byte   ; 1 byte
+OBSTACLE_VX_FRACT .byte   ; 1 byte
 
 PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
 PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
@@ -309,7 +308,7 @@ game_init:
   sta OBSTACLE_TYPE
   lda #SKY_MAX_Y-#4
   sta OBSTACLE_Y
-  lda #72
+  lda #150
   sta OBSTACLE_X_INT
 
 ;=============================================================================
@@ -379,7 +378,7 @@ _check_joystick_down:
   bit SWCHA
   beq _on_joystick_down
 
-  ; We need to clear the crouching flag as the user might have released the
+  ; We need to clear the crouching flag as the player might have released the
   ; joystick down and we have to make sure the dino is not crouching anymore
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DINO_CROUCHING_OFF
@@ -442,7 +441,7 @@ _end_check_joystick:
 ; -----------------------------------------------------------------------------
 in_grame_screen:
 
-  ; Update obstacle state
+_update_obstacle:
   sec
   lda #<PTERO_WINGS_OPEN_SPRITE_END
   sbc OBSTACLE_Y
@@ -467,6 +466,30 @@ in_grame_screen:
   sbc #0
   sta PTR_OBSTACLE_BALL+1
 
+  ; TODO update the obstacle speed to adjust dynamically based on obstacle
+  ; type and difficulty
+  lda #50 ; 
+  sta OBSTACLE_VX_FRACT
+  lda #0
+  sta OBSTACLE_VX_INT
+
+  ; update obstacle x
+  sec
+  lda OBSTACLE_X_FRACT
+  sbc OBSTACLE_VX_FRACT
+  sta OBSTACLE_X_FRACT
+  lda OBSTACLE_X_INT
+  sbc OBSTACLE_VX_INT
+  sta OBSTACLE_X_INT
+  cmp #1
+  bcc _reset_obstacle_position
+  jmp _check_if_dino_is_jumping
+
+_reset_obstacle_position:
+  lda #150
+  sta OBSTACLE_X_INT
+  lda #0
+  sta OBSTACLE_X_FRACT
 
 _check_if_dino_is_jumping:
   lda #FLAG_DINO_JUMPING
@@ -743,8 +766,11 @@ _set_obstacle_position:
   ; visible px in the screen, minus 9 TIA cycles (3 CPU cycles) from the
   ; 'sta HMOVE' needed at the start of the scanline 68 - 9 = 59. 12 TIA cycles 
   ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
-  ; this adds up to 38, but -1 shift the range from [-8, 6] to [-7, 7]
-  adc #37          ; 2 (32/38) 
+  ; this adds up to 38, but -1 shifts the range from [-8, 6] to [-7, 7]
+  ; -2 shifts the range from [-8, 6] to [-6, 8]
+  ; -8 shifts the range from [-8, 6] to [0, 15]
+  ;adc #37          ; 2 (32/38) 
+  adc #29          ; 2 (32/38) 
   sta HMCLR        ; 3 (35/41) Clear any previous HMMx
   sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
                    ;           actually an ADC with A2 complement
@@ -774,11 +800,13 @@ _set_obstacle_coarse_x_pos:
   ; wsync
   INSERT_NOPS 9              ; 18 (23)
   tay                         ; 2 (25)
-  lda FINE_POSITION_OFFSET,y  ; 5 (30) - y should range between [-7, 7]
-  ; TODO Use this value to move GRP1 and BALL
-  sta OBSTACLE_X_FINE_OFFSET  ; 3 (33)
+  lda FINE_POSITION_OFFSET,y  ; 4 (29) - y should range between [-7, 7]
+  ; Apply the fine offset to both the GRP1 and the BALL, these won't shift the
+  ; coarse position set above until the next time HMOVE is strobed
+  sta HMP1  ; 3 (32)
+  sta HMBL  ; 3 (35)
 
-  sta WSYNC                   ; 3 (36)
+  sta WSYNC                   ; 3 (38)
   ; 5th scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -807,7 +835,10 @@ __end_middle_section_kernel_setup:
 
   INSERT_NOPS 2    ; 4 (31/29) The usual "leave 24 cycles after HMOVE" shenanigan
 
-  sta HMCLR        ; 3 (34/32)
+  ; Remove the fine offsets applied to the obstacles before going to the next 
+  ; scanline, also leave the other motion registers in a clear state
+  sta HMCLR        ; 3 (34/32) 
+  
 
   lda #$78         ; for debugging purposes
   sta COLUBK       ;
@@ -905,7 +936,7 @@ _sky__y_not_within_ptero:        ; - (18)
 
 _sky__y_within_ptero:            ; - (19)
   ; ptero ball
-  ; the data pointed by PTR_OBSTACLE_BALL has the following format:
+  ; the data pointed by PTR_OBSTACLE_BALL has the same format as the dino's:
   ; bit index: 7 6 5 4 3 2 1 0
   ;            \-----/ \-/ ^
   ;             HMBL    |  |
@@ -1961,6 +1992,7 @@ PTERO_WINGS_CLOSED_BALL_END = *
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
   ORG $ffe0
+FINE_POSITION_OFFSET:
   .byte $70  ; offset -7
   .byte $60  ; offset -6
   .byte $50  ; offset -5
@@ -1968,7 +2000,6 @@ PTERO_WINGS_CLOSED_BALL_END = *
   .byte $30  ; offset -3
   .byte $20  ; offset -2
   .byte $10  ; offset -1
-FINE_POSITION_OFFSET:
   .byte $00  ; offset  0
   .byte $F0  ; offset  1
   .byte $E0  ; offset  2
