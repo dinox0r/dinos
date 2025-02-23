@@ -164,6 +164,8 @@ DINO_JUMP_ACCEL_FRACT = #98
 
 PTERO_HEIGHT = #17
 
+DEBUG_OBSTACLE_X_POS = #129
+
 ;=============================================================================
 ; GAME_FLAGS
 ;=============================================================================
@@ -308,7 +310,7 @@ game_init:
   sta OBSTACLE_TYPE
   lda #SKY_MAX_Y-#4
   sta OBSTACLE_Y
-  lda #150
+  lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
 
 ;=============================================================================
@@ -486,7 +488,7 @@ _update_obstacle:
   jmp _check_if_dino_is_jumping
 
 _reset_obstacle_position:
-  lda #150
+  lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
   lda #0
   sta OBSTACLE_X_FRACT
@@ -767,10 +769,12 @@ _set_obstacle_position:
   ; 'sta HMOVE' needed at the start of the scanline 68 - 9 = 59. 12 TIA cycles 
   ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
   ; this adds up to 38, but -1 shifts the range from [-8, 6] to [-7, 7]
+  adc #37          ; 2 (32/38) 
+
   ; -2 shifts the range from [-8, 6] to [-6, 8]
   ; -8 shifts the range from [-8, 6] to [0, 15]
-  ;adc #37          ; 2 (32/38) 
-  adc #29          ; 2 (32/38) 
+  ;adc #29          ; 2 (32/38) 
+
   sta HMCLR        ; 3 (35/41) Clear any previous HMMx
   sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
                    ;           actually an ADC with A2 complement
@@ -799,6 +803,9 @@ _set_obstacle_coarse_x_pos:
   ; will occur near the end of the scanline leaving barely room for strobing
   ; wsync
   INSERT_NOPS 9              ; 18 (23)
+  ; Offsets the remainder from [-14, 0] to [0, 14]
+  ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
+  adc #14
   tay                         ; 2 (25)
   lda FINE_POSITION_OFFSET,y  ; 4 (29) - y should range between [-7, 7]
   ; Apply the fine offset to both the GRP1 and the BALL, these won't shift the
