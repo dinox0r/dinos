@@ -1,19 +1,52 @@
 #!/usr/bin/env python3
-import sys
-print_stuff = False
+import getopt, sys
+
+tia_cycles = -1
+output = None
+verbose = False
+x = -1
+
 def aprint(s: str):
-  if print_stuff:
+  if verbose:
     print(s)
 
-if len(sys.argv) > 1:
-  x = int(sys.argv[1])
-else:
-  x = int(input("x-position? (0-160) "))
+def usage():
+  print("\n------------------------------------------------------------------")
+  print("Simulates the coarse position")
+  print("Usage:")
+  print(f"{sys.argv[0]} -x<TARGET X POSITION> [optional: starting TIA cycles]")
+  print("--help, -h  Print this message")
 
-tia_cycles = x + 68 - 9 - 9 - 12 - 1# 9 from sta HMOVE, 9 from sta RESP1, 12 from last div cycle
+try:
+  opts, args = getopt.getopt(sys.argv[1:], "hx:t:v", ["help", "xpos=", "tia-start=", "-verbose"])
+except getopt.GetoptError as err:
+  # print help information and exit:
+  print(err)  # will print something like "option -a not recognized"
+  usage()
+  sys.exit(2)
+
+for o, a in opts:
+  if o == "-v":
+    verbose = True
+  elif o in ("-h", "--help"):
+    usage()
+    sys.exit()
+  elif o in ("-x", "--xpos"):
+    x = int(a)
+  elif o in ("-t", "--tia-start"):
+    tia_cycles = int(a)
+  else:
+    assert False, "unhandled option"
+
+if x < 0:
+  x = int(input("x-position? (0-160) "))
+if tia_cycles < 0:
+  tia_cycles = x + 68 - 9 - 9 - 12 - 1 # 9 from sta HMOVE, 9 from sta RESP1, 12 from last div cycle
+
+aprint(f"\nTarget TIA cycles {tia_cycles} to position RESPx on x = {x}:")
 #tia_cycles = x + 68 - 9 - 12 # 9 from sta HMOVE, 9 12 from last div cycle
 A = tia_cycles
-aprint(f"\nlda #{A}      ; A will be loaded with {tia_cycles} in the prev scanline")
+aprint(f"\nlda #{A}     ; A will be loaded with {tia_cycles} in the prev scanline")
 aprint("sta WSYNC    ; start of new scanline - 0 cpu / 0 tia cycles")
 cpu = 3
 aprint(f"\n\nsta HMOVE    ; ({cpu} cpu / {3 * cpu} tia) TIA target: {tia_cycles} - 9 = {tia_cycles - 9}")
@@ -49,5 +82,6 @@ tia_cycles -= 9
 
 tia_x = cpu * 3 - 68
 print(f"cpu/tia: {cpu}/{cpu * 3}")
-print(f"Target TIA: {x + 68}. Target visible TIA: {x}. *Current* TIA {cpu * 3}. *Current* visible TIA: (TIA - 68): {tia_x}")
+print(f"remainder (reg A) = {A}")
+print(f"Target TIA: {x + 68}. Target visible TIA (x-pos): {x}. *Current* TIA {cpu * 3}. *Current* visible TIA (x-pos): (TIA - 68): {tia_x}")
 print(f"  fine offset: {x - tia_x} (max 8 to left / 7 right)")
