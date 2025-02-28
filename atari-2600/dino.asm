@@ -768,8 +768,8 @@ _set_obstacle_position:
   ; visible px in the screen, minus 9 TIA cycles (3 CPU cycles) from the
   ; 'sta HMOVE' needed at the start of the scanline 68 - 9 = 59. 12 TIA cycles 
   ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
-  ; this adds up to 38, but -1 shifts the range from [-8, 6] to [-7, 7]
-  adc #37          ; 2 (32/38) 
+  ; this adds up to 38
+  adc #36          ; 2 (32/38) 
 
   ; -2 shifts the range from [-8, 6] to [-6, 8]
   ; -8 shifts the range from [-8, 6] to [0, 15]
@@ -805,7 +805,7 @@ _set_obstacle_coarse_x_pos:
   INSERT_NOPS 9              ; 18 (23)
   ; Offsets the remainder from [-14, 0] to [0, 14]
   ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
-  adc #14
+  adc #15
   tay                         ; 2 (25)
   lda FINE_POSITION_OFFSET,y  ; 4 (29) - y should range between [-7, 7]
   ; Apply the fine offset to both the GRP1 and the BALL, these won't shift the
@@ -2015,6 +2015,7 @@ FINE_POSITION_OFFSET:
   .byte $B0  ; offset  5
   .byte $A0  ; offset  6
   .byte $90  ; offset  7
+  .byte $80  ; offset  8
 ;=============================================================================
 ; ROM SETUP
 ;=============================================================================

@@ -41,7 +41,9 @@ for o, a in opts:
 if x < 0:
   x = int(input("x-position? (0-160) "))
 if tia_cycles < 0:
-  tia_cycles = x + 68 - 9 - 9 - 12 - 1 # 9 from sta HMOVE, 9 from sta RESP1, 12 from last div cycle
+  tia_cycles = x + 68 - 9 - 9 - 12 - 1# 9 from sta HMOVE, 9 from sta RESP1, 12 from last div cycle
+else:
+  tia_cycles += x
 
 aprint(f"\nTarget TIA cycles {tia_cycles} to position RESPx on x = {x}:")
 #tia_cycles = x + 68 - 9 - 12 # 9 from sta HMOVE, 9 12 from last div cycle
@@ -53,7 +55,7 @@ aprint(f"\n\nsta HMOVE    ; ({cpu} cpu / {3 * cpu} tia) TIA target: {tia_cycles}
 tia_cycles -= 9
 loop_counter = 0
 aprint("\n; division by 15 loop:")
-while A - 15 > 0:
+while A - 15 >= 0:
   A -= 15
   cpu += 2
   aprint(f"sbc #15      ; ({cpu} cpu / {3 * cpu} tia) TIA target: {tia_cycles} - 6 = {tia_cycles - 6}")
@@ -76,12 +78,23 @@ cpu += 2
 aprint(f"bcs          ; NOT TAKEN ({cpu} cpu / {3 * cpu} tia) TIA target: {tia_cycles} - 6 = {tia_cycles - 6}\n")
 tia_cycles -= 6
 cpu += 3
-aprint(f"sta RESP1    ; ({cpu} cpu / {3 * cpu} tia) TIA target: {tia_cycles} - 9 = {tia_cycles - 9}")
+aprint(f"sta RESPx    ; ({cpu} cpu / {3 * cpu} tia) TIA target: {tia_cycles} - 9 = {tia_cycles - 9}")
 cpu += 3
 tia_cycles -= 9
+
+print(f"strobing RESPx at x = {3 * cpu}, input x-pos={x}")
 
 tia_x = cpu * 3 - 68
 print(f"cpu/tia: {cpu}/{cpu * 3}")
 print(f"remainder (reg A) = {A}")
 print(f"Target TIA: {x + 68}. Target visible TIA (x-pos): {x}. *Current* TIA {cpu * 3}. *Current* visible TIA (x-pos): (TIA - 68): {tia_x}")
-print(f"  fine offset: {x - tia_x} (max 8 to left / 7 right)")
+
+aprint("""
+       LEFT  <---------------------------------------------------------> RIGHT
+offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
+value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
+      """)
+fine_offset = x - tia_x
+if not (-7 <= fine_offset <= 8):
+  print("\033[31mWARNING: fine offset outside range [-7, 8]\033[0m")
+print(f"  fine offset: {fine_offset} (max 7 to left / 8 right)")
