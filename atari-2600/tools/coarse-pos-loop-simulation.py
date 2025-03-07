@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import getopt, sys
 
-tia_cycles = -1
+tia_offset = -1
 output = None
 verbose = False
 x = -1
@@ -33,17 +33,29 @@ for o, a in opts:
     sys.exit()
   elif o in ("-x", "--xpos"):
     x = int(a)
-  elif o in ("-t", "--tia-start"):
-    tia_cycles = int(a)
+  elif o in ("-t", "--tia-offset"):
+    tia_offset = int(a)
   else:
     assert False, "unhandled option"
 
 if x < 0:
   x = int(input("x-position? (0-160) "))
-if tia_cycles < 0:
-  tia_cycles = x + 68 - 9 - 9 - 12 - 1# 9 from sta HMOVE, 9 from sta RESP1, 12 from last div cycle
-else:
-  tia_cycles += x
+if tia_offset < 0:
+  aprint("Using default TIA offset:")
+  hblank = 68
+  aprint(f"* 68 from HBLANK")
+  first_sta_hmove = -9
+  aprint(f"* {first_sta_hmove} from scanline first sta HMOVE")
+  respx = -9
+  aprint(f"* {respx} from sta RESPx")
+  last_iteration = -12
+  aprint(f"* {last_iteration} from last 'sbc #15 (2 CPU cycles), bne (2 CPU cycles)' iteration")
+  range_offset = -2
+  aprint(f"* {range_offset} to offset range")
+  tia_offset = hblank + first_sta_hmove + respx + last_iteration + range_offset
+  aprint(f"  total: {tia_offset}")
+
+tia_cycles = x + tia_offset
 
 aprint(f"\nTarget TIA cycles {tia_cycles} to position RESPx on x = {x}:")
 #tia_cycles = x + 68 - 9 - 12 # 9 from sta HMOVE, 9 12 from last div cycle
@@ -90,6 +102,7 @@ print(f"remainder (reg A) = {A}")
 print(f"Target TIA: {x + 68}. Target visible TIA (x-pos): {x}. *Current* TIA {cpu * 3}. *Current* visible TIA (x-pos): (TIA - 68): {tia_x}")
 
 aprint("""
+       For reference:
        LEFT  <---------------------------------------------------------> RIGHT
 offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
@@ -97,4 +110,4 @@ value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 fine_offset = x - tia_x
 if not (-7 <= fine_offset <= 8):
   print("\033[31mWARNING: fine offset outside range [-7, 8]\033[0m")
-print(f"  fine offset: {fine_offset} (max 7 to left / 8 right)")
+print(f"  fine offset: {fine_offset} (min -7, to left / max 8, to right)")

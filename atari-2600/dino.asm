@@ -164,7 +164,7 @@ DINO_JUMP_ACCEL_FRACT = #98
 
 PTERO_HEIGHT = #17
 
-DEBUG_OBSTACLE_X_POS = #129
+DEBUG_OBSTACLE_X_POS = #158
 
 ;=============================================================================
 ; GAME_FLAGS
@@ -470,7 +470,7 @@ _update_obstacle:
 
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
   ; type and difficulty
-  lda #50 ; 
+  lda #150 ; 
   sta OBSTACLE_VX_FRACT
   lda #0
   sta OBSTACLE_VX_INT
