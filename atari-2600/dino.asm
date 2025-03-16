@@ -164,7 +164,7 @@ DINO_JUMP_ACCEL_FRACT = #98
 
 PTERO_HEIGHT = #17
 
-DEBUG_OBSTACLE_X_POS = #158
+DEBUG_OBSTACLE_X_POS = #149
 
 ;=============================================================================
 ; GAME_FLAGS
@@ -483,8 +483,8 @@ _update_obstacle:
   lda OBSTACLE_X_INT
   sbc OBSTACLE_VX_INT
   sta OBSTACLE_X_INT
-  cmp #1
-  bcc _reset_obstacle_position
+  ;cmp #1 ; -3
+  beq _reset_obstacle_position
   jmp _check_if_dino_is_jumping
 
 _reset_obstacle_position:
@@ -760,8 +760,22 @@ _end_m0_coarse_position: ; (25/31)
 
 _set_obstacle_position:
   clc                ; 2 (27/33) Clear the carry for the addition below
-  lda OBSTACLE_X_INT ; 3 (30/36) OBSTACLE_X_INT is pre-loaded with 72 for testing
+  lda OBSTACLE_X_INT ; 3 (30/36)
 
+  cmp #15
+  bcs _set_obstacle_coarse_x_pos_over_10
+
+_set_obstacle_coarse_x_pos_under_10:
+  ; 3rd scanline
+  sta WSYNC
+
+  ; 4th scanline
+  sta HMOVE
+  sta WSYNC
+
+  jmp _last_setup_scanline
+
+_set_obstacle_coarse_x_pos_over_10:
   ; TODO: Improve the explanation of the 37
   ; tia cycles = x + 68 - 9 - 9 - 12 
   ; 68 TIA colour cycles ~ 22.5 6507 CPU cycles from HBLANK to the start of 
@@ -769,25 +783,26 @@ _set_obstacle_position:
   ; 'sta HMOVE' needed at the start of the scanline 68 - 9 = 59. 12 TIA cycles 
   ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
   ; this adds up to 38
+  ; -2 shifts the fine offset range from [-8, 6] to [-6, 8]
   adc #36          ; 2 (32/38) 
-
-  ; -2 shifts the range from [-8, 6] to [-6, 8]
-  ; -8 shifts the range from [-8, 6] to [0, 15]
-  ;adc #29          ; 2 (32/38) 
 
   sta HMCLR        ; 3 (35/41) Clear any previous HMMx
   sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
                    ;           actually an ADC with A2 complement
                    ;           A-B = A + ~B + 1 (<- this 1 is the carry you set)
+
   sta WSYNC        ; 3 (40/46)
   ; 3rd scanline ==============================================================
                    ; - (0)
 
   sta HMOVE        ; 3 (3)
-_set_obstacle_coarse_x_pos:
+_div_by_15_loop:
   sbc #15                        ; 2 (5) Divide by 15 (sucessive subtractions)
-  bcs _set_obstacle_coarse_x_pos ; 2/3 (obstacle-x / 5 + 5)
+  bcs _div_by_15_loop ; 2/3 (obstacle-x / 5 + 5)
+
   sta RESP1
+  sta RESBL
+
   ; the fine adjustment offset will range between -7 to 7
   ; try the accompanying simulation.py script to confirm this
   sta WSYNC
@@ -814,6 +829,8 @@ _set_obstacle_coarse_x_pos:
   sta HMBL  ; 3 (35)
 
   sta WSYNC                   ; 3 (38)
+
+_last_setup_scanline:
   ; 5th scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -1337,7 +1354,7 @@ _ground__end_of_1st_scanline:
 
 
 void_area_kernel:
-  DEBUG_SUB_KERNEL #$FA,#31
+  DEBUG_SUB_KERNEL #$FA,#14
   jmp end_of_frame
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1806,7 +1823,7 @@ PTERO_WINGS_OPEN_SPRITE:
 
   .ds 1            ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
+  .byte %10101010  ;⏐█ █ █ █ ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %01111111  ;⏐ ███████⏐
