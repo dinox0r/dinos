@@ -456,7 +456,7 @@ _update_obstacle:
   lda #<PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
   sbc OBSTACLE_Y
   sta PTR_OBSTACLE_OFFSET
-  lda #>PTERO_WINGS_OPEN_SPRITE_END
+  lda #>PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
   sbc #0
   sta PTR_OBSTACLE_OFFSET+1
 
@@ -759,6 +759,8 @@ _end_m0_coarse_position: ; (25/31)
   ; M0's positioning scanline
 
 _set_obstacle_position:
+  sta HMCLR        ; 3 (35/41) Clear any previous HMMx
+
   clc                ; 2 (27/33) Clear the carry for the addition below
   lda OBSTACLE_X_INT ; 3 (30/36)
 
@@ -766,10 +768,15 @@ _set_obstacle_position:
   bcs _set_obstacle_coarse_x_pos_over_10
 
 _set_obstacle_coarse_x_pos_under_10:
-  ; 3rd scanline
   sta WSYNC
 
-  ; 4th scanline
+  ; 3rd scanline ==============================================================
+  sta HMOVE
+  sta RESP1
+  sta RESBL
+  sta WSYNC
+
+  ; 4th scanline ==============================================================
   sta HMOVE
   sta WSYNC
 
@@ -786,7 +793,6 @@ _set_obstacle_coarse_x_pos_over_10:
   ; -2 shifts the fine offset range from [-8, 6] to [-6, 8]
   adc #36          ; 2 (32/38) 
 
-  sta HMCLR        ; 3 (35/41) Clear any previous HMMx
   sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
                    ;           actually an ADC with A2 complement
                    ;           A-B = A + ~B + 1 (<- this 1 is the carry you set)
@@ -1797,37 +1803,37 @@ PTERO_WINGS_OPEN_SPRITE:
   ; Sprite drawn as a combination
   ; of GRP1 and the BALL (after applying offsets)
   ;    "unpacked" GRP1 and BALL
-  ;                                  /- GRP1 -\
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐▓        |                ⏐        ⏐
-  ;       ⏐▓▓       |                ⏐        ⏐
-  ;       ⏐ ▓▓      |                ⏐        ⏐
-  ;   ███ ⏐ ▓▓▓     |                ⏐    ███ ⏐
-  ;  ████ ⏐ ▓▓▓▓    |                ⏐   ████ ⏐
-  ; ██████⏐ ▓▓▓▓▓   |                ⏐  ██████⏐
-  ;█████XX⏐▓▓▓▓▓▓   |                ⏐ █████XX⏐▓▓▓▓▓▓
-  ;      █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐▓▓▓▓▓▓▓▓
-  ;       ⏐████████ |                ⏐████████⏐
-  ;       ⏐ █████▓▓▓|▓               ⏐  ██████⏐▓▓▓▓
-  ;       ⏐  █████  |                ⏐ ███████⏐
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐         |                ⏐        ⏐
+  ;                                    "packed" GRP1
+  ;  |        ⏐         |                ⏐        ⏐
+  ;  |        ⏐▓        |                ⏐        ⏐
+  ;  |        ⏐▓▓       |                ⏐        ⏐
+  ;  |        ⏐ ▓▓      |                ⏐        ⏐
+  ;  |    ███ ⏐ ▓▓▓     |                ⏐    ███ ⏐
+  ;  |   ████ ⏐ ▓▓▓▓    |                ⏐   ████ ⏐
+  ;  |  ██████⏐ ▓▓▓▓▓   |                ⏐  ██████⏐
+  ;  | █████XX⏐▓▓▓▓▓▓   |                ⏐ ███████⏐
+  ;  |       █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐
+  ;  |        ⏐████████ |                ⏐████████⏐
+  ;  |        ⏐ █████▓▓▓|▓               ⏐   █████⏐
+  ;  |        ⏐  █████  |                ⏐   █████⏐
+  ;  |        ⏐         |                ⏐        ⏐
+  ;  |        ⏐         |                ⏐        ⏐
+  ;  |        ⏐         |                ⏐        ⏐
+  ;  |        ⏐         |                ⏐        ⏐
+  ;  |        ⏐         |                ⏐        ⏐
   ;
   ; Legend:
-  ;    █ GRP0 pixels
-  ;    ▒ missile 0 pixels
-  ;    X overlapping pixels
+  ;    █ GRP1 pixels
+  ;    ▒ BALL pixels
+  ;    X overlapping pixels (between GRP1 and BALL)
 
   .ds 1            ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
-  .byte %10101010  ;⏐█ █ █ █ ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
-  .byte %01111111  ;⏐ ███████⏐
-  .byte %00111111  ;⏐  ██████⏐
+  .byte %00000000  ;⏐        ⏐
+  .byte %00011111  ;⏐   █████⏐
+  .byte %00011111  ;⏐   █████⏐
   .byte %11111111  ;⏐████████⏐
   .byte %00001111  ;⏐    ████⏐
   .byte %01111111  ;⏐ ███████⏐
@@ -1847,24 +1853,47 @@ PTERO_WINGS_OPEN_SPRITE_OFFSETS:
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-  .byte $00  ;⏐        ⏐
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .ds 1            ;⏐        ⏐
+  ;          current state       after applying fine offset
+  ;          (value GRP1)
+  .ds 1      ;⏐        ⏐            |        ⏐         |
+  .byte $00  ;⏐        ⏐            |        ⏐         |
+  .byte $00  ;⏐        ⏐            |        ⏐         |
+  .byte $00  ;⏐        ⏐            |        ⏐         |
+  .byte $00  ;⏐        ⏐            |        ⏐         |
+  .byte $F0  ;⏐   █████⏐            |        ⏐  █████  |     (+1 pixel)
+  .byte $10  ;⏐   █████⏐            |        ⏐ █████___|_    (-1 pixel)
+  .byte $B0  ;⏐████████⏐            |        ⏐████████ |     (+5 pixels)
+  .byte $D0  ;⏐    ████⏐            |       █⏐███______|__   (+3 pixels)
+  .byte $00  ;⏐ ███████⏐            | █████XX⏐______   |
+  .byte $00  ;⏐  ██████⏐            |  ██████⏐ _____   |
+  .byte $00  ;⏐   ████ ⏐            |   ████ ⏐ ____    |
+  .byte $00  ;⏐    ███ ⏐            |    ███ ⏐ ___     |
+  .byte $00  ;⏐        ⏐            |        ⏐ __      |
+  .byte $00  ;⏐        ⏐            |        ⏐__       |
+  .byte $00  ;⏐        ⏐            |        ⏐_        |
+  .ds 1      ;⏐        ⏐            |        ⏐         |
+             ;                               ↑
+             ;                               8 pixels offset (_ are BALL pixels)
 PTERO_WINGS_OPEN_SPRITE_OFFSETS_END = *
+
+;⏐        |
+;⏐        |
+;⏐        |
+;⏐        |
+;⏐        |
+;⏐    ███ |
+;⏐   ████ |
+;⏐  ██████|
+;⏐ ███████|
+;⏐       █|███
+;⏐        |████████
+;⏐        | █████
+;⏐        |  █████|
+;⏐        |
+;⏐        |
+;⏐        |
+;⏐        |
+
 
 PTERO_WINGS_OPEN_BALL:
   ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
