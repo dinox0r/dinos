@@ -888,24 +888,25 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta HMOVE ; 3 (3)
 
   ; Draw the obstacle first
-  sta GRP1                       ; 3 (6)
-  stx ENABL                      ; 3 (9)
-
+  sta CTRLPF                     ; 3 (6)
+  lsr                            ; 2 (8)
+  sta ENABL                      ; 3 (11)
+  stx GRP1                       ; 3 (14)
 
   ; CHECK_Y_WITHIN_DINO takes 9 cycles
-  CHECK_Y_WITHIN_DINO            ; 9 (18)
-  bcs _sky__y_within_dino        ; 2/3 (20/21)
+  CHECK_Y_WITHIN_DINO            ; 9 (23)
+  bcs _sky__y_within_dino        ; 2/3 (25/26)
 
-_sky__y_not_within_dino:         ; - (20)
-  lda #0                         ; 2 (20)  Disable the missile for P0
-  tax                            ; 2 (22)  Good time to write to HMMx regs!!
+_sky__y_not_within_dino:         ; - (25)
+  lda #0                         ; 2 (27)  Disable the missile for P0
+  tax                            ; 2 (29)  Good time to write to HMMx regs!!
   ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the ptero
   ; in the second scanline. Doing HMCLR is fine because there won't be 
   ; fine offsets for the dino (we are in y_no_within_dino)
-  sta HMCLR                      ; 3 (27)
-  jmp _sky__end_of_1st_scanline  ; 3 (30)
+  sta HMCLR                      ; 3 (32)
+  jmp _sky__end_of_1st_scanline  ; 3 (35)
 
-_sky__y_within_dino:             ; - (21)
+_sky__y_within_dino:             ; - (26)
   ; dino missile
   ; the data pointed by PTR_DINO_MIS0 has the following format:
   ; bit index: 7 6 5 4 3 2 1 0
@@ -913,10 +914,10 @@ _sky__y_within_dino:             ; - (21)
   ;             HMM0    |  |
   ;                     |  +-- ENAM0
   ;                   NUSIZ0 (need to be shifted to the left twice)
-  LAX (PTR_DINO_MIS0),y          ; 5 (26)
-  asl                            ; 2 (28)
-  asl                            ; 2 (30)
-  sta NUSIZ0                     ; 3 (33)
+  LAX (PTR_DINO_MIS0),y          ; 5 (31)
+  asl                            ; 2 (33)
+  asl                            ; 2 (35)
+  sta NUSIZ0                     ; 3 (38)
   ; thanks to LAX, reg X will have a copy of the data encoded in *PTR_DINO_MIS0
   ; which means prior to shifting, hence the HMM0 can be applied, and at this
   ; point, more than 24 CPU cycles had passed since 'sta HMOVE', which means 
@@ -924,25 +925,25 @@ _sky__y_within_dino:             ; - (21)
   ; the HMP1 and HMBL registers in one go using HMCLR, which also clears the 
   ; other HMMx registers but is fine because from this point, the fine offsets
   ; for the dino are written to HMM0 and HMP0
-  sta HMCLR                      ; 3 (36)
-  stx HMM0                       ; 3 (39)
+  sta HMCLR                      ; 3 (41)
+  stx HMM0                       ; 3 (44)
   ; Also thanks to the above's LAX instruction, reg X will contain the orignal
   ; ENAM0 state which will be kept until the 2nd scanline. So no updates 
   ; reg X can happen from this moment
 
   ; dino graphics offset
-  lda (PTR_DINO_OFFSET),y        ; 5 (44)
-  sta HMP0                       ; 3 (47)
+  lda (PTR_DINO_OFFSET),y        ; 5 (49)
+  sta HMP0                       ; 3 (52)
 
   ; dino graphics- leave them in reg A so they are ready to be used in the 2nd
   ; scanline, this implies not touching reg A for the rest of this scan line
-  lda (PTR_DINO_SPRITE),y        ; 5 (52)
+  lda (PTR_DINO_SPRITE),y        ; 5 (57)
 
-_sky__end_of_1st_scanline:       ; - (?/52)
-  sec                            ; 2 (?/54) Set the carry for the sbc instruction
+_sky__end_of_1st_scanline:       ; - (39/57)
+  sec                            ; 2 (41/59) Set the carry for the sbc instruction
                                  ; that will happen in the next scanline for the
                                  ; Y-bounds check of the ptero
-  sta WSYNC                      ; 3 (48/57)
+  sta WSYNC                      ; 3 (44/62)
 
   ; 2nd scanline ==============================================================
                                  ; - (0)
@@ -965,6 +966,25 @@ _sky__y_not_within_ptero:        ; - (18)
   jmp _sky__end_of_2nd_scanline  ; 3 (32)
 
 _sky__y_within_ptero:            ; - (19)
+  ; ptero graphics offset
+  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (24)
+  ; We still have to remove HMP0 and HMM0 fine offsets so they don't shift
+  ; the dino again when jumping back to the 1st scanline, but the HMxx
+  ; registers don’t play nice if you set them within 24 CPU cycles of strobing 
+  ; HMOVE. At this point, enough time has passed to do this clearing, just 
+  ; before setting the fine offsets for the ptero
+  sta HMCLR                      ; 3 (27)
+  sta HMP1                       ; 3 (30)
+
+  ; ptero graphics
+  LAX (PTR_OBSTACLE_SPRITE),y    ; 5 (55)
+  ; Using an illegal opcode (LAX) which will leave a copy of A into X, I'm doing
+  ; this here because there is no 'ldx (aa),y', the non illegal opcode option is
+  ; is to do 'lda (aa),y' first and then 'tax' which will costs 7 cycles, but
+  ; the illegal opcode only takes 5. 
+  ; reg X will contain the ptero data, so
+  ; next scanline we can do 'stx GRP1' provided we don't overwrite reg X
+
   ; ptero ball
   ; the data pointed by PTR_OBSTACLE_BALL has the same format as the dino's:
   ; bit index: 7 6 5 4 3 2 1 0
@@ -973,34 +993,15 @@ _sky__y_within_ptero:            ; - (19)
   ;                     |  +-- ENABL
   ;                   CTRLPF (needs to be shifted to the left twice)
   ; ball
-  LAX (PTR_OBSTACLE_BALL),y      ; 5 (24)
-  asl                            ; 2 (26)
-  asl                            ; 2 (28)
-  sta CTRLPF                     ; 3 (31)
-  ; We still have to remove HMP0 and HMM0 fine offsets so they don't shift
-  ; the dino again when jumping back to the 1st scanline, but the HMxx 
-  ; registers don’t play nice if you set them within 24 CPU cycles of strobing 
-  ; HMOVE. At this point, enough time has passed to do this clearing, just 
-  ; before setting the fine offsets for the ptero
-  sta HMCLR                      ; 3 (34)
+  lda (PTR_OBSTACLE_BALL),y      ; 5 (24)
   ; thanks to LAX, reg X will have a copy of the data encoded in
   ; (*PTR_OBSTACLE_BALL) which means is a copy of the data prior to shifting,
   ; hence the fine offsets for the ball can be applied.
-  stx HMBL                       ; 3 (37)
-  ; Afer above's LAX instruction, reg X will contain the orignal BALL data, so
-  ; next scanline we can do 'stx ENABL' provided we don't overwrite reg X
+  sta HMBL                       ; 3 (37)
+  asl                            ; 2 (39)
+  asl                            ; 2 (41)
 
-  ; ptero graphics offset
-  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (42)
-  sta HMP1                       ; 3 (45)
-
-  ; ptero graphics
-  lda (PTR_OBSTACLE_SPRITE),y    ; 5 (55)
-  ; reg A contains the obstacle sprite data, next scanline we can do 'sta GRP1'
-  ; provided we don't overwrite reg A until then
-
-
-_sky__end_of_2nd_scanline:  ; - (36/55)
+_sky__end_of_2nd_scanline:  ; - (36/41)
 
   ; Cactus/Crouching area very first scanline
   dey                       ; 2 (38/57)
@@ -1800,22 +1801,22 @@ DINO_CROUCHING_MISSILE_1:
   ;    ▯ Non drawn by the current kernel
 
 PTERO_WINGS_OPEN_SPRITE:
-  ; Sprite drawn as a combination
+  ; Sprite drawn as a combinatio
   ; of GRP1 and the BALL (after applying offsets)
   ;    "unpacked" GRP1 and BALL
   ;                                    "packed" GRP1
   ;  |        ⏐         |                ⏐        ⏐
-  ;  |        ⏐▓        |                ⏐        ⏐
-  ;  |        ⏐▓▓       |                ⏐        ⏐
-  ;  |        ⏐ ▓▓      |                ⏐        ⏐
-  ;  |    ███ ⏐ ▓▓▓     |                ⏐    ███ ⏐
-  ;  |   ████ ⏐ ▓▓▓▓    |                ⏐   ████ ⏐
-  ;  |  ██████⏐ ▓▓▓▓▓   |                ⏐  ██████⏐
-  ;  | █████XX⏐▓▓▓▓▓▓   |                ⏐ ███████⏐
+  ;  |       █⏐         |                ⏐       █⏐
+  ;  |       █⏐█        |                ⏐      ██⏐
+  ;  |        ⏐██       |                ⏐      ██⏐
+  ;  |     ██ ⏐███      |                ⏐  ██ ███⏐
+  ;  |    ███ ⏐▓▓▓▓     |                ⏐    ███ ⏐
+  ;  |   █████⏐█▓▓▓▓    |                ⏐  ██████⏐
+  ;  |  ████XX⏐▓▓▓▓▓▓   |                ⏐  ██████⏐
   ;  |       █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐
-  ;  |        ⏐████████ |                ⏐████████⏐
+  ;  |        ⏐███████  |                ⏐███████ ⏐
   ;  |        ⏐ █████▓▓▓|▓               ⏐   █████⏐
-  ;  |        ⏐  █████  |                ⏐   █████⏐
+  ;  |        ⏐  ████   |                ⏐   ████ ⏐
   ;  |        ⏐         |                ⏐        ⏐
   ;  |        ⏐         |                ⏐        ⏐
   ;  |        ⏐         |                ⏐        ⏐
@@ -1832,17 +1833,17 @@ PTERO_WINGS_OPEN_SPRITE:
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
-  .byte %00011111  ;⏐   █████⏐
-  .byte %00011111  ;⏐   █████⏐
-  .byte %11111111  ;⏐████████⏐
-  .byte %00001111  ;⏐    ████⏐
-  .byte %01111111  ;⏐ ███████⏐
-  .byte %00111111  ;⏐  ██████⏐
   .byte %00011110  ;⏐   ████ ⏐
+  .byte %00011111  ;⏐   █████⏐
+  .byte %11111110  ;⏐███████ ⏐
+  .byte %00001111  ;⏐    ████⏐
+  .byte %00111111  ;⏐  ██████⏐
+  .byte %00111111  ;⏐  ██████⏐
   .byte %00001110  ;⏐    ███ ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
+  .byte %00110111  ;⏐  ██ ███⏐
+  .byte %00000011  ;⏐      ██⏐
+  .byte %00000011  ;⏐      ██⏐
+  .byte %00000001  ;⏐       █⏐
   .ds 1            ;⏐        ⏐
 PTERO_WINGS_OPEN_SPRITE_END = *
 
@@ -1860,65 +1861,45 @@ PTERO_WINGS_OPEN_SPRITE_OFFSETS:
   .byte $00  ;⏐        ⏐            |        ⏐         |
   .byte $00  ;⏐        ⏐            |        ⏐         |
   .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $F0  ;⏐   █████⏐            |        ⏐  █████  |     (+1 pixel)
-  .byte $10  ;⏐   █████⏐            |        ⏐ █████___|_    (-1 pixel)
-  .byte $B0  ;⏐████████⏐            |        ⏐████████ |     (+5 pixels)
-  .byte $D0  ;⏐    ████⏐            |       █⏐███______|__   (+3 pixels)
-  .byte $00  ;⏐ ███████⏐            | █████XX⏐______   |
-  .byte $00  ;⏐  ██████⏐            |  ██████⏐ _____   |
-  .byte $00  ;⏐   ████ ⏐            |   ████ ⏐ ____    |
-  .byte $00  ;⏐    ███ ⏐            |    ███ ⏐ ___     |
-  .byte $00  ;⏐        ⏐            |        ⏐ __      |
-  .byte $00  ;⏐        ⏐            |        ⏐__       |
-  .byte $00  ;⏐        ⏐            |        ⏐_        |
+  .byte $F0  ;⏐   █████⏐            |        ⏐  █████  |     +1 px
+  .byte $20  ;⏐   █████⏐            |        ⏐ █████___|_    -1 px
+  .byte $B0  ;⏐████████⏐            |        ⏐████████ |     +5 px
+  .byte $D0  ;⏐    ████⏐            |       █⏐███______|__   +3 px
+  .byte $10  ;⏐  ██████⏐            |  ███XXX⏐_____    |     -2 px (0px)
+  .byte $F0  ;⏐  ██████⏐            |   █████⏐█____    |     +2 px
+  .byte $30  ;⏐    ███ ⏐            |    ███ ⏐____     |     -2 px (0px)
+  .byte $F0  ;⏐  ██ ███⏐            |     ██ ⏐███      |     +2 px
+  .byte $F0  ;⏐      ██⏐            |        ⏐██       |
+  .byte $F0  ;⏐      ██⏐            |       █⏐█        |
+  .byte $00  ;⏐       █⏐            |       █⏐         |
   .ds 1      ;⏐        ⏐            |        ⏐         |
              ;                               ↑
              ;                               8 pixels offset (_ are BALL pixels)
 PTERO_WINGS_OPEN_SPRITE_OFFSETS_END = *
 
-;⏐        |
-;⏐        |
-;⏐        |
-;⏐        |
-;⏐        |
-;⏐    ███ |
-;⏐   ████ |
-;⏐  ██████|
-;⏐ ███████|
-;⏐       █|███
-;⏐        |████████
-;⏐        | █████
-;⏐        |  █████|
-;⏐        |
-;⏐        |
-;⏐        |
-;⏐        |
-
-
 PTERO_WINGS_OPEN_BALL:
   ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  ; Enable M0 bit   ⏐         ⏐         |
-  ;            ⏐    ⏐         ⏐         |
-  .ds 1 ;      ↓    ⏐         ⏐         |
-  .byte %00000000 ; ⏐         ⏐         |       0               0
-  .byte %00000000 ; ⏐         ⏐█        |      -5               8
-  .byte %00000000 ; ⏐         ⏐██       |      +2               8
-  .byte %00000000 ; ⏐         ⏐██       |       0               8
-  .byte %00000000 ; ⏐         ⏐███      |       0               8
-  .byte %00000000 ; ⏐         ⏐███████  |      +2               8
-  .byte %00000000 ; ⏐         ⏐█████████|▓     +8               4
-  .byte %00000000 ; ⏐         ⏐████████ |       0               0
-  .byte %00000000 ; ⏐        █⏐█████████|▓▓    -5               8
-  .byte %00000000 ; ⏐  ███████⏐██████   |      +2               8
-  .byte %00000000 ; ⏐   ██████⏐         |       0               8
-  .byte %00000000 ; ⏐    ████ ⏐         |       0               8
-  .byte %00000000 ; ⏐     ███ ⏐         |      +2               8
-  .byte %00000000 ; ⏐         ⏐         |      +8               4
-  .byte %00000000 ; ⏐         ⏐         |      -4               2
-  .byte %00000000 ; ⏐         ⏐         |      -4               2
-  ;                 ↑         ↑
-  ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
-  .ds 1;
+  ; Enable BALL bit 
+  ;             ⏐
+  .ds 1 ;       ↓   |         ⏐        |
+  .byte %00000000 ; |         ⏐        |         0              0
+  .byte %00000000 ; |         ⏐        |         0              0
+  .byte %00000000 ; |         ⏐        |         0              0
+  .byte %00000000 ; |         ⏐        |         0              0
+  .byte %00000000 ; |         ⏐ █████  |         0              0
+  .byte %11011001 ; |         ⏐█████___|_       +3              4 (10)
+  .byte %00000000 ; |        █⏐███████ |         0              0
+  .byte %10111101 ; |       ██⏐██______|__      +5              8 (11)
+  .byte %01001101 ; |  ███XXX_⏐____    |        -4              8 (11)
+  .byte %11111001 ; |   ██████⏐____    |        +1              4 (10)
+  .byte %00001001 ; |    ███ _⏐___     |        -1              4 (10)
+  .byte %00000000 ; |     ██ █⏐██      |         0              0
+  .byte %00000000 ; |        █⏐█       |         0              0
+  .byte %00000000 ; |       ██⏐        |         0              0
+  .byte %00000000 ; |       █ ⏐        |         0              0
+  .ds 1           ; |         ⏐        |
+  ;                           ↑
+  ;                   initial BALL position (cycle 25)
 PTERO_WINGS_OPEN_BALL_END = *
 
 PTERO_WINGS_CLOSED_SPRITE:
