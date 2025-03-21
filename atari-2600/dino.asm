@@ -445,26 +445,26 @@ in_grame_screen:
 
 _update_obstacle:
   sec
-  lda #<PTERO_WINGS_OPEN_SPRITE_END
+  lda #<PTERO_WINGS_CLOSED_SPRITE_END
   sbc OBSTACLE_Y
   sta PTR_OBSTACLE_SPRITE
-  lda #>PTERO_WINGS_OPEN_SPRITE_END
+  lda #>PTERO_WINGS_CLOSED_SPRITE_END
   sbc #0
   sta PTR_OBSTACLE_SPRITE+1
 
   sec
-  lda #<PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
+  lda #<PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END
   sbc OBSTACLE_Y
   sta PTR_OBSTACLE_OFFSET
-  lda #>PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
+  lda #>PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END
   sbc #0
   sta PTR_OBSTACLE_OFFSET+1
 
   sec
-  lda #<PTERO_WINGS_OPEN_BALL_END
+  lda #<PTERO_WINGS_CLOSED_BALL_END
   sbc OBSTACLE_Y
   sta PTR_OBSTACLE_BALL
-  lda #>PTERO_WINGS_OPEN_BALL_END
+  lda #>PTERO_WINGS_CLOSED_BALL_END
   sbc #0
   sta PTR_OBSTACLE_BALL+1
 
@@ -1814,7 +1814,7 @@ PTERO_WINGS_OPEN_SPRITE:
   ;  |   █████⏐█▓▓▓▓    |                ⏐  ██████⏐
   ;  |  ████XX⏐▓▓▓▓▓▓   |                ⏐  ██████⏐
   ;  |       █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐
-  ;  |        ⏐███████  |                ⏐███████ ⏐
+  ;  |        ⏐███████  |                ⏐ ███████⏐
   ;  |        ⏐ █████▓▓▓|▓               ⏐   █████⏐
   ;  |        ⏐  ████   |                ⏐   ████ ⏐
   ;  |        ⏐         |                ⏐        ⏐
@@ -1835,7 +1835,7 @@ PTERO_WINGS_OPEN_SPRITE:
   .byte %00000000  ;⏐        ⏐
   .byte %00011110  ;⏐   ████ ⏐
   .byte %00011111  ;⏐   █████⏐
-  .byte %11111110  ;⏐███████ ⏐
+  .byte %01111111  ;⏐ ███████⏐
   .byte %00001111  ;⏐    ████⏐
   .byte %00111111  ;⏐  ██████⏐
   .byte %00111111  ;⏐  ██████⏐
@@ -1854,27 +1854,27 @@ PTERO_WINGS_OPEN_SPRITE_OFFSETS:
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-  ;          current state       after applying fine offset
-  ;          (value GRP1)
+  ;        packed ptero data       after applying fine offsets
+  ;         (value in GRP1)
   .ds 1      ;⏐        ⏐            |        ⏐         |
   .byte $00  ;⏐        ⏐            |        ⏐         |
   .byte $00  ;⏐        ⏐            |        ⏐         |
   .byte $00  ;⏐        ⏐            |        ⏐         |
   .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $F0  ;⏐   █████⏐            |        ⏐  █████  |     +1 px
-  .byte $20  ;⏐   █████⏐            |        ⏐ █████___|_    -1 px
-  .byte $B0  ;⏐████████⏐            |        ⏐████████ |     +5 px
-  .byte $D0  ;⏐    ████⏐            |       █⏐███______|__   +3 px
-  .byte $10  ;⏐  ██████⏐            |  ███XXX⏐_____    |     -2 px (0px)
-  .byte $F0  ;⏐  ██████⏐            |   █████⏐█____    |     +2 px
-  .byte $30  ;⏐    ███ ⏐            |    ███ ⏐____     |     -2 px (0px)
+  .byte $F0  ;⏐   ████ ⏐            |        ⏐  ████   |     +1 px
+  .byte $10  ;⏐   █████⏐            |        ⏐ █████BBB|B    -1 px
+  .byte $C0  ;⏐ ███████⏐            |        ⏐████████ |     +4 px
+  .byte $D0  ;⏐    ████⏐            |       █⏐███BBBBBB|BB   +3 px
+  .byte $10  ;⏐  ██████⏐            |  ███xxx⏐BBBBB    |     -2 px (0px)
+  .byte $F0  ;⏐  ██████⏐            |   █████⏐█BBBB    |     +2 px
+  .byte $30  ;⏐    ███ ⏐            |    ███ ⏐BBBB     |     -2 px (0px)
   .byte $F0  ;⏐  ██ ███⏐            |     ██ ⏐███      |     +2 px
   .byte $F0  ;⏐      ██⏐            |        ⏐██       |
   .byte $F0  ;⏐      ██⏐            |       █⏐█        |
   .byte $00  ;⏐       █⏐            |       █⏐         |
   .ds 1      ;⏐        ⏐            |        ⏐         |
              ;                               ↑
-             ;                               8 pixels offset (_ are BALL pixels)
+             ;                               8 pixels offset (B are BALL pixels)
 PTERO_WINGS_OPEN_SPRITE_OFFSETS_END = *
 
 PTERO_WINGS_OPEN_BALL:
@@ -1887,12 +1887,12 @@ PTERO_WINGS_OPEN_BALL:
   .byte %00000000 ; |         ⏐        |         0              0
   .byte %00000000 ; |         ⏐        |         0              0
   .byte %00000000 ; |         ⏐ █████  |         0              0
-  .byte %11011001 ; |         ⏐█████___|_       +3              4 (10)
+  .byte %11011001 ; |         ⏐█████BBB|B       +3              4 (10)
   .byte %00000000 ; |        █⏐███████ |         0              0
-  .byte %10111101 ; |       ██⏐██______|__      +5              8 (11)
-  .byte %01001101 ; |  ███XXX_⏐____    |        -4              8 (11)
-  .byte %11111001 ; |   ██████⏐____    |        +1              4 (10)
-  .byte %00001001 ; |    ███ _⏐___     |        -1              4 (10)
+  .byte %10111101 ; |       ██⏐██BBBBBB|BB      +5              8 (11)
+  .byte %01001101 ; |  ███xxxB⏐BBBB    |        -4              8 (11)
+  .byte %11111001 ; |   ██████⏐BBBB    |        +1              4 (10)
+  .byte %00001001 ; |    ███ B⏐BBB     |        -1              4 (10)
   .byte %00000000 ; |     ██ █⏐██      |         0              0
   .byte %00000000 ; |        █⏐█       |         0              0
   .byte %00000000 ; |       ██⏐        |         0              0
@@ -1907,23 +1907,23 @@ PTERO_WINGS_CLOSED_SPRITE:
   ; of GRP1 and the BALL (after applying offsets)
   ;    "unpacked" GRP1 and BALL
   ;                                  /- GRP1 -\
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐         |                ⏐        ⏐
-  ;       ⏐         |                ⏐        ⏐
-  ;   ███ ⏐         |                ⏐    ███ ⏐
-  ;  ████ ⏐         |                ⏐   ████ ⏐
-  ; ██████⏐         |                ⏐  ██████⏐
-  ;█████XX⏐▓▓▓▓▓▓   |                ⏐ █████XX⏐▓▓▓▓▓▓
-  ;      █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐▓▓▓▓▓▓▓▓
-  ;       ⏐████████ |                ⏐████████⏐
-  ;       ⏐██████▓▓▓|▓               ⏐  ██████⏐▓▓▓▓
-  ;       ⏐███████  |                ⏐ ███████⏐
-  ;       ⏐███      |                ⏐     ███⏐
-  ;       ⏐██       |                ⏐     ██ ⏐
-  ;       ⏐██       |                ⏐     ██ ⏐
-  ;       ⏐█        |                ⏐     █  ⏐
-  ;       ⏐         |                ⏐        ⏐
+  ;        ⏐         |                ⏐        ⏐
+  ;        ⏐         |                ⏐        ⏐
+  ;        ⏐         |                ⏐        ⏐
+  ;        ⏐         |                ⏐        ⏐
+  ;     ██ ⏐         |                ⏐     ██ ⏐
+  ;    ███ ⏐         |                ⏐    ███ ⏐
+  ;   █████⏐         |                ⏐   █████⏐
+  ;  ██████⏐██▓▓▓▓   |                ⏐████████⏐
+  ;       █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐
+  ;        ⏐████████ |                ⏐████████⏐
+  ;        ⏐██████▓▓▓|▓               ⏐  ██████⏐
+  ;        ⏐███████  |                ⏐ ███████⏐
+  ;        ⏐███      |                ⏐     ███⏐
+  ;        ⏐██       |                ⏐      ██⏐
+  ;        ⏐██       |                ⏐      ██⏐
+  ;        ⏐█        |                ⏐       █⏐
+  ;        ⏐         |                ⏐        ⏐
   ;
   ; Legend:
   ;    █ GRP0 pixels
@@ -1931,22 +1931,23 @@ PTERO_WINGS_CLOSED_SPRITE:
   ;    X overlapping pixels
 
   .ds 1            ;⏐        ⏐
-  .byte %00000100  ;⏐     █  ⏐
-  .byte %00000110  ;⏐     ██ ⏐
-  .byte %10000110  ;⏐     ██ ⏐
+  .byte %00000001  ;⏐       █⏐
+  .byte %00000011  ;⏐      ██⏐
+  .byte %00000011  ;⏐      ██⏐
   .byte %00000111  ;⏐     ███⏐
-  .byte %01111111  ;⏐ ███████⏐
   .byte %00111111  ;⏐  ██████⏐
-  .byte %11111111  ;⏐████████⏐
+  .byte %00111111  ;⏐  ██████⏐
+  .byte %01111111  ;⏐ ███████⏐
   .byte %00001111  ;⏐    ████⏐
-  .byte %01111111  ;⏐ ███████⏐
-  .byte %00111111  ;⏐  ██████⏐
-  .byte %00011110  ;⏐   ████ ⏐
+  .byte %11111111  ;⏐████████⏐
+  .byte %00011111  ;⏐   █████⏐
   .byte %00001110  ;⏐    ███ ⏐
+  .byte %00000110  ;⏐     ██ ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
   .ds 1            ;⏐        ⏐
+PTERO_WINGS_CLOSED_SPRITE_END = *
 
 PTERO_WINGS_CLOSED_SPRITE_OFFSETS:
 
@@ -1955,49 +1956,53 @@ PTERO_WINGS_CLOSED_SPRITE_OFFSETS:
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-  .byte $00  ;⏐        ⏐
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .byte $00  ;
-  .ds 1            ;⏐        ⏐
+  ;        packed ptero data       after applying fine offsets
+  ;         (value in GRP1)
+  .ds 1      ;⏐        ⏐            |        ⏐         |
+  .byte $10  ;⏐       █⏐            |        ⏐█        |    -1 px
+  .byte $00  ;⏐      ██⏐            |        ⏐██       |     0 px
+  .byte $10  ;⏐      ██⏐            |        ⏐██       |    -1 px
+  .byte $30  ;⏐     ███⏐            |        ⏐███      |    -4 px
+  .byte $00  ;⏐  ██████⏐            |        ⏐██████   |    +1 px
+  .byte $10  ;⏐  ██████⏐            |        ⏐██████BBB|B   -2 px
+  .byte $C0  ;⏐ ███████⏐            |        ⏐███████  |    +5 px
+  .byte $F0  ;⏐    ████⏐            |       █⏐███BBBBBB|BB  +1 px
+  .byte $E0  ;⏐████████⏐            |  ██████⏐██BBBB   |    +2 px
+  .byte $00  ;⏐   █████⏐            |   █████⏐         |
+  .byte $00  ;⏐    ███ ⏐            |    ███ ⏐         |
+  .byte $00  ;⏐     ██ ⏐            |     ██ ⏐         |
+  .byte $00  ;⏐        ⏐            |        ⏐         |
+  .byte $00  ;⏐        ⏐            |        ⏐         |
+  .byte $00  ;⏐        ⏐            |        ⏐         |
+  .ds 1      ;⏐        ⏐            |        ⏐         |
+             ;                               ↑
+             ;                               8 pixels offset (B are BALL pixels)
 
+PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END = *
 
 PTERO_WINGS_CLOSED_BALL:
   ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  ; Enable M0 bit   ⏐         ⏐         |
-  ;            ⏐    ⏐         ⏐         |
-  .ds 1 ;      ↓    ⏐         ⏐         |
-  .byte %00000000 ; ⏐         ⏐         |       0               0
-  .byte %00000000 ; ⏐         ⏐█        |      -5               8
-  .byte %00000000 ; ⏐         ⏐██       |      +2               8
-  .byte %00000000 ; ⏐         ⏐██       |       0               8
-  .byte %00000000 ; ⏐         ⏐███      |       0               8
-  .byte %00000000 ; ⏐         ⏐███████  |      +2               8
-  .byte %00000000 ; ⏐         ⏐█████████|▓     +8               4
-  .byte %00000000 ; ⏐         ⏐████████ |       0               0
-  .byte %00000000 ; ⏐        █⏐█████████|▓▓    -5               8
-  .byte %00000000 ; ⏐  ███████⏐██████   |      +2               8
-  .byte %00000000 ; ⏐   ██████⏐         |       0               8
-  .byte %00000000 ; ⏐    ████ ⏐         |       0               8
-  .byte %00000000 ; ⏐     ███ ⏐         |      +2               8
-  .byte %00000000 ; ⏐         ⏐         |      +8               4
-  .byte %00000000 ; ⏐         ⏐         |      -4               2
-  .byte %00000000 ; ⏐         ⏐         |      -4               2
-  ;                 ↑         ↑
-  ; BALL pos (cycle 22)   M0/GRP0 position (cycle 25)
-  .ds 1;
+  ; Enable BALL bit 
+  ;             ⏐
+  .ds 1 ;       ↓   |         ⏐        |
+  .byte %00000000 ; |        █⏐        |         0              0
+  .byte %00000000 ; |        █⏐█       |         0              0
+  .byte %00000000 ; |        █⏐█       |         0              0
+  .byte %00000000 ; |        █⏐██      |         0              0
+  .byte %00000000 ; |        █⏐█████   |         0              0
+  .byte %11011001 ; |        █⏐█████BBB|B       +3              4
+  .byte %00000000 ; |        █⏐██████  |         0              0
+  .byte %11111101 ; |       ██⏐██BBBBBB|BB      +1              8
+  .byte %11111001 ; |  ███████⏐█BBBB   |        +1              4
+  .byte %00000000 ; |   █████ ⏐        |         0              0
+  .byte %00000000 ; |    ███  ⏐        |         0              0
+  .byte %00000000 ; |     ██  ⏐        |         0              0
+  .byte %00000000 ; |         ⏐        |         0              0
+  .byte %00000000 ; |         ⏐        |         0              0
+  .byte %00000000 ; |         ⏐        |         0              0
+  .ds 1           ; |         ⏐        |
+  ;                           ↑
+  ;                   initial BALL position (cycle 25)
 PTERO_WINGS_CLOSED_BALL_END = *
 
   ;
