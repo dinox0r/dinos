@@ -1,7 +1,8 @@
 documentation/atari2600.pdf
 ref-material/*
-dino.bin
-dino.rom
+*.bin
+*.rom
 dino.txt
 *.lst
 *.sym
+launch-stella.sh
