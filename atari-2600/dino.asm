@@ -102,12 +102,6 @@
   ENDM
 
 ;=============================================================================
-; SUBROUTINES
-;=============================================================================
-
-; (nothing so far)
-
-;=============================================================================
 ; CONSTANTS
 ;=============================================================================
 RND_MEM_LOC_1 = $c1  ; "random" memory locations to sample the upper/lower
@@ -231,6 +225,7 @@ PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
 PTR_OBSTACLE_BALL    .word   ; 2 bytes
 
 PTR_MIDDLE_SECTION_KERNEL .word  ; 2 bytes
+
 
 ; This section is to include variables for performance, to save cycles in tight 
 ; spots. They could potentially be reused under different names by using a new
@@ -444,33 +439,48 @@ _end_check_joystick:
 in_grame_screen:
 
 _update_obstacle:
-  sec
+_update_ptero_wing_anim:
+  lda FRAME_COUNT
+  and #%00001111
+  cmp #7
+  bcs _open_wings
+
   lda #<PTERO_WINGS_CLOSED_SPRITE_END
-  sbc OBSTACLE_Y
-  sta PTR_OBSTACLE_SPRITE
-  lda #>PTERO_WINGS_CLOSED_SPRITE_END
-  sbc #0
-  sta PTR_OBSTACLE_SPRITE+1
+  ldy #>PTERO_WINGS_CLOSED_SPRITE_END
+  ldx #PTR_OBSTACLE_SPRITE
+  jsr set_obstacle_data
 
-  sec
   lda #<PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END
-  sbc OBSTACLE_Y
-  sta PTR_OBSTACLE_OFFSET
-  lda #>PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END
-  sbc #0
-  sta PTR_OBSTACLE_OFFSET+1
+  ldy #>PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END
+  ldx #PTR_OBSTACLE_OFFSET
+  jsr set_obstacle_data
 
-  sec
   lda #<PTERO_WINGS_CLOSED_BALL_END
-  sbc OBSTACLE_Y
-  sta PTR_OBSTACLE_BALL
-  lda #>PTERO_WINGS_CLOSED_BALL_END
-  sbc #0
-  sta PTR_OBSTACLE_BALL+1
+  ldy #>PTERO_WINGS_CLOSED_BALL_END
+  ldx #PTR_OBSTACLE_BALL
+  jsr set_obstacle_data
+
+  jmp _end_ptero_wing_anim
+_open_wings:
+  lda #<PTERO_WINGS_OPEN_SPRITE_END
+  ldy #>PTERO_WINGS_OPEN_SPRITE_END
+  ldx #PTR_OBSTACLE_SPRITE
+  jsr set_obstacle_data
+
+  lda #<PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
+  ldy #>PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
+  ldx #PTR_OBSTACLE_OFFSET
+  jsr set_obstacle_data
+
+  lda #<PTERO_WINGS_OPEN_BALL_END
+  ldy #>PTERO_WINGS_OPEN_BALL_END
+  ldx #PTR_OBSTACLE_BALL
+  jsr set_obstacle_data
+_end_ptero_wing_anim:
 
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
   ; type and difficulty
-  lda #150 ; 
+  lda #250 ; 
   sta OBSTACLE_VX_FRACT
   lda #0
   sta OBSTACLE_VX_INT
@@ -1483,6 +1493,21 @@ _overscan:
 __skip_inc_frame_count_upper_byte:
 
   jmp start_of_frame
+
+
+;=============================================================================
+; SUBROUTINES
+;=============================================================================
+
+; set_obstacle_data: TODO document 
+set_obstacle_data subroutine
+  sec
+  sbc OBSTACLE_Y
+  sta $00,x
+  tya
+  sbc #0
+  sta $01,x
+  rts
 
 ;=============================================================================
 ; SPRITE GRAPHICS DATA
