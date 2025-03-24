@@ -774,16 +774,25 @@ _set_obstacle_position:
   clc                ; 2 (27/33) Clear the carry for the addition below
   lda OBSTACLE_X_INT ; 3 (30/36)
 
-  cmp #15
-  bcs _set_obstacle_coarse_x_pos_over_10
+  cmp #8
+  bcs _set_obstacle_x_pos_over_8_or_equal
 
-_set_obstacle_coarse_x_pos_under_10:
+_set_obstacle_x_pos_under_8:
   sta WSYNC
 
   ; 3rd scanline ==============================================================
-  sta HMOVE
-  sta RESP1
-  sta RESBL
+  sta HMOVE ; 3 (3)
+  ; wait 20 cycles
+  dec $2D   ; 5 (8)
+  dec $2D   ; 5 (13)
+  php       ; 3 (16) 
+  plp       ; 4 (20)
+  sta $2D   ; 3 (23)
+
+  sta RESP1  ; 3 (26)
+  sta RESBL  ; 3 (29)
+  lda #
+
   sta WSYNC
 
   ; 4th scanline ==============================================================
@@ -792,7 +801,7 @@ _set_obstacle_coarse_x_pos_under_10:
 
   jmp _last_setup_scanline
 
-_set_obstacle_coarse_x_pos_over_10:
+_set_obstacle_x_pos_over_8_or_equal:
   ; TODO: Improve the explanation of the 37
   ; tia cycles = x + 68 - 9 - 9 - 12 
   ; 68 TIA colour cycles ~ 22.5 6507 CPU cycles from HBLANK to the start of 
