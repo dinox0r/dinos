@@ -1,9 +1,9 @@
   PROCESSOR 6502
 
-  INCLUDE "vcs.h"
+  INCLUDE "../lib/vcs.h"
   ; Including this just for the sbcs, sbeq, etc macros, that look like 
   ; the branching instructions but add a page boundary check
-  INCLUDE "macro.h"
+  INCLUDE "../lib/macro.h"
 
   LIST ON           ; turn on program listing, for debugging on Stella
 
