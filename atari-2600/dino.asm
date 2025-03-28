@@ -11,95 +11,7 @@
 ; MACROS
 ;=============================================================================
 
-  ; Paints N scanlines with the given background colour, used to draw
-  ; placeholder areas on the screen
-  ; --------------------------------------------------------------------
-  MAC DEBUG_SUB_KERNEL
-.BGCOLOR SET {1}
-.KERNEL_LINES SET {2}
-    lda #.BGCOLOR
-    sta COLUBK
-    ldx #.KERNEL_LINES
-.loop:
-    dex
-    sta WSYNC
-    sta HMOVE
-    bne .loop
-  ENDM
-
-  ; Loads a 16 bit value from ROM into 2 consecutive bytes in zero page RAM
-  ; --------------------------------------------------------------------
-  MAC LOAD_ADDRESS_TO_PTR
-.ADDRESS SET {1}
-.POINTER SET {2}
-    lda #<.ADDRESS
-    sta .POINTER
-    lda #>.ADDRESS
-    sta .POINTER+1
-  ENDM
-
-  ; Insert N nop operations
-  ; --------------------------------------------------------------------
-  MAC INSERT_NOPS
-.NUM_NOPS SET {1}
-    REPEAT .NUM_NOPS
-      nop
-    REPEND
-  ENDM
-
-  ; TODO
-  ; --------------------------------------------------------------------
-  MAC DECODE_MISSILE_PLAYER ; 13 cycles
-    sta MISSILE_P{1} ; 3 (3)
-    sta HMM{1}      ; 3 (6)
-    asl                     ; 2 (8)
-    asl                     ; 2 (10)
-    sta NUSIZ{1}    ; 3 (13)
-  ENDM
-
-  ; Same as DECODE_MISSILE_PLAYER but using the BALL register
-  ; --------------------------------------------------------------------
-  MAC DECODE_BALL ; 13 cycles
-    sta ENABLE_BALL ; 3 (3)
-    sta HMBL      ; 3 (6)
-    asl           ; 2 (8)
-    asl           ; 2 (10)
-    sta CTRLPF    ; 3 (13)
-  ENDM
-
-  ; TODO
-  ; --------------------------------------------------------------------
-  MAC CHECK_Y_WITHIN_DINO       ; 9 cycles
-    tya                         ; 2 (2) A = current scanline (Y)
-    sec                         ; 2 (2)
-    sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
-    adc #DINO_HEIGHT            ; 2 (2)
-  ENDM
-
-  ; Same as CHECK_Y_WITHIN_DINO but assumes carry is set
-  ; --------------------------------------------------------------------
-  MAC CHECK_Y_WITHIN_DINO_IGNORING_CARRY       ; 7 cycles
-    tya                         ; 2 (2) A = current scanline (Y)
-    sbc DINO_TOP_Y_INT          ; 3 (3) A = X - DINO_TOP_Y_INT
-    adc #DINO_HEIGHT            ; 2 (2)
-  ENDM
-
-  ; TODO
-  ; --------------------------------------------------------------------
-  MAC CHECK_Y_WITHIN_PTERO       ; 9 cycles
-    tya                         ; 2 (2) A = current scanline (Y)
-    sec                         ; 2 (2)
-    sbc OBSTACLE_Y          ; 3 (3) A = X - DINO_TOP_Y_INT
-    adc #PTERO_HEIGHT            ; 2 (2)
-  ENDM
-
-  ; Same as CHECK_Y_WITHIN_PTERO but assumes carry is set
-  ; --------------------------------------------------------------------
-  MAC CHECK_Y_WITHIN_PTERO_IGNORING_CARRY       ; 7 cycles
-    tya                         ; 2 (2) A = current scanline (Y)
-    sbc OBSTACLE_Y          ; 3 (3) A = X - DINO_TOP_Y_INT
-    adc #PTERO_HEIGHT            ; 2 (2)
-  ENDM
+  include "macros.asm"
 
 ;=============================================================================
 ; CONSTANTS
@@ -328,15 +240,15 @@ vsync:
   sta VSYNC  ; Enables VSYNC
   sta WSYNC  ; 1st line of vsync
   sta WSYNC  ; 2nd line of vsync
-    lda #0   ; A <- 0
   sta WSYNC  ; 3rd (final) line of vsync
+  lda #0   ; A <- 0
   sta VSYNC  ; VSYNC = A (A=0) disables vsync
 
   ; -----------------------
   ; V-BLANK (37 scanlines)
   ; -----------------------
   ; Set the timer for the remaining VBLANK period (37 lines)
-  ; 76 cpu cycles per scanline, 37 * 76 = 2812 cycles / 64 ticks => 43
+  ; 76 cpu cycles per scanline, 37 * 76 = 2812 cycles / 64 cycles per ticks = 43
   lda #43
   sta TIM64T
 
@@ -493,7 +405,7 @@ _end_ptero_wing_anim:
   lda OBSTACLE_X_INT
   sbc OBSTACLE_VX_INT
   sta OBSTACLE_X_INT
-  ;cmp #1 ; -3
+  cmp #1 ; -3
   beq _reset_obstacle_position
   jmp _check_if_dino_is_jumping
 
@@ -782,21 +694,52 @@ _set_obstacle_x_pos_under_8:
 
   ; 3rd scanline ==============================================================
   sta HMOVE ; 3 (3)
-  ; wait 20 cycles
-  dec $2D   ; 5 (8)
-  dec $2D   ; 5 (13)
-  php       ; 3 (16) 
-  plp       ; 4 (20)
-  sta $2D   ; 3 (23)
-
+  ; wait 23 cycles
+  dec $2D   ; 5 (8)   2 bytes / 2
+  dec $2D   ; 5 (13)  2 bytes / 4
+  dec $2D   ; 5 (13)  2 bytes / 4
+  ;php       ; 3 (16)  1 byte  / 5
+  ;plp       ; 4 (20)  1 byte  / 6
+  nop       ; 2 (22)
+  nop       ; 2 (22)
   sta RESP1  ; 3 (26)
   sta RESBL  ; 3 (29)
-  lda #
+  ; now hit HMOVE with the most possible amount to the left in this scanline
+  ;lda #0
+  lda #$70
+  sta HMP1
+  sta HMBL
 
   sta WSYNC
 
   ; 4th scanline ==============================================================
-  sta HMOVE
+  sta HMOVE             ; 3 (3)
+  ; we have x < 8, 
+  ; 7 hmove -1 -> $10
+  ; 6 hmove -2 -> $20
+  ; 5 -3
+  ; 4 -4
+  ; 3 -5
+  ; 2 -6
+  ; 1 -7
+  ; 0  X
+  ; wait 24 cycles to hit
+  ; in the next scanline, we now move 
+  lda #8                ; 2 (5)
+  sec                   ; 2 (7)
+  sbc OBSTACLE_X_INT    ; 3 (9)
+  asl                   ; 2 (11)
+  asl                   ; 2 (13)
+  asl                   ; 2 (15)
+  asl                   ; 2 (17)
+  php                   ; 3 (20)
+  plp                   ; 4 (24)
+  sta $2D               ; 3 (27)
+  sta $2D               ; 3 (27)
+  lda #$70
+  sta HMP1              ; 3 ()
+  sta HMBL              ; 3 ()
+
   sta WSYNC
 
   jmp _last_setup_scanline
@@ -866,9 +809,9 @@ _last_setup_scanline:
   bit GAME_FLAGS             ; 3 (10)
   bne __assign_crouching_kernel  ; 2/3 (12/13)
 
-  lda  #<cactus_area_kernel       ; 2 (14)
+  lda #<cactus_area_kernel        ; 2 (14)
   sta PTR_MIDDLE_SECTION_KERNEL   ; 3 (17)
-  lda  #>cactus_area_kernel       ; 2 (19)
+  lda #>cactus_area_kernel        ; 2 (19)
   sta PTR_MIDDLE_SECTION_KERNEL+1 ; 3 (22)
   jmp __end_middle_section_kernel_setup ; 3 (25)
 
@@ -887,7 +830,11 @@ __end_middle_section_kernel_setup:
   ; Remove the fine offsets applied to the obstacles before going to the next 
   ; scanline, also leave the other motion registers in a clear state
   sta HMCLR        ; 3 (34/32) 
-  
+
+  lda #$20
+  sta HMP1
+  sta HMBL
+
 
   lda #$78         ; for debugging purposes
   sta COLUBK       ;
@@ -1507,588 +1454,15 @@ __skip_inc_frame_count_upper_byte:
 ;=============================================================================
 ; SUBROUTINES
 ;=============================================================================
-
-; set_obstacle_data: Computes a ROM address offset by OBSTACLE_Y and
-;                    stores the result in a zero-page pointer.
-;
-; Description:
-;   This subroutine adjusts a given ROM address by subtracting OBSTACLE_Y
-;   and stores the resulting address in a zero-page pointer.
-;
-;   The operation is equivalent to:
-;
-;      sec                     ; Set carry for subtraction
-;      lda #<SOME_ROM_ADDRESS   ; Load low byte of base address
-;      sbc OBSTACLE_Y           ; Subtract Y offset
-;      sta ZERO_PAGE_ADDRESS    ; Store low byte of result
-;      lda #>SOME_ROM_ADDRESS   ; Load high byte of base address
-;      sbc #0                   ; Subtract carry (propagating from low byte)
-;      sta ZERO_PAGE_ADDRESS+1  ; Store high byte of result
-;
-; Parameters:
-;   A  - Low byte of SOME_ROM_ADDRESS
-;   Y  - High byte of SOME_ROM_ADDRESS
-;   X  - Zero-page pointer location (i.e., ZERO_PAGE_ADDRESS)
-;
-; Result:
-;   (X)   = Low byte of adjusted address
-;   (X+1) = High byte of adjusted address
-;
-; Example:
-;   If SOME_ROM_ADDRESS = $F252 and OBSTACLE_Y = 10:
-;     Adjusted address = $F252 - 10 = $F248
-;     ZERO_PAGE_ADDRESS (at X) now holds $F248.
-;
-set_obstacle_data subroutine
-  sec             ; 2 (2) Ensure subtraction works correctly
-  sbc OBSTACLE_Y  ; 3 (5) Subtract Y offset from low byte
-  sta $00,x       ; 4 (9) Store adjusted low byte at pointer X
-  tya             ; 2 (11) Load high byte of original address
-  sbc #0          ; 2 (13) Subtract carry from high byte
-  sta $01,x       ; 4 (17) Store adjusted high byte at pointer X+1
-  rts             ; 6 (23) Return from subroutine
+  include "subroutines.asm"
 
 ;=============================================================================
 ; SPRITE GRAPHICS DATA
 ;=============================================================================
-  ;SEG data
-  ;ORG $fe00
-
-DINO_SPRITE_1:
-;             GRP0              MP0     GRP0
-;          /-8 bits-\                          offset   sprite bits
-;          |███████ |       |        |███████ |  0      %11111110
-;         █|█ ██████|       |       █|█ ██████|  0      %10111111
-;         █|████████|       |       █|████████|  0      %11111111
-;         █|████████|       |       █|████████|  0      %11111111
-;         █|████████|       |       █|████████|  0      %11111111
-;         █|████    |       |       .|▒████   | +1      %11111000
-;  █     ██|██████  |       |█     ..|▒▒██████| +1      %11111111
-;  █    ███|███     |       |█    ...|▒▒▒███  | +2      %11111100
-;  ██  ████|███     |       |██  ....|▒▒▒▒███ | +3      %11111110
-;  ████████|█████   |       |█████...|▒▒▒█████| +3      %11111111
-;  ████████|███ █   |       |█████...|▒▒▒███ █| +3      %11111101
-;  ████████|███     |       |███.....|▒▒▒▒▒███| +5      %11111111
-;   ███████|██      |       | █......|▒▒▒▒▒▒██| +6      %11111111
-;    ██████|██      |       |  ......|▒▒▒▒▒▒██| +6      %11111111
-;     ███ █|█       |       |   ... .|▒▒▒ ▒█  | +5      %11101100
-;     ██   |█       |       |   ..   |▒▒   █  | +5      %11000100
-;     █    |█       |       |   .    |▒    █  | +5      %10000100
-;     ██   |██      |       |   ..   |▒▒   ██ | +5      %11000110
-;           76543210        |          12345678  ↑
-;                           \--------/           these offsets have to be
-;                      █ pixels will be          undone when drawing
-;                   drawn using the missile 0
-;
-  .ds 1             ; <------ clears GRP0 so the last row doesn't repeat
-  .byte %11000110   ;  ▒▒   ██ 
-  .byte %10000100   ;  ▒    █  
-  .byte %11000100   ;  ▒▒   █  
-  .byte %11101100   ;  ▒▒▒ ▒█  
-  .byte %11111111   ;  ▒▒▒▒▒▒██
-  .byte %11111111   ;  ▒▒▒▒▒▒██
-  .byte %11111111   ;  ▒▒▒▒▒███
-  .byte %11111101   ;  ▒▒▒███ █
-  .byte %11111111   ;  ▒▒▒█████
-  .byte %11111110   ;  ▒▒▒▒███ 
-  .byte %11111100   ;  ▒▒▒███  
-  .byte %11111111   ;  ▒▒██████
-  .byte %11111000   ;  ▒████   
-  .byte %11111111   ;  ████████
-  .byte %11111111   ;  ████████
-  .byte %11111111   ;  ████████
-  .byte %10111111   ;  █ ██████
-  .byte %11111110   ;  ███████ 
-  .ds 1             ; <- this is to match the size of the pixel offsets table
-DINO_SPRITE_1_END = * ; * means 'here' or 'this'
-
-DINO_SPRITE_2:
-  .ds 1             ;
-  .byte %11000000   ;  ▒▒      
-  .byte %10000000   ;  ▒       
-  .byte %11000110   ;  ▒▒   ██ 
-  .byte %11101100   ;  ▒▒▒ ▒█  
-  .byte %11111111   ;  ▒▒▒▒▒▒██
-  .byte %11111111   ;  ▒▒▒▒▒▒██
-  .byte %11111111   ;  ▒▒▒▒▒███
-  .byte %11111101   ;  ▒▒▒███ █
-  .byte %11111111   ;  ▒▒▒█████
-  .byte %11111110   ;  ▒▒▒▒███ 
-  .byte %11111100   ;  ▒▒▒███  
-  .byte %11111111   ;  ▒▒██████
-  .byte %11111000   ;  ▒████   
-  .byte %11111111   ;  ████████
-  .byte %11111111   ;  ████████
-  .byte %11111111   ;  ████████
-  .byte %10111111   ;  █ ██████
-  .byte %11111110   ;  ███████ 
-  .ds 1             ;
-DINO_SPRITE_2_END = * 
-
-DINO_SPRITE_3:
-  .ds 1             ;
-  .byte %00000110   ;       ██ 
-  .byte %11000100   ;  ▒▒   █  
-  .byte %10000100   ;  ▒    █  
-  .byte %11101100   ;  ▒▒▒ ▒█  
-  .byte %11111111   ;  ▒▒▒▒▒▒██
-  .byte %11111111   ;  ▒▒▒▒▒▒██
-  .byte %11111111   ;  ▒▒▒▒▒███
-  .byte %11111101   ;  ▒▒▒███ █
-  .byte %11111111   ;  ▒▒▒█████
-  .byte %11111110   ;  ▒▒▒▒███ 
-  .byte %11111100   ;  ▒▒▒███  
-  .byte %11111111   ;  ▒▒██████
-  .byte %11111000   ;  ▒████   
-  .byte %11111111   ;  ████████
-  .byte %11111111   ;  ████████
-  .byte %11111111   ;  ████████
-  .byte %10111111   ;  █ ██████
-  .byte %11111110   ;  ███████ 
-  .ds 1             ;
-DINO_SPRITE_3_END = *
-
-;DINO_SPRITE_DEAD:
-;  .ds 1             ;
-;  .byte %11000110   ;  ▒▒   ██
-;  .byte %10000100   ;  ▒    █
-;  .byte %11000100   ;  ▒▒   █
-;  .byte %11101100   ;  ▒▒▒ ▒█
-;  .byte %11111111   ;  ▒▒▒▒▒▒██
-;  .byte %11111111   ;  ▒▒▒▒▒▒██
-;  .byte %11111111   ;  ▒▒▒▒▒███
-;  .byte %11111101   ;  ▒▒▒███ █
-;  .byte %11111111   ;  ▒▒▒█████
-;  .byte %11111100   ;  ▒▒▒███
-;  .byte %11111000   ;  ▒▒███
-;  .byte %11110000   ;  ▒███
-;  .byte %11111110   ;  ▒██████
-;  .byte %11111111   ;  ████████
-;  .byte %11111111   ;  ████████
-;  .byte %10111111   ;  █ ██████
-;  .byte %01011111   ;   █ █████
-;  .byte %10111110   ;  █ █████
-;  .ds 1
-
-DINO_SPRITE1_OFFSETS:
-;       LEFT  <---------------------------------------------------------> RIGHT
-;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
-;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-  .ds 1
-  .byte $00  ;  ▒▒   ██    |  -5
-  .byte $00  ;  ▒    █     |  -5
-  .byte $00  ;  ▒▒   █     |  -5
-  .byte $F0  ;  ▒▒▒ ▒█     |  -5
-  .byte $00  ;  ▒▒▒▒▒▒██   |  -6
-  .byte $10  ;  ▒▒▒▒▒▒██   |  -6
-  .byte $20  ;  ▒▒▒▒▒███   |  -5
-  .byte $00  ;  ▒▒▒███ █   |  -3
-  .byte $F0  ;  ▒▒▒█████   |  -3
-  .byte $10  ;  ▒▒▒▒███    |  -4
-  .byte $10  ;  ▒▒▒███     |  -3
-  .byte $10  ;  ▒▒██████   |  -2
-  .byte $10  ;  ▒████      |  -1 <-- Any pixel offset applied in the current
-  .byte $00  ;  ████████   |   0     2 line kernel, remains for the next
-  .byte $00  ;  ████████   |   0     scanlines
-  .byte $00  ;  ████████   |   0
-  .byte $00  ;  █ ██████   |   0
-  .byte $10  ;  ███████    |   0 <<< push all the pixels to the left one time
-  .ds 1      ;                       to stitch with the missiles
-DINO_SPRITE1_OFFSETS_END = *
-
-; DINO MISSILE OFFSET
-;
-; MP0 is strobed at a moment T
-;  |         +--- then GRP0 is strobed at T+3 CPU cycles (9 pixels) after MP0
-;  |         |
-;  |        <<--- BUT all GPR0 will be offset by -1, so it stitches with M0
-;  |        |
-;  v        v               missile offset and size
-;  |        |███████ |             0  0
-;  |       ▒|█ ██████|            +8  1
-;  |       ▒|████████|            +8  1
-;  |       ▒|████████|            +8  1
-;  |       ▒|████████|            +8  1
-;  |       █|████    |             0  0
-;  |▒     ██|██████  |             0  1
-;  |▒    ███|███     |             0  1
-;  |▒▒  ████|███     |             0  2
-;  |▒▒▒▒▒███|█████   |             0  8
-;  |▒▒▒▒▒███|███ █   |             0  8
-;  |▒▒▒█████|███     |             0  4
-;  | ▒██████|██      |            +1  1
-;  |  ██████|██      |             0  0
-;  |   ███ █|█       |             0  0
-;  |   ██   |█       |             0  0
-;  |   █    |█       |             0  0
-;  |   ██   |██      |             0  0
-;
-;  ▒ missile pixels, █ GRP0 pixels
-
-;       LEFT  <---------------------------------------------------------> RIGHT
-;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
-;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-
-DINO_MIS_OFFSETS:
-                  ;                        offset           size
-  .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  .byte %00000000 ; |   ██   |██      |       0                0
-  .byte %00000000 ; |   █    |█       |       0                0
-  .byte %00000000 ; |   ██   |█       |       0                0
-  .byte %00000000 ; |   ███ █|█       |       0                0
-  .byte %00000000 ; |  ██████|██      |       0                0
-  .byte %11110010 ; | ▒██████|██      |      +1                1
-  .byte %00001010 ; |▒▒▒X████|███     |       0                4
-  .byte %00001110 ; |▒▒▒▒▒XXX|███ █   |       0                8
-  .byte %00001110 ; |▒▒▒▒▒XXX|█████   |       0                8
-  .byte %00000110 ; |▒▒  ████|███     |       0                2
-  .byte %00000010 ; |▒    ███|███     |       0                1
-  .byte %01110010 ; |▒     ██|██████  |       0                1
-  .byte %00000000 ; |       █|████    |       0                0
-  .byte %00000010 ; |       ▒|████████|      +8                1
-  .byte %00000010 ; |       ▒|████████|      +8                1
-  .byte %00000010 ; |       ▒|████████|      +8                1
-  .byte %10000010 ; |       ▒|█ ██████|      +8                1
-  .byte %00000000 ; |        |███████ |       0                0
-  .ds 1; ^
-  ;      |
-  ;      + Also enable the ball when this bit is ON (used for the blinking)
-  ;
-  ; Legend:
-  ;    █ GRP0 pixels
-  ;    ▒ missile pixels
-  ;    ░ ball
-  ;    X overlapping pixels
-  ;    ▯ Non drawn by the current kernel
-DINO_MIS_OFFSETS_END = *
-
-
-; Crouching sprite diagram:
-;
-; Legend:
-;    █ GRP0 pixels
-;    ▒ missile pixels
-;    ░ ball
-;    X overlapping pixels
-;    ▯ Non drawn by the current kernel
-;
-;                 ⏐   ▯▯    ⏐   \
-;                 ⏐   ▯     ⏐    > will be drawn by the floor kernel
-;                 ⏐   ▯▯   ▯⏐▯  /
-;                 ⏐   ███ ██⏐  ▓▓          <-- missile set to size 2
-;                 ⏐  ░░░░░░░⏐░██  █▓▓▓▓    \
-;                 ⏐ ░░░░XXXX⏐▓▓▓▓████      |  in all these scan lines
-;                 ⏐ ░░░░XXXX⏐▓▓▓▓████████   > both ball and missile
-;                 ⏐░░░░░XXX▓⏐▓▓▓▓████████  |  are set to size 8
-;                 ⏐░░░░░XXX▓⏐▓▓▓▓████████  /
-;                 ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████  <-- ball size 1 and missile size 8
-;                 ⏐         ⏐     ██████
-;                 ↑         ↑              HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-;                 |     M0/GRP0 position (cycle 23)
-;      BALL position (cycle 20)
-;
-DINO_CROUCHING_SPRITE:
-  .ds 1             ; |        |
-  .byte %11101100   ; |███ ██  |
-  .byte %00111001   ; |  ███  █|
-  .byte %11110000   ; |████    |
-  .byte %11111111   ; |████████|
-  .byte %11111111   ; |████████|
-  .byte %11111111   ; |████████|
-  .byte %11011111   ; |██ █████|
-  .byte %01111110   ; | ██████ |
-  .ds 1             ; |        |
-
-DINO_CROUCHING_SPRITE_OFFSETS:
-; Again, for reference:
-;       LEFT  <---------------------------------------------------------> RIGHT
-;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
-;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-
-            ; ⏐   ▯▯    ⏐
-            ; ⏐   ▯     ⏐                     GRP0 offset
-  .ds 1     ; ⏐   ▯▯   ▯⏐▯
-  .byte $40 ; ⏐   ███ ██⏐  ▓▓            -5
-  .byte $60 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      -6
-  .byte $00 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0
-  .byte $00 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0
-  .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
-  .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
-  .byte $00 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0
-  .byte $C0 ; ⏐         ⏐     ██████     +4
-  .ds 1     ; ↑         ↑
-            ; |       M0/GRP0 position (cycle 25)
-            ; BALL position (cycle 22)
-DINO_CROUCHING_SPRITE_OFFSETS_END = *
-
-DINO_CROUCHING_MISSILE_0:
-  ;                                          offset           size
-  ;                                    HMM0 bits 7,6,5,4   NUSIZE0 bits 5,4
-  ; Enable M0 bit   ⏐   ▯▯    ⏐
-  ;            ⏐    ⏐   ▯     ⏐
-  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
-  .byte %01000110 ; ⏐   ███ ██⏐  ▓▓            -4               2
-  .byte %10001010 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +8               4
-  .byte %11101110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██        +2               8
-  .byte %00001110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %11101110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████    +2               8
-  .byte %01011110 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████    -5               8
-  .byte %00000000 ; ⏐         ⏐     ██████      0               0
-  .ds 1           ; ↑         ↑
-  ; Missile pos (cycle 22)   M0/GRP0 position (cycle 25)
-
-DINO_CROUCHING_MISSILE_1:
-  ;                                          offset           size
-  ;                                    HMM1 bits 7,6,5,4  NUSIZE1 bits 5,4
-  ;   Enable M1 bit ⏐   ▯▯    ⏐
-  ;            ⏐    ⏐   ▯     ⏐
-  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
-  .byte %00100000 ; ⏐   ███ ██⏐  ▓▓             0               0
-  .byte %11111110 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +1               8
-  .byte %00001110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0               8
-  .byte %11111110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████    +1               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %00000010 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0               1
-  .byte %11110000 ; ⏐         ⏐     ██████     +1               0
-  .ds 1 ;    ↑↑     ↑         ↑
-  ;          ⏐⏐     ⏐     M0/GRP0 position (cycle 25)
-  ;  Missile size   Missile pos (cycle 22)
-
-  ;
-  ; Legend:
-  ;    █ GRP0 pixels
-  ;    ▒ missile 0 pixels
-  ;    ░ missile 1 pixels
-  ;    X overlapping pixels
-  ;    ▯ Non drawn by the current kernel
-
-PTERO_WINGS_OPEN_SPRITE:
-  ; Sprite drawn as a combinatio
-  ; of GRP1 and the BALL (after applying offsets)
-  ;    "unpacked" GRP1 and BALL
-  ;                                    "packed" GRP1
-  ;  |        ⏐         |                ⏐        ⏐
-  ;  |       █⏐         |                ⏐       █⏐
-  ;  |       █⏐█        |                ⏐      ██⏐
-  ;  |        ⏐██       |                ⏐      ██⏐
-  ;  |     ██ ⏐███      |                ⏐  ██ ███⏐
-  ;  |    ███ ⏐▓▓▓▓     |                ⏐    ███ ⏐
-  ;  |   █████⏐█▓▓▓▓    |                ⏐  ██████⏐
-  ;  |  ████XX⏐▓▓▓▓▓▓   |                ⏐  ██████⏐
-  ;  |       █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐
-  ;  |        ⏐███████  |                ⏐ ███████⏐
-  ;  |        ⏐ █████▓▓▓|▓               ⏐   █████⏐
-  ;  |        ⏐  ████   |                ⏐   ████ ⏐
-  ;  |        ⏐         |                ⏐        ⏐
-  ;  |        ⏐         |                ⏐        ⏐
-  ;  |        ⏐         |                ⏐        ⏐
-  ;  |        ⏐         |                ⏐        ⏐
-  ;  |        ⏐         |                ⏐        ⏐
-  ;
-  ; Legend:
-  ;    █ GRP1 pixels
-  ;    ▒ BALL pixels
-  ;    X overlapping pixels (between GRP1 and BALL)
-
-  .ds 1            ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00011110  ;⏐   ████ ⏐
-  .byte %00011111  ;⏐   █████⏐
-  .byte %01111111  ;⏐ ███████⏐
-  .byte %00001111  ;⏐    ████⏐
-  .byte %00111111  ;⏐  ██████⏐
-  .byte %00111111  ;⏐  ██████⏐
-  .byte %00001110  ;⏐    ███ ⏐
-  .byte %00110111  ;⏐  ██ ███⏐
-  .byte %00000011  ;⏐      ██⏐
-  .byte %00000011  ;⏐      ██⏐
-  .byte %00000001  ;⏐       █⏐
-  .ds 1            ;⏐        ⏐
-PTERO_WINGS_OPEN_SPRITE_END = *
-
-PTERO_WINGS_OPEN_SPRITE_OFFSETS:
-
-; Again, for reference:
-;       LEFT  <---------------------------------------------------------> RIGHT
-;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
-;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-
-  ;        packed ptero data       after applying fine offsets
-  ;         (value in GRP1)
-  .ds 1      ;⏐        ⏐            |        ⏐         |
-  .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $F0  ;⏐   ████ ⏐            |        ⏐  ████   |     +1 px
-  .byte $10  ;⏐   █████⏐            |        ⏐ █████BBB|B    -1 px
-  .byte $C0  ;⏐ ███████⏐            |        ⏐████████ |     +4 px
-  .byte $D0  ;⏐    ████⏐            |       █⏐███BBBBBB|BB   +3 px
-  .byte $10  ;⏐  ██████⏐            |  ███xxx⏐BBBBB    |     -2 px (0px)
-  .byte $F0  ;⏐  ██████⏐            |   █████⏐█BBBB    |     +2 px
-  .byte $30  ;⏐    ███ ⏐            |    ███ ⏐BBBB     |     -2 px (0px)
-  .byte $F0  ;⏐  ██ ███⏐            |     ██ ⏐███      |     +2 px
-  .byte $F0  ;⏐      ██⏐            |        ⏐██       |
-  .byte $F0  ;⏐      ██⏐            |       █⏐█        |
-  .byte $00  ;⏐       █⏐            |       █⏐         |
-  .ds 1      ;⏐        ⏐            |        ⏐         |
-             ;                               ↑
-             ;                               8 pixels offset (B are BALL pixels)
-PTERO_WINGS_OPEN_SPRITE_OFFSETS_END = *
-
-PTERO_WINGS_OPEN_BALL:
-  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  ; Enable BALL bit 
-  ;             ⏐
-  .ds 1 ;       ↓   |         ⏐        |
-  .byte %00000000 ; |         ⏐        |         0              0
-  .byte %00000000 ; |         ⏐        |         0              0
-  .byte %00000000 ; |         ⏐        |         0              0
-  .byte %00000000 ; |         ⏐        |         0              0
-  .byte %00000000 ; |         ⏐ █████  |         0              0
-  .byte %11011001 ; |         ⏐█████BBB|B       +3              4 (10)
-  .byte %00000000 ; |        █⏐███████ |         0              0
-  .byte %10111101 ; |       ██⏐██BBBBBB|BB      +5              8 (11)
-  .byte %01001101 ; |  ███xxxB⏐BBBB    |        -4              8 (11)
-  .byte %11111001 ; |   ██████⏐BBBB    |        +1              4 (10)
-  .byte %00001001 ; |    ███ B⏐BBB     |        -1              4 (10)
-  .byte %00000000 ; |     ██ █⏐██      |         0              0
-  .byte %00000000 ; |        █⏐█       |         0              0
-  .byte %00000000 ; |       ██⏐        |         0              0
-  .byte %00000000 ; |       █ ⏐        |         0              0
-  .ds 1           ; |         ⏐        |
-  ;                           ↑
-  ;                   initial BALL position (cycle 25)
-PTERO_WINGS_OPEN_BALL_END = *
-
-PTERO_WINGS_CLOSED_SPRITE:
-  ; Sprite drawn as a combination
-  ; of GRP1 and the BALL (after applying offsets)
-  ;    "unpacked" GRP1 and BALL
-  ;                                  /- GRP1 -\
-  ;        ⏐         |                ⏐        ⏐
-  ;        ⏐         |                ⏐        ⏐
-  ;        ⏐         |                ⏐        ⏐
-  ;        ⏐         |                ⏐        ⏐
-  ;     ██ ⏐         |                ⏐     ██ ⏐
-  ;    ███ ⏐         |                ⏐    ███ ⏐
-  ;   █████⏐         |                ⏐   █████⏐
-  ;  ██████⏐██▓▓▓▓   |                ⏐████████⏐
-  ;       █⏐███▓▓▓▓▓▓|▓▓              ⏐    ████⏐
-  ;        ⏐████████ |                ⏐████████⏐
-  ;        ⏐██████▓▓▓|▓               ⏐  ██████⏐
-  ;        ⏐███████  |                ⏐ ███████⏐
-  ;        ⏐███      |                ⏐     ███⏐
-  ;        ⏐██       |                ⏐      ██⏐
-  ;        ⏐██       |                ⏐      ██⏐
-  ;        ⏐█        |                ⏐       █⏐
-  ;        ⏐         |                ⏐        ⏐
-  ;
-  ; Legend:
-  ;    █ GRP0 pixels
-  ;    ▒ missile 0 pixels
-  ;    X overlapping pixels
-
-  .ds 1            ;⏐        ⏐
-  .byte %00000001  ;⏐       █⏐
-  .byte %00000011  ;⏐      ██⏐
-  .byte %00000011  ;⏐      ██⏐
-  .byte %00000111  ;⏐     ███⏐
-  .byte %00111111  ;⏐  ██████⏐
-  .byte %00111111  ;⏐  ██████⏐
-  .byte %01111111  ;⏐ ███████⏐
-  .byte %00001111  ;⏐    ████⏐
-  .byte %11111111  ;⏐████████⏐
-  .byte %00011111  ;⏐   █████⏐
-  .byte %00001110  ;⏐    ███ ⏐
-  .byte %00000110  ;⏐     ██ ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
-  .byte %00000000  ;⏐        ⏐
-  .ds 1            ;⏐        ⏐
-PTERO_WINGS_CLOSED_SPRITE_END = *
-
-PTERO_WINGS_CLOSED_SPRITE_OFFSETS:
-
-; Again, for reference:
-;       LEFT  <---------------------------------------------------------> RIGHT
-;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
-;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-
-  ;        packed ptero data       after applying fine offsets
-  ;         (value in GRP1)
-  .ds 1      ;⏐        ⏐            |        ⏐         |
-  .byte $10  ;⏐       █⏐            |        ⏐█        |    -1 px
-  .byte $00  ;⏐      ██⏐            |        ⏐██       |     0 px
-  .byte $10  ;⏐      ██⏐            |        ⏐██       |    -1 px
-  .byte $30  ;⏐     ███⏐            |        ⏐███      |    -4 px
-  .byte $00  ;⏐  ██████⏐            |        ⏐██████   |    +1 px
-  .byte $10  ;⏐  ██████⏐            |        ⏐██████BBB|B   -2 px
-  .byte $C0  ;⏐ ███████⏐            |        ⏐███████  |    +5 px
-  .byte $F0  ;⏐    ████⏐            |       █⏐███BBBBBB|BB  +1 px
-  .byte $E0  ;⏐████████⏐            |  ██████⏐██BBBB   |    +2 px
-  .byte $00  ;⏐   █████⏐            |   █████⏐         |
-  .byte $00  ;⏐    ███ ⏐            |    ███ ⏐         |
-  .byte $00  ;⏐     ██ ⏐            |     ██ ⏐         |
-  .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $00  ;⏐        ⏐            |        ⏐         |
-  .byte $00  ;⏐        ⏐            |        ⏐         |
-  .ds 1      ;⏐        ⏐            |        ⏐         |
-             ;                               ↑
-             ;                               8 pixels offset (B are BALL pixels)
-
-PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END = *
-
-PTERO_WINGS_CLOSED_BALL:
-  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  ; Enable BALL bit 
-  ;             ⏐
-  .ds 1 ;       ↓   |         ⏐        |
-  .byte %00000000 ; |        █⏐        |         0              0
-  .byte %00000000 ; |        █⏐█       |         0              0
-  .byte %00000000 ; |        █⏐█       |         0              0
-  .byte %00000000 ; |        █⏐██      |         0              0
-  .byte %00000000 ; |        █⏐█████   |         0              0
-  .byte %11011001 ; |        █⏐█████BBB|B       +3              4
-  .byte %00000000 ; |        █⏐██████  |         0              0
-  .byte %11111101 ; |       ██⏐██BBBBBB|BB      +1              8
-  .byte %11111001 ; |  ███████⏐█BBBB   |        +1              4
-  .byte %00000000 ; |   █████ ⏐        |         0              0
-  .byte %00000000 ; |    ███  ⏐        |         0              0
-  .byte %00000000 ; |     ██  ⏐        |         0              0
-  .byte %00000000 ; |         ⏐        |         0              0
-  .byte %00000000 ; |         ⏐        |         0              0
-  .byte %00000000 ; |         ⏐        |         0              0
-  .ds 1           ; |         ⏐        |
-  ;                           ↑
-  ;                   initial BALL position (cycle 25)
-PTERO_WINGS_CLOSED_BALL_END = *
-
-  ;
-  ; Legend:
-  ;    █ GRP0 pixels
-  ;    ▒ missile pixels
-  ;    ░ ball
-  ;    X overlapping pixels
-  ;    ▯ Non drawn by the current kernel
-
-
-;             -4               2
-;    ██      +8               4
-;    ██       +2               8
-;  ██████      0               8
-; █  █████     0               8
-; █  ██  █    +2               8
-;    ██  █    -5               8
-;    ██        0               0
+  include "sprites.asm"
 
 ;-----------------------------------------------------------------------------
-; Remainder to offset table
+; FINE OFFSETS TABLE
 ;-----------------------------------------------------------------------------
 ; Again, for reference:
 ;       LEFT  <---------------------------------------------------------> RIGHT
@@ -2112,6 +1486,7 @@ FINE_POSITION_OFFSET:
   .byte $A0  ; offset  6
   .byte $90  ; offset  7
   .byte $80  ; offset  8
+
 ;=============================================================================
 ; ROM SETUP
 ;=============================================================================
