@@ -175,7 +175,7 @@ reset:
   ; -----------------------
   ldx #0
   txa
-  tay     ; Y = A = X = 0
+  tay  ; Y = A = X = 0
 clear_zero_page_memory:
   dex
   txs  ; This is the classic trick that exploits the fact that both
@@ -362,11 +362,6 @@ _update_ptero_wing_anim:
   ldx #PTR_OBSTACLE_SPRITE
   jsr set_obstacle_data
 
-  lda #<PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END
-  ldy #>PTERO_WINGS_CLOSED_SPRITE_OFFSETS_END
-  ldx #PTR_OBSTACLE_OFFSET
-  jsr set_obstacle_data
-
   lda #<PTERO_WINGS_CLOSED_BALL_END
   ldy #>PTERO_WINGS_CLOSED_BALL_END
   ldx #PTR_OBSTACLE_BALL
@@ -377,11 +372,6 @@ _open_wings:
   lda #<PTERO_WINGS_OPEN_SPRITE_END
   ldy #>PTERO_WINGS_OPEN_SPRITE_END
   ldx #PTR_OBSTACLE_SPRITE
-  jsr set_obstacle_data
-
-  lda #<PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
-  ldy #>PTERO_WINGS_OPEN_SPRITE_OFFSETS_END
-  ldx #PTR_OBSTACLE_OFFSET
   jsr set_obstacle_data
 
   lda #<PTERO_WINGS_OPEN_BALL_END
@@ -686,7 +676,7 @@ _set_obstacle_position:
   clc                ; 2 (27/33) Clear the carry for the addition below
   lda OBSTACLE_X_INT ; 3 (30/36)
 
-  cmp #8
+  cmp #0
   bcs _set_obstacle_x_pos_over_8_or_equal
 
 _set_obstacle_x_pos_under_8:
@@ -753,13 +743,14 @@ _set_obstacle_x_pos_over_8_or_equal:
   ; from the last 'divide by 15' iteration and 9 more for 'sta RESP1'
   ; this adds up to 38
   ; -2 shifts the fine offset range from [-8, 6] to [-6, 8]
-  adc #36          ; 2 (32/38) 
+  clc              ; 2 (32/38)
+  adc #45          ; 2 (34/40) 
 
-  sec              ; 2 (37/43) Set carry to do subtraction. Remember SBC is 
+  sec              ; 2 (39/45) Set carry to do subtraction. Remember SBC is 
                    ;           actually an ADC with A2 complement
                    ;           A-B = A + ~B + 1 (<- this 1 is the carry you set)
 
-  sta WSYNC        ; 3 (40/46)
+  sta WSYNC        ; 3 (42/48)
   ; 3rd scanline ==============================================================
                    ; - (0)
 
@@ -932,24 +923,22 @@ _sky__y_not_within_ptero:        ; - (18)
   jmp _sky__end_of_2nd_scanline  ; 3 (32)
 
 _sky__y_within_ptero:            ; - (19)
-  ; ptero graphics offset
-  lda (PTR_OBSTACLE_OFFSET),y    ; 5 (24)
-  ; We still have to remove HMP0 and HMM0 fine offsets so they don't shift
-  ; the dino again when jumping back to the 1st scanline, but the HMxx
-  ; registers don’t play nice if you set them within 24 CPU cycles of strobing 
-  ; HMOVE. At this point, enough time has passed to do this clearing, just 
-  ; before setting the fine offsets for the ptero
-  sta HMCLR                      ; 3 (27)
-  sta HMP1                       ; 3 (30)
 
   ; ptero graphics
-  LAX (PTR_OBSTACLE_SPRITE),y    ; 5 (55)
+  LAX (PTR_OBSTACLE_SPRITE),y    ; 5 (24)
   ; Using an illegal opcode (LAX) which will leave a copy of A into X, I'm doing
   ; this here because there is no 'ldx (aa),y', the non illegal opcode option is
   ; is to do 'lda (aa),y' first and then 'tax' which will costs 7 cycles, but
   ; the illegal opcode only takes 5. 
   ; reg X will contain the ptero data, so
   ; next scanline we can do 'stx GRP1' provided we don't overwrite reg X
+
+  ; We still have to remove HMP0 and HMM0 fine offsets so they don't shift
+  ; the dino again when jumping back to the 1st scanline, but the HMxx
+  ; registers don’t play nice if you set them within 24 CPU cycles of strobing 
+  ; HMOVE. At this point, enough time has passed to do this clearing, just 
+  ; before setting the fine offsets for the ptero
+  sta HMCLR                      ; 3 (27)
 
   ; ptero ball
   ; the data pointed by PTR_OBSTACLE_BALL has the same format as the dino's:
