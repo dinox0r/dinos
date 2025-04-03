@@ -21,7 +21,7 @@ RND_MEM_LOC_2 = $e5  ; bytes when the machine starts. Hopefully this finds
                      ; some garbage values that can be used as seed
 
 BKG_LIGHT_GRAY = #13
-DINO_HEIGHT = #20
+DINO_HEIGHT = #21
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y+#DINO_HEIGHT
 
@@ -70,7 +70,7 @@ DINO_JUMP_ACCEL_FRACT = #98
 
 PTERO_HEIGHT = #17
 
-DEBUG_OBSTACLE_X_POS = #157
+DEBUG_OBSTACLE_X_POS = #149
 
 ;=============================================================================
 ; GAME_FLAGS
