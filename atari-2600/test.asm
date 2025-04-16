@@ -1,6 +1,6 @@
   PROCESSOR 6502
 
-  INCLUDE "vcs.h"
+  INCLUDE "include/vcs.h"
 
   ; constats ------------------------------------------------------------------
 SPRITE_HEIGHT = 10
@@ -41,15 +41,60 @@ on_begin_frame:
   lda #0
   sta VSYNC
 
-  ; 37 scanlines of VBLANK
-  lda #43
-  sta TIM64T
+  sta WSYNC
+  nop ; 5
+  nop ; 5
+  nop ; 5
+  nop ; 9
+  nop ; 9
+  nop ; 9
+  nop ; 11
+  nop ; 13
+  nop ; 15
+  dec $2D ; 20
+  sta RESM0
+  sta RESP1 ; 23
+  sta RESM1
 
-  ; set sprite colour
-  lda #$FF
-  sta COLUP1
+; Again, for reference:
+;       LEFT  <---------------------------------------------------------> RIGHT
+;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
+;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
+  lda #$C0
+  sta HMM0
+  lda #$50
+  sta HMM1
+  ;lda #$80
+  ;sta HMM0
+  sta WSYNC
+  sta HMOVE
+
+  inc $2D
+  inc $2D
+  inc $2D
+  inc $2D
+  inc $2D
+
+  lda #$00
+  sta HMM0
+  sta HMP1
+
+  ;lda #$E0
+  ;sta HMM0
+  sta WSYNC
+  sta HMOVE
+
+  inc $2D
+  inc $2D
+  inc $2D
+  inc $2D
+  inc $2D
+
   sta HMCLR
 
+  ; 37 (minus the few above for positioning) scanlines of VBLANK
+  lda #43
+  sta TIM64T
 
 _on_vblank_timer:
   lda INTIM
@@ -59,49 +104,51 @@ _on_vblank_timer:
   lda #0
   sta VBLANK
 
-  ; scanline 192 (top scanline)
-  sta WSYNC
-  sta HMOVE ; 3
-  nop ; 5
-  nop ; 7
-  nop ; 9
-  nop ; 11
-  nop ; 13
-  sta RESP1 ; 20
+  lda #$0C
+  sta COLUBK
 
-  sta WSYNC
+  lda #$04        ; 2 (29)
+  sta COLUP0      ; 3 (32)
+  sta COLUP1      ; 3 (32)
 
   ; scaline 191
   sta HMOVE
   ; remaining 190 scanlines
   ldy #190
-  sta WSYNC
-  ; scaline 190
-  sta HMOVE
 
-display:
+scanline:
+  sta WSYNC
+  sta HMOVE       ; 3
+
   tya
-  sta COLUBK
+  sec               ; 2 (10)
+  sbc #SPRITE_Y_POS ; 2 (12)
+  cmp #SPRITE_HEIGHT ; 2 (14)
+  bcc _draw_sprite ; 2/3 (16/17)
 
-  sec
-  sbc #SPRITE_Y_POS
-  cmp #SPRITE_HEIGHT
-  bcc _load_sprite_data
   lda #0
-  jmp _draw_sprite
-
-_load_sprite_data:
-  tax
-  lda SPRITE,x
-
-_draw_sprite:
   sta GRP1
+  sta ENAM1
+  sta ENAM0
 
+  jmp _end_of_scanline
+
+_draw_sprite:     ; - (17)
+  lda #%11010111  ; 2 (24)
+  sta GRP1        ; 3 (27)
+  lda #2  ; 
+  sta ENAM1
+  sta ENAM0
+  lda #%00100101  ; 2 (19) 2x GRP1 4x M1
+  sta NUSIZ1      ; 3 (22)
+  lda #1
+  sta NUSIZ0
+
+_end_of_scanline:
+  dey             ; 2 (34)
+  bne scanline    ; 3
   sta WSYNC
   sta HMOVE
-
-  dey
-  bne display
 
 on_end_frame:
 overscan:
@@ -118,17 +165,17 @@ _on_overscan_timer:
   jmp on_begin_frame
 
 ; Sprite data
-SPRITE:
-  .ds 1
-  .byte %00111100
-  .byte %01000010
-  .byte %10011001
-  .byte %10100101
-  .byte %10000001
-  .byte %10100101
-  .byte %01000010
-  .byte %00111100
-  .ds 1
+;SPRITE:
+;  .ds 1
+;  .byte %00111100
+;  .byte %01000010
+;  .byte %10011001
+;  .byte %10100101
+;  .byte %10000001
+;  .byte %10100101
+;  .byte %01000010
+;  .byte %00111100
+;  .ds 1
 ; ---- Cartridge beginning ----
   ORG $fffc
   .word reset

@@ -1,9 +1,9 @@
   PROCESSOR 6502
 
-  INCLUDE "../lib/vcs.h"
+  INCLUDE "../include/vcs.h"
   ; Including this just for the sbcs, sbeq, etc macros, that look like 
   ; the branching instructions but add a page boundary check
-  INCLUDE "../lib/macro.h"
+  INCLUDE "../include/macro.h"
 
   LIST ON           ; turn on program listing, for debugging on Stella
 
@@ -102,41 +102,49 @@ TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
   SEG.U variables
   ORG $80
 
-DINO_TOP_Y_INT       .byte   ; 1 byte   (1)
-DINO_TOP_Y_FRACT     .byte   ; 1 byte   (2)
-BG_COLOUR            .byte   ; 1 byte   (3)
-DINO_COLOUR          .byte   ; 1 byte   (4)
-DINO_SPRITE          .byte   ; 1 byte   (5)
-DINO_SPRITE_OFFSET   .byte   ; 1 byte   (6)
-MISSILE_P0            .byte   ; 1 byte   (7)
-MISSILE_P1            .byte   ; 1 byte   (7)
-ENABLE_BALL          .byte   ; 1 byte
-GAME_FLAGS           .byte   ; 1 byte   (8)
-PTR_DINO_SPRITE      .word   ; 2 bytes  (10)
-PTR_DINO_SPRITE_2    .word   ; 2 bytes  (12)
-PTR_DINO_OFFSET      .word   ; 2 bytes  (14)
-PTR_DINO_OFFSET_2    .word   ; 2 bytes  (16)
-PTR_DINO_MIS0        .word   ; 2 bytes  (18)
-PTR_DINO_MIS0_COPY   .word   ; 2 bytes  (20)
-PTR_DINO_MIS1        .word   ; 2 bytes
-RND_SEED             .word   ; 2 bytes  (22)
-FRAME_COUNT          .word   ; 2 bytes  (23)
-DINO_VY_INT          .byte   ; 1 byte   (24)
-DINO_VY_FRACT        .byte   ; 1 byte   (25)
-UP_PRESSED_FRAMES    .byte   ; 1 byte   (25)
+; Dino Sprite Variables
+DINO_TOP_Y_INT             .byte   ; 1 byte   (1)
+DINO_TOP_Y_FRACT           .byte   ; 1 byte   (2)
+DINO_COLOUR                .byte   ; 1 byte   (3)
+DINO_SPRITE                .byte   ; 1 byte   (4)
+DINO_SPRITE_OFFSET         .byte   ; 1 byte   (5)
+DINO_VY_INT                .byte   ; 1 byte   (6)
+DINO_VY_FRACT              .byte   ; 1 byte   (7)
+UP_PRESSED_FRAMES          .byte   ; 1 byte   (8)
 
-OBSTACLE_TYPE        .byte
-OBSTACLE_Y           .byte
-OBSTACLE_X_INT       .byte   ; 1 byte
-OBSTACLE_X_FRACT     .byte   ; 1 byte
-OBSTACLE_VX_INT   .byte   ; 1 byte
-OBSTACLE_VX_FRACT .byte   ; 1 byte
+PTR_DINO_SPRITE            .word   ; 2 bytes  (10)
+PTR_DINO_SPRITE_2          .word   ; 2 bytes  (12)
+PTR_DINO_OFFSET            .word   ; 2 bytes  (14)
+PTR_DINO_OFFSET_2          .word   ; 2 bytes  (16)
+PTR_DINO_MIS0              .word   ; 2 bytes  (18)
+PTR_DINO_MIS0_COPY         .word   ; 2 bytes  (20)
+PTR_DINO_MIS1              .word   ; 2 bytes  (22)
 
-PTR_OBSTACLE_SPRITE  .word   ; 2 bytes
-PTR_OBSTACLE_OFFSET  .word   ; 2 bytes
-PTR_OBSTACLE_BALL    .word   ; 2 bytes
+; Obstacle Variables
+OBSTACLE_TYPE              .byte   ; 1 byte   (23)
+OBSTACLE_Y                 .byte   ; 1 byte   (24)
+OBSTACLE_X_INT             .byte   ; 1 byte   (25)
+OBSTACLE_X_FRACT           .byte   ; 1 byte   (26)
+OBSTACLE_VX_INT            .byte   ; 1 byte   (27)
+OBSTACLE_VX_FRACT          .byte   ; 1 byte   (28)
 
-PTR_MIDDLE_SECTION_KERNEL .word  ; 2 bytes
+PTR_OBSTACLE_SPRITE        .word   ; 2 bytes  (30)
+PTR_OBSTACLE_OFFSET        .word   ; 2 bytes  (32)
+PTR_OBSTACLE_BALL          .word   ; 2 bytes  (34)
+
+; TIA Object Control
+MISSILE_P0                 .byte   ; 1 byte   (35)
+MISSILE_P1                 .byte   ; 1 byte   (36)
+ENABLE_BALL                .byte   ; 1 byte   (37)
+BG_COLOUR                  .byte   ; 1 byte   (38)
+
+; Game State / Control
+GAME_FLAGS                 .byte   ; 1 byte   (39)
+FRAME_COUNT                .word   ; 2 bytes  (41)
+RND_SEED                   .word   ; 2 bytes  (43)
+
+; Kernel Pointer
+PTR_MIDDLE_SECTION_KERNEL  .word   ; 2 bytes  (45)
 
 
 ; This section is to include variables for performance, to save cycles in tight 
@@ -676,65 +684,65 @@ _set_obstacle_position:
   clc                ; 2 (27/33) Clear the carry for the addition below
   lda OBSTACLE_X_INT ; 3 (30/36)
 
-  cmp #0
-  bcs _set_obstacle_x_pos_over_8_or_equal
+;  cmp #0
+;  bcs _set_obstacle_x_pos_over_8_or_equal
 
-_set_obstacle_x_pos_under_8:
-  sta WSYNC
+;_set_obstacle_x_pos_under_8:
+;  sta WSYNC
+;
+;  ; 3rd scanline ==============================================================
+;  sta HMOVE ; 3 (3)
+;  ; wait 23 cycles
+;  dec $2D   ; 5 (8)   2 bytes / 2
+;  dec $2D   ; 5 (13)  2 bytes / 4
+;  dec $2D   ; 5 (13)  2 bytes / 4
+;  ;php       ; 3 (16)  1 byte  / 5
+;  ;plp       ; 4 (20)  1 byte  / 6
+;  nop       ; 2 (22)
+;  nop       ; 2 (22)
+;  sta RESP1  ; 3 (26)
+;  sta RESBL  ; 3 (29)
+;  ; now hit HMOVE with the most possible amount to the left in this scanline
+;  ;lda #0
+;  lda #$70
+;  sta HMP1
+;  sta HMBL
+;
+;  sta WSYNC
+;
+;  ; 4th scanline ==============================================================
+;  sta HMOVE             ; 3 (3)
+;  ; we have x < 8, 
+;  ; 7 hmove -1 -> $10
+;  ; 6 hmove -2 -> $20
+;  ; 5 -3
+;  ; 4 -4
+;  ; 3 -5
+;  ; 2 -6
+;  ; 1 -7
+;  ; 0  X
+;  ; wait 24 cycles to hit
+;  ; in the next scanline, we now move 
+;  lda #8                ; 2 (5)
+;  sec                   ; 2 (7)
+;  sbc OBSTACLE_X_INT    ; 3 (9)
+;  asl                   ; 2 (11)
+;  asl                   ; 2 (13)
+;  asl                   ; 2 (15)
+;  asl                   ; 2 (17)
+;  php                   ; 3 (20)
+;  plp                   ; 4 (24)
+;  sta $2D               ; 3 (27)
+;  sta $2D               ; 3 (27)
+;  lda #$70
+;  sta HMP1              ; 3 ()
+;  sta HMBL              ; 3 ()
+;
+;  sta WSYNC
+;
+;  jmp _last_setup_scanline
 
-  ; 3rd scanline ==============================================================
-  sta HMOVE ; 3 (3)
-  ; wait 23 cycles
-  dec $2D   ; 5 (8)   2 bytes / 2
-  dec $2D   ; 5 (13)  2 bytes / 4
-  dec $2D   ; 5 (13)  2 bytes / 4
-  ;php       ; 3 (16)  1 byte  / 5
-  ;plp       ; 4 (20)  1 byte  / 6
-  nop       ; 2 (22)
-  nop       ; 2 (22)
-  sta RESP1  ; 3 (26)
-  sta RESBL  ; 3 (29)
-  ; now hit HMOVE with the most possible amount to the left in this scanline
-  ;lda #0
-  lda #$70
-  sta HMP1
-  sta HMBL
-
-  sta WSYNC
-
-  ; 4th scanline ==============================================================
-  sta HMOVE             ; 3 (3)
-  ; we have x < 8, 
-  ; 7 hmove -1 -> $10
-  ; 6 hmove -2 -> $20
-  ; 5 -3
-  ; 4 -4
-  ; 3 -5
-  ; 2 -6
-  ; 1 -7
-  ; 0  X
-  ; wait 24 cycles to hit
-  ; in the next scanline, we now move 
-  lda #8                ; 2 (5)
-  sec                   ; 2 (7)
-  sbc OBSTACLE_X_INT    ; 3 (9)
-  asl                   ; 2 (11)
-  asl                   ; 2 (13)
-  asl                   ; 2 (15)
-  asl                   ; 2 (17)
-  php                   ; 3 (20)
-  plp                   ; 4 (24)
-  sta $2D               ; 3 (27)
-  sta $2D               ; 3 (27)
-  lda #$70
-  sta HMP1              ; 3 ()
-  sta HMBL              ; 3 ()
-
-  sta WSYNC
-
-  jmp _last_setup_scanline
-
-_set_obstacle_x_pos_over_8_or_equal:
+;_set_obstacle_x_pos_over_8_or_equal:
   ; TODO: Improve the explanation of the 37
   ; tia cycles = x + 68 - 9 - 9 - 12 
   ; 68 TIA colour cycles ~ 22.5 6507 CPU cycles from HBLANK to the start of 
@@ -813,7 +821,7 @@ __assign_crouching_kernel:        ; - (13)
   sta PTR_MIDDLE_SECTION_KERNEL+1 ; 3 (23)
 __end_middle_section_kernel_setup:
 
-  ; TODO can remove this sec
+  ; TODO can remove this sec?
   sec              ; 2 (27/25) Set the carry ahead of time for the next scanline
 
   INSERT_NOPS 2    ; 4 (31/29) The usual "leave 24 cycles after HMOVE" shenanigan
@@ -821,11 +829,6 @@ __end_middle_section_kernel_setup:
   ; Remove the fine offsets applied to the obstacles before going to the next 
   ; scanline, also leave the other motion registers in a clear state
   sta HMCLR        ; 3 (34/32) 
-
-  lda #$20
-  sta HMP1
-  sta HMBL
-
 
   lda #$78         ; for debugging purposes
   sta COLUBK       ;
@@ -845,10 +848,11 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta HMOVE ; 3 (3)
 
   ; Draw the obstacle first
-  sta CTRLPF                     ; 3 (6)
-  lsr                            ; 2 (8)
+  ; A remainder, here A contains the 
+  sta CTRLPF                     ; 3 (6)   Enable/disable the ball
+  lsr                            ; 2 (8)   A >> 1
   sta ENABL                      ; 3 (11)
-  stx GRP1                       ; 3 (14)
+  stx GRP1                       ; 3 (14)  X contains the obstacle's sprite
 
   ; CHECK_Y_WITHIN_DINO takes 9 cycles
   CHECK_Y_WITHIN_DINO            ; 9 (23)
@@ -864,29 +868,35 @@ _sky__y_not_within_dino:         ; - (25)
   jmp _sky__end_of_1st_scanline  ; 3 (35)
 
 _sky__y_within_dino:             ; - (26)
-  ; dino missile
-  ; the data pointed by PTR_DINO_MIS0 has the following format:
+  ; --- Dino Missile Setup ---
+  ; The data pointed to by PTR_DINO_MIS0 has the following bit layout:
+  ;
   ; bit index: 7 6 5 4 3 2 1 0
   ;            \-----/ \-/ ^
   ;             HMM0    |  |
   ;                     |  +-- ENAM0
   ;                   NUSIZ0 (need to be shifted to the left twice)
-  LAX (PTR_DINO_MIS0),y          ; 5 (31)
-  asl                            ; 2 (33)
-  asl                            ; 2 (35)
-  sta NUSIZ0                     ; 3 (38)
-  ; thanks to LAX, reg X will have a copy of the data encoded in *PTR_DINO_MIS0
-  ; which means prior to shifting, hence the HMM0 can be applied, and at this
-  ; point, more than 24 CPU cycles had passed since 'sta HMOVE', which means 
-  ; HMMx registers can be written to without side effects. First is to clear
-  ; the HMP1 and HMBL registers in one go using HMCLR, which also clears the 
-  ; other HMMx registers but is fine because from this point, the fine offsets
-  ; for the dino are written to HMM0 and HMP0
-  sta HMCLR                      ; 3 (41)
-  stx HMM0                       ; 3 (44)
-  ; Also thanks to the above's LAX instruction, reg X will contain the orignal
-  ; ENAM0 state which will be kept until the 2nd scanline. So no updates 
-  ; reg X can happen from this moment
+  ;
+  ; LAX (an undocumented/illegal opcode) loads the byte at (PTR_DINO_MIS0),Y
+  ; into both A and X registers simultaneously. This gives us:
+  ; - A: to extract and store the shifted NUSIZ0 value
+  ; - X: a copy of the original byte for HMM0 and ENAM0 logic later
+  ;
+  LAX (PTR_DINO_MIS0),y  ; 5 (31) - Load config byte into A and X
+  asl                    ; 2 (33)
+  asl                    ; 2 (35)
+  sta NUSIZ0             ; 3 (38)
+
+  ; By now, 24+ CPU cycles have passed since the last HMOVE, meaning we can
+  ; safely modify HMMx registers without triggering unwanted shifts.
+  ; First, we use HMCLR to reset HMP1 and HMBL. It also clears all HMMx regs,
+  ; which is fine — HMM0 and HMP0 are about to be updated anyway.
+  sta HMCLR                    ; 3 (41) - Clear horizontal motion registers
+  stx HMM0                     ; 3 (44) - Restore HMM0 from original byte
+
+  ; X still holds the unmodified value loaded by LAX. This includes the ENAM0
+  ; bit, which will be used later in the second scanline. So X can't be written
+  ; to from this moment.
 
   ; dino graphics offset
   lda (PTR_DINO_OFFSET),y        ; 5 (49)
@@ -896,25 +906,27 @@ _sky__y_within_dino:             ; - (26)
   ; scanline, this implies not touching reg A for the rest of this scan line
   lda (PTR_DINO_SPRITE),y        ; 5 (57)
 
-_sky__end_of_1st_scanline:       ; - (39/57)
-  sec                            ; 2 (41/59) Set the carry for the sbc instruction
-                                 ; that will happen in the next scanline for the
-                                 ; Y-bounds check of the ptero
-  sta WSYNC                      ; 3 (44/62)
+_sky__end_of_1st_scanline: ; - (39/57)
+  sec                      ; 2 (41/59) - Set the carry for the sbc instruction
+                           ; that will happen in the next scanline for the
+                           ; Y-bounds check of the ptero
+  sta WSYNC                ; 3 (44/62)
 
   ; 2nd scanline ==============================================================
                                  ; - (0)
   sta HMOVE                      ; 3 (3)
-  sta GRP0                       ; 3 (6)
-  stx ENAM0                      ; 3 (9)
+  sta GRP0                       ; 3 (6) - Dino sprite
+  stx ENAM0                      ; 3 (9) - Toggle missile for dino extra detail
+                                 ; in this scanline (if needed)
 
   ; 'sec' is invoked at the end of the 1st scanline (saving 2 cycles here)
   CHECK_Y_WITHIN_PTERO_IGNORING_CARRY  ; 7 (16)
-  bcs _sky__y_within_ptero   ; 2/3 (18/19)
+  bcs _sky__y_within_ptero             ; 2/3 (18/19)
+
 _sky__y_not_within_ptero:        ; - (18)
   lda #0                         ; 2 (20)
   tax                            ; 2 (22)
-  nop                            ; 2 (24) needed to reach 24 cycles afte
+  nop                            ; 2 (24) needed to reach 24 cycles after
   nop                            ; 2 (26) strobing HMOVE
   ; Remove HMP0 and HMM0 fine offsets so they don't keep shifting the dino
   ; when jumping back to the 1st scanline. Doing HMCLR is fine because there
@@ -941,13 +953,13 @@ _sky__y_within_ptero:            ; - (19)
   sta HMCLR                      ; 3 (27)
 
   ; ptero ball
-  ; the data pointed by PTR_OBSTACLE_BALL has the same format as the dino's:
+  ; the data pointed by PTR_OBSTACLE_BALL has the same format as the dino's 
+  ; missile:
   ; bit index: 7 6 5 4 3 2 1 0
   ;            \-----/ \-/ ^
   ;             HMBL    |  |
   ;                     |  +-- ENABL
   ;                   CTRLPF (needs to be shifted to the left twice)
-  ; ball
   lda (PTR_OBSTACLE_BALL),y      ; 5 (24)
   ; thanks to LAX, reg X will have a copy of the data encoded in
   ; (*PTR_OBSTACLE_BALL) which means is a copy of the data prior to shifting,
@@ -983,32 +995,28 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 ; 1. Obstacles only: This region draws obstacles (either cacti or pterodactyl)
 ;    *without* the dino, following the same logic as in
 ;    'cactus_area_kernel.' It covers 15 + 7 = 22 double scanlines:
-;    15 empty 2x scanlines from the top to where the dino'shead would be when
-;    standing, plus an additional 7 scanlines since the dino is now crouching.
+;    15 no-dino 2x scanlines from the top to where the dino's head would begin
+;    when standing, plus 7 no-dino scanlines from the head to where the actual
+;    crouching starts.
 ;
 ; 2. Dino head and body: This sub-kernel draws the dino's head and body, as 
 ;    well as the obstacles:
 ;
-;                             GRP0 (8 pixels)
-;                               /      \
-;                              | ██████ |
-;                 ░  ▓▓▓▓▓▓▓▓  |██ █████|   <-- missile set to size 8
-;                 ░░░░░XXX▓▓▓▓▓|████████|   \
-;                 ░░░░░XXX▓▓▓▓▓|████████|   |  Both the ball and missile are
-;                  ░░░░XXXX▓▓▓▓|████████|    > set to size 8 in all these
-;                  ░░░░XXXX▓▓▓▓|████    |   |  scanlines.
-;                   ░░XXXXXX▓▓ | █████  |   /
-;                  |███ ██  |▓▓   <-- missile set to size 2
-;                   \      /
-;                  GRP0 (8 pixels)
+;                               ██████ 
+;                 ░  ▓▓▓▓▓▓▓▓  ██ █████
+;                 ░░░░░XXX▓▓▓▓▓████████
+;                 ░░░░░XXX▓▓▓▓▓████████
+;                  ░░░░XXXX▓▓▓▓████████
+;                  ░░░░XXXX▓▓▓▓████    
+;                   ░░XXXXXX▓▓  █████  
+;                   ███ ██   ▓▓
 ;
-; The rest of the dino (the legs) will be drawn by the floor kernel, as they
-; match the same position as the dino when standing:
+; The rest of the dino (the legs) will be drawn by the floor kernel, as their
+; graphics match the same position as the dino when standing:
 ;                  |██   ██ |
 ;                  |█       |
 ;                  |██      |
 ;
-; Legend:    ▒ missile pixels    █ GRP0 pixels    X overlapping pixels
 
 _crouching_region_1:
   sta WSYNC                 ; 3 (from sky_kernel: 62 -> 65)
@@ -1031,11 +1039,9 @@ _crouching_region_1:
                                         ; kernel, +1 turns Y ≥ C into Y > C
   bcs _crouching_region_1               ; 2/3
 
-_crouching_region_2:
-  sta WSYNC                 ; 3 (3)
+  sta WSYNC                 ; 3 (TODO: Update cycle count here)
+_crouching_region_2:        ; - (0)
   ; 1st scanline ==============================================================
-  ; TODO: Copy the obstacle drawing code from the catus kernel here
-                            ; - (0)
   sta HMOVE                 ; 3 (3)
 
   lda (PTR_DINO_SPRITE_2),y           ; 5 (8)
@@ -1240,7 +1246,7 @@ _scanline2__end_of_setup:
   sta GRP0                              ; 3
   ;sta GRP0                              ; 3
 
-  lda #%00111111
+  lda #%00011111
   sta PF1
 
   lda #255
