@@ -25,43 +25,63 @@ DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y+#DINO_HEIGHT
 
-SKY_LINES = #31
-CACTUS_LINES = #30
-FLOOR_LINES = #2
-GROUND_LINES = #9
+SKY_SCANLINES = #31
+CACTUS_SCANLINES = #30
+FLOOR_SCANLINES = #2
+GRAVEL_SCANLINES = #9
 
-DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_LINES+#FLOOR_LINES+#GROUND_LINES
+DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_SCANLINES+#FLOOR_SCANLINES+#GRAVEL_SCANLINES
 SKY_MAX_Y = #DINO_PLAY_AREA_LINES
 SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
 CACTUS_AREA_MAX_Y = #SKY_MIN_Y
-CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_LINES
-GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y-#FLOOR_LINES
-GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GROUND_LINES
+CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_SCANLINES
+GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y-#FLOOR_SCANLINES
+GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GRAVEL_SCANLINES
 
-; The 1st region of the crouching area covers 15 + 7 = 22 double scanlines:
-; 15 empty 2x scanlines from the top to where the dino's head would be when
-; standing, plus an additional 7 scanlines without the dino, since is now
-; crouching. The 2nd region is 8 2x scanlines, because the dino crouching
-; sprite spans 8 scanlines without the legs (which are drawn by the legs
-; and floor kernel)
-CROUCHING_LINES_REGION_1 = #15+#7
-CROUCHING_LINES_REGION_2 = #8
-CROUCHING_LINES = #CROUCHING_LINES_REGION_1+#CROUCHING_LINES_REGION_2
+; Crouching Kernel Regions
+; -----------------------------------------------------------------------------
+; The crouching sprite is divided into two regions, measured in 2x scanlines:
+;
+; Region 1: 15 + 7 + 1 = 23 scanlines
+; - The first 15 scanlines are empty (above the dino), spanning from the top of
+;   the screen down to where the dino's head would be if standing. Only the 
+;   obstacle is drawn in this area.
+; - The next 7 scanlines are also empty—these would normally include the dino's
+;   head, but since it's crouching, only the obstacle is drawn here as well.
+; - The last scanline in this region draws the top of the crouching dino's head.
+;   It uses a 1x pixel sprite pattern and no missiles, which breaks the 
+;   optimization strategy used in Region 2. For this reason, it's included in 
+;   Region 1. This scanline also serves as a setup line for the next phase 
+;   of the kernel.
+;
+; Region 2: 7 scanlines
+; - These scanlines make up the main body of the crouching dino.
+; - They share a consistent sprite pattern, enabling several optimizations:
+;   - GRP0 stays in a fixed position, avoiding HMM0 updates.
+;   - NUSIZ0 remains unchanged (2x size).
+;   - Both missiles will remain enabled, only updating offsets and sizes.
+;
+; The dino's legs are drawn by the "legs and floor" kernel,
+; which runs immediately after Region 2.
 
-  ; The crouching kernel and the cactus kernel cover the same area of
-  ; the screen, hence they have to have the same Y position and height
-  IF CROUCHING_LINES != CACTUS_LINES
-    ECHO "Error: CROUCHING_LINES should be equal to CACTUS_LINES"
+CROUCHING_SCANLINES_REGION_1 = #15+#8
+CROUCHING_SCANLINES_REGION_2 = #7
+CROUCHING_SCANLINES = #CROUCHING_SCANLINES_REGION_1+#CROUCHING_SCANLINES_REGION_2
+
+  ; Sanity Check
+  ; ---------------------------------------------------------------------------
+  ; The crouching and cactus kernels share the same screen region,
+  ; so they must match in both vertical position and total scanline count.
+  IF CROUCHING_SCANLINES != CACTUS_SCANLINES
+    ECHO "Error: CROUCHING_SCANLINES must equal CACTUS_SCANLINES"
     ERR
   ENDIF
 
 ; Crouching area starts at the same location where the cactus area is at
 CROUCHING_REGION_1_MAX_Y = #CACTUS_AREA_MAX_Y
-CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_LINES_REGION_1
-CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_LINES_REGION_1
+CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_SCANLINES_REGION_1
 CROUCHING_REGION_2_MAX_Y = #CROUCHING_REGION_1_MIN_Y
-CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_LINES_REGION_2
-
+CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_SCANLINES_REGION_2
 
 DINO_JUMP_INIT_VY_INT = #5
 DINO_JUMP_INIT_VY_FRACT = #40
@@ -69,6 +89,9 @@ DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #98
 
 PTERO_HEIGHT = #17
+; To save a cycle per scanline, all the obstacles are to have the max obstacle
+; height, it wastes some rom though
+OBSTACLE_HEIGHT = #PTERO_HEIGHT
 
 DEBUG_OBSTACLE_X_POS = #149
 
@@ -146,14 +169,11 @@ RND_SEED                   .word   ; 2 bytes  (43)
 ; Kernel Pointer
 PTR_MIDDLE_SECTION_KERNEL  .word   ; 2 bytes  (45)
 
-
-; This section is to include variables for performance, to save cycles in tight 
-; spots. They could potentially be reused under different names by using a new
-; declaration (maybe use new ORG $something that directly points to the offset
-; of this variable to assign a new name)
-
-;DINO_IS_CROUCHING         .byte   ; 1 byte (performance variable, to save 2
-                                  ; cycles in sky_kernel and others)
+; This section is to include variables that share the same memory but are 
+; referenced under different names, something like temporary variables that 
+; can be used differently by different kernels (which are only active one 
+; at a time, leaving no risk of overlap)
+CROUCHING_REGION_2_SCANLINE_INDEX .byte  ; 1 byte (46)
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -840,21 +860,14 @@ __end_middle_section_kernel_setup:
   tax
 
 sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
-
-  sta WSYNC        ; 3 (37/35)
-
+  sta WSYNC      ; 3 (37/35)
   ; 1st scanline ==============================================================
-            ; - (0)
-  sta HMOVE ; 3 (3)
+                 ; - (0)
+  sta HMOVE      ; 3 (3)
 
-  ; Draw the obstacle first
-  ; A remainder, here A contains the 
-  sta CTRLPF                     ; 3 (6)   Enable/disable the ball
-  lsr                            ; 2 (8)   A >> 1
-  sta ENABL                      ; 3 (11)
-  stx GRP1                       ; 3 (14)  X contains the obstacle's sprite
+  ; Draw the obstacle first then load dino's data for the next scanline
+  DRAW_OBSTACLE  ; 11 (14)
 
-  ; CHECK_Y_WITHIN_DINO takes 9 cycles
   CHECK_Y_WITHIN_DINO            ; 9 (23)
   bcs _sky__y_within_dino        ; 2/3 (25/26)
 
@@ -872,9 +885,9 @@ _sky__y_within_dino:             ; - (26)
   ; The data pointed to by PTR_DINO_MIS0 has the following bit layout:
   ;
   ; bit index: 7 6 5 4 3 2 1 0
-  ;            \-----/ \-/ ^
-  ;             HMM0    |  |
-  ;                     |  +-- ENAM0
+  ;            \_____/ \_/ ↑
+  ;             HMM0    │  │
+  ;                     │  └── ENAM0
   ;                   NUSIZ0 (need to be shifted to the left twice)
   ;
   ; LAX (an undocumented/illegal opcode) loads the byte at (PTR_DINO_MIS0),Y
@@ -920,14 +933,14 @@ _sky__end_of_1st_scanline: ; - (39/57)
                                  ; in this scanline (if needed)
 
   ; 'sec' is invoked at the end of the 1st scanline (saving 2 cycles here)
-  CHECK_Y_WITHIN_PTERO_IGNORING_CARRY  ; 7 (16)
+  CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY  ; 7 (16)
   bcs _sky__y_within_ptero             ; 2/3 (18/19)
 
 _sky__y_not_within_ptero:        ; - (18)
   lda #0                         ; 2 (20)
   tax                            ; 2 (22)
-  nop                            ; 2 (24) needed to reach 24 cycles after
-  nop                            ; 2 (26) strobing HMOVE
+  nop                            ; 2 (24) - These are needed to reach 24
+  nop                            ; 2 (26) cycles after strobing HMOVE
   ; Remove HMP0 and HMM0 fine offsets so they don't keep shifting the dino
   ; when jumping back to the 1st scanline. Doing HMCLR is fine because there
   ; won't be fine offsets for the ptero (we are in y_not_within_ptero)
@@ -956,9 +969,9 @@ _sky__y_within_ptero:            ; - (19)
   ; the data pointed by PTR_OBSTACLE_BALL has the same format as the dino's 
   ; missile:
   ; bit index: 7 6 5 4 3 2 1 0
-  ;            \-----/ \-/ ^
-  ;             HMBL    |  |
-  ;                     |  +-- ENABL
+  ;            \_____/ \_/   ↑
+  ;             HMBL    │    │
+  ;                     │    └── ENABL
   ;                   CTRLPF (needs to be shifted to the left twice)
   lda (PTR_OBSTACLE_BALL),y      ; 5 (24)
   ; thanks to LAX, reg X will have a copy of the data encoded in
@@ -1019,44 +1032,103 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 ;
 
 _crouching_region_1:
-  sta WSYNC                 ; 3 (from sky_kernel: 62 -> 65)
+  sta WSYNC        ; 3 (from sky_kernel: 62 -> 65)
   ; 1st scanline ==============================================================
-                            ; - (0)
-  sta HMOVE                 ; 3 (3)
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
 
-  ; TODO: Copy the obstacle drawing code from the catus kernel here
+  DRAW_OBSTACLE    ; 11 (14)
 
-  sta WSYNC                 ; 3 (3)
+  lda #0           ; 2 (16) - Clear reg A in case this is not the last scanline
+                   ; this will then leave the dino empty in the next scanline
 
+  ; Check if we are in the last scanline of the first region
+  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (8)
+  bcs _region_1__end_of_1st_scanline  ; 2/3 (20/21)
+
+  ; If execution reaches here, then this is the last scaline of the first
+  ; region, that means in the next scanline the top of the dino's head when
+  ; is crouching has to be drawn so prepare things for that to happen
+                  ; - (20)
+  lda #%00000101  ; 2 (22) - GRP0 at 2px size
+  sta NUSIZ0      ; 3 (25)
+  lda #%00001111  ; 2 (27) - Load the top of the head of the dino in reg A
+  ;
+  ;                 ████████  <-- this will be drawn in the next scanline
+  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;
+
+  ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the obstacle
+  ; in the second scanline
+  sta HMCLR                           ; 3 (30)
+  jmp _region_1__end_of_1st_scanline  ; 3 (33)
+
+_region_1__end_of_1st_scanline: ; - (21/33)
+  sta $2D ; 3 (24/37) - Waste 5 cycles to make sure that CPU is past 24 cycles
+          ; within the scanline, and be able to clear HMMx
+
+  ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the obstacle
+  ; in the second scanline
+  sta HMCLR        ; 3 (27/40)
+
+  sta WSYNC        ; 3 (30/43)
   ; 2nd scanline ==============================================================
-                            ; - (0)
-  sta HMOVE                 ; 3 (3)
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
 
-  ; TODO: Copy the obstacle drawing code from the catus kernel here
+  sta GRP0         ; 3 (6) - Draw the dino's top of the head (if this is the
+                   ; last scanline)
+
+  CHECK_Y_WITHIN_OBSTACLE          ; 9 (15)
+  bcs _region_1__y_within_obstacle ; 2/3 (17/18)
+
+_region_1__y_not_within_obstacle:  ; - (17)
+  lda #0    ; 2 (19)
+  tax       ; 2 (21)
+  nop       ; 2 (23)
+  sta HMCLR ; 3 (26)
+
+
+_region_1__y_within_obstacle:
 
   dey                                   ; 2
   cpy #CROUCHING_REGION_1_MIN_Y+#1      ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
   bcs _crouching_region_1               ; 2/3
 
+  ; If the crouching region 1 is complete, then the crouching region 2 
+  ; is next, which we know spans for 8 scanlines
+
   sta WSYNC                 ; 3 (TODO: Update cycle count here)
-_crouching_region_2:        ; - (0)
+
+_crouching_region_2:
   ; 1st scanline ==============================================================
-  sta HMOVE                 ; 3 (3)
+                 ; - (0)
+  sta HMOVE      ; 3 (3)
 
-  lda (PTR_DINO_SPRITE_2),y           ; 5 (8)
-  sta DINO_SPRITE                     ; 3 (11)
+  ; Draw the obstacle first, then load the dino's crouching data to draw
+  ; son the next canline
+  DRAW_OBSTACLE  ; 11 (14)
 
-  lda (PTR_DINO_OFFSET_2),y           ; 5 (16)
-  sta HMP0                            ; 3 (19)
+  ; Here is the trick, we know that Y is going to be from 
+  ; #CROUCHING_REGION_2_MAX_Y to #CROUCHING_REGION_2_MIN_Y, so we can use 
+  ; these (actually #CROUCHING_REGION_2_MAX_Y) to offset the address of the 
+  ; crouching dino sprite, so we can use an 'lda aaaa,y' which only incurs in 4
+  ; cycles
+  lda (PTR_DINO_SPRITE_2),y   ; 5 (8)
+  sta DINO_SPRITE             ; 3 (11)
 
-  lda (PTR_DINO_MIS0_COPY),y              ; 5 (24)
-  DECODE_MISSILE_PLAYER 0             ; 13 (37)
+  lda (PTR_DINO_OFFSET_2),y   ; 5 (16)
+  sta HMP0                    ; 3 (19)
 
-  lda (PTR_DINO_MIS1),y               ; 5 (42)
-  DECODE_MISSILE_PLAYER 1             ; 13 
+  lda (PTR_DINO_MIS0_COPY),y      ; 5 (24)
+  DECODE_MISSILE_PLAYER 0     ; 13 (37)
 
-  sta WSYNC                           ; 3 (57)
+  lda (PTR_DINO_MIS1),y       ; 5 (42)
+  DECODE_MISSILE_PLAYER 1     ; 13 
+
+  sta WSYNC                   ; 3 (57)
 
   ; 2nd scanline ==============================================================
                             ; - (0)
