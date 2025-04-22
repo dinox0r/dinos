@@ -30,9 +30,9 @@ CACTUS_SCANLINES = #30
 FLOOR_SCANLINES = #2
 GRAVEL_SCANLINES = #9
 
-DINO_PLAY_AREA_LINES = #SKY_LINES+#CACTUS_SCANLINES+#FLOOR_SCANLINES+#GRAVEL_SCANLINES
-SKY_MAX_Y = #DINO_PLAY_AREA_LINES
-SKY_MIN_Y = #SKY_MAX_Y-#SKY_LINES
+DINO_PLAY_AREA_SCANLINES = #SKY_SCANLINES+#CACTUS_SCANLINES+#FLOOR_SCANLINES+#GRAVEL_SCANLINES
+SKY_MAX_Y = #DINO_PLAY_AREA_SCANLINES
+SKY_MIN_Y = #SKY_MAX_Y-#SKY_SCANLINES
 CACTUS_AREA_MAX_Y = #SKY_MIN_Y
 CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_SCANLINES
 GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y-#FLOOR_SCANLINES
@@ -42,19 +42,19 @@ GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GRAVEL_SCANLINES
 ; -----------------------------------------------------------------------------
 ; The crouching sprite is divided into two regions, measured in 2x scanlines:
 ;
-; Region 1: 15 + 7 + 1 = 23 scanlines
+; Region 1: 15 + 6 + 1 = 22 scanlines
 ; - The first 15 scanlines are empty (above the dino), spanning from the top of
-;   the screen down to where the dino's head would be if standing. Only the 
+;   the screen down to where the dino's head would be if standing. Only the
 ;   obstacle is drawn in this area.
-; - The next 7 scanlines are also empty—these would normally include the dino's
+; - The next 6 scanlines are also empty—these would normally include the dino's
 ;   head, but since it's crouching, only the obstacle is drawn here as well.
 ; - The last scanline in this region draws the top of the crouching dino's head.
-;   It uses a 1x pixel sprite pattern and no missiles, which breaks the 
-;   optimization strategy used in Region 2. For this reason, it's included in 
-;   Region 1. This scanline also serves as a setup line for the next phase 
+;   It uses a 1x pixel sprite pattern and no missiles, which breaks the
+;   optimization strategy used in Region 2. For this reason, it's included in
+;   Region 1. This scanline also serves as a setup line for the next phase
 ;   of the kernel.
 ;
-; Region 2: 7 scanlines
+; Region 2: 8 scanlines
 ; - These scanlines make up the main body of the crouching dino.
 ; - They share a consistent sprite pattern, enabling several optimizations:
 ;   - GRP0 stays in a fixed position, avoiding HMM0 updates.
@@ -64,8 +64,8 @@ GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GRAVEL_SCANLINES
 ; The dino's legs are drawn by the "legs and floor" kernel,
 ; which runs immediately after Region 2.
 
-CROUCHING_SCANLINES_REGION_1 = #15+#8
-CROUCHING_SCANLINES_REGION_2 = #7
+CROUCHING_SCANLINES_REGION_1 = #15+#7
+CROUCHING_SCANLINES_REGION_2 = #8
 CROUCHING_SCANLINES = #CROUCHING_SCANLINES_REGION_1+#CROUCHING_SCANLINES_REGION_2
 
   ; Sanity Check
@@ -638,7 +638,7 @@ clouds_kernel_setup:;-->>> 2 scanlines <<<-----
 clouds_kernel:;-------->>> 15 scanlines <<<----
   DEBUG_SUB_KERNEL #$4C,#15
 
-sky_setup_kernel:;----->>> 5 scanlines <<<-----
+dino_setup_kernel:;----->>> 5 scanlines <<<-----
   ; From the DEBUG_SUB_KERNEL macro:
   ;  sta HMOVE   3 cycles (3 so far in this scanline)
   ;  bne .loop   not taken, so 2 cycles (5)
@@ -650,13 +650,31 @@ sky_setup_kernel:;----->>> 5 scanlines <<<-----
   sta HMOVE     ; 3 (3)
 
   ; Set GRP0 coarse position
+  ; 28 cycles for dino in standing position, and 27 for crouching
   ;
   ; TODO: These instructions could be replaced by something more useful
-  INSERT_NOPS 11   ; 22 (25)
+  php        ; 3 (6) - Adds 7 cycles so time aligns
+  plp        ; 4 (10) -
 
-  sta RESP0        ; 3 (28) TV beam should now be at a dino coarse x pos
-  sta WSYNC        ; 3 (31)
+  php        ; 3 (13)
+  plp        ; 4 (17)
 
+  lda #FLAG_DINO_CROUCHING      ; 2 (19)
+  bit GAME_FLAGS                ; 3 (22)
+  sbeq _dino_is_not_crouching_1 ; 2/3 (24/25)
+
+                                ; - (24)
+  sta RESP0                     ; 3 (27)
+  jmp _end_grp0_coarse_position ; 3 (30)
+
+_dino_is_not_crouching_1:       ; - (25)
+  sta RESP0  ; 3 (28) - TV beam is now at dino's x pos
+             ;
+
+_end_grp0_coarse_position:
+  lda #$10         ; 2 (30/32) - In both cases, Player 0 has to be shifted
+  sta HMP0         ; 3 (33/35) to the left by 1 pixel
+  sta WSYNC        ; 3 (36/39)
   ; 2nd scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -679,16 +697,16 @@ sky_setup_kernel:;----->>> 5 scanlines <<<-----
   nop
   ; using the sbeq macro here as is super important to get the timing
   ; right in this section
-  sbeq _dino_is_not_crouching ; 2/3 (13/14)
+  sbeq _dino_is_not_crouching_2 ; 2/3 (13/14)
                        ; - (13)
-  INSERT_NOPS 1        ; 6 (19)
+  nop                  ; 2 (15)
 
-  lda COLUBK           ; 3 (22)
-  sta RESM1            ; 3 (25)
-  sta RESM0            ; 3 (28) <-- same place as GRP0
+  lda COLUBK           ; 3 ()
+  sta RESM1            ; 3 ()
+  sta RESM0            ; 3 () <-- same place as GRP0
   jmp _end_m0_coarse_position  ; 3 (31)
 
-_dino_is_not_crouching: ; - (14)
+_dino_is_not_crouching_2: ; - (14)
   INSERT_NOPS 2        ; 8 (22)
 
   sta RESM0            ; 3 (25) <-- 3 cycles before GRP0
@@ -1033,6 +1051,7 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 
 _crouching_region_1:
   sta WSYNC        ; 3 (from sky_kernel: 62 -> 65)
+                   ;   (from this kernel: 67 -> 70)
   ; 1st scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -1042,65 +1061,82 @@ _crouching_region_1:
   lda #0           ; 2 (16) - Clear reg A in case this is not the last scanline
                    ; this will then leave the dino empty in the next scanline
 
-  ; Check if we are in the last scanline of the first region
-  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (8)
-  bcs _region_1__end_of_1st_scanline  ; 2/3 (20/21)
+  ; Check if this is the last scanline of the first region
+  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (18)
+  bne _region_1__end_of_1st_scanline  ; 2/3 (20/21)
 
-  ; If execution reaches here, then this is the last scaline of the first
-  ; region, that means in the next scanline the top of the dino's head when
-  ; is crouching has to be drawn so prepare things for that to happen
+  ; Final scanline of Region 1:
+  ; The next scanline will draw the top of the crouching dino's head.
+  ; GRP0 and sprite data must be prepared in advance.
                   ; - (20)
-  lda #%00000101  ; 2 (22) - GRP0 at 2px size
+  lda #%00000101  ; 2 (22) - Configure GRP0 for 2-pixel width (2x size)
   sta NUSIZ0      ; 3 (25)
-  lda #%00001111  ; 2 (27) - Load the top of the head of the dino in reg A
+  lda #%00001111  ; 2 (27) - Sprite pattern for the top of the crouching dino's head
   ;
-  ;                 ████████  <-- this will be drawn in the next scanline
-  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
-  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
-  ;
+  ;         ________████████  <-- this will be drawn in the next scanline
+  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒     '██' are the non-empty 2px GRP0 pixels
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒      and '__' are the 2px GRP0 spaces
+  ;                                (1 and 0 respectively)
 
-  ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the obstacle
-  ; in the second scanline
+  ; Clear HMP1 and HMBL fine offsets to prevent obstacle shifting
+  ; on the following scanline (Region 2 setup begins)
   sta HMCLR                           ; 3 (30)
-  jmp _region_1__end_of_1st_scanline  ; 3 (33)
 
-_region_1__end_of_1st_scanline: ; - (21/33)
-  sta $2D ; 3 (24/37) - Waste 5 cycles to make sure that CPU is past 24 cycles
-          ; within the scanline, and be able to clear HMMx
-
+_region_1__end_of_1st_scanline: ; - (max count up to here is 30)
   ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the obstacle
   ; in the second scanline
-  sta HMCLR        ; 3 (27/40)
+  sta HMCLR        ; 3 (33)
 
-  sta WSYNC        ; 3 (30/43)
+  sta WSYNC        ; 3 (36)
   ; 2nd scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
   sta GRP0         ; 3 (6) - Draw the dino's top of the head (if this is the
-                   ; last scanline)
+                   ; last scanline
 
   CHECK_Y_WITHIN_OBSTACLE          ; 9 (15)
   bcs _region_1__y_within_obstacle ; 2/3 (17/18)
 
-_region_1__y_not_within_obstacle:  ; - (17)
-  lda #0    ; 2 (19)
-  tax       ; 2 (21)
-  nop       ; 2 (23)
-  sta HMCLR ; 3 (26)
+_region_1__y_not_within_obstacle:    ; - (17)
+  lda #0                             ; 2 (19)
+  tax                                ; 2 (21)
+  jmp _region_1__end_of_2nd_scanline ; 3 (24)
 
+_region_1__y_within_obstacle:    ; - (18)
 
-_region_1__y_within_obstacle:
+  ; See label '_sky__y_within_ptero' for explanation on this:
+  LAX (PTR_OBSTACLE_SPRITE),y    ; 5 (23)
+  lda (PTR_OBSTACLE_BALL),y      ; 5 (28)
+  sta HMBL                       ; 3 (31)
+  asl                            ; 2 (33)
+  asl                            ; 2 (35)
 
-  dey                                   ; 2
-  cpy #CROUCHING_REGION_1_MIN_Y+#1      ; Similarly that what we did in the sky
-                                        ; kernel, +1 turns Y ≥ C into Y > C
-  bcs _crouching_region_1               ; 2/3
+_region_1__end_of_2nd_scanline:  ; - (24/35)
+
+  ; Check if this is the last scanline of the first region
+  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (26/37)
+  bne _region_1__check_end_of_region  ; 2/3 (max count here 37 -> 39/40)
+  ; If this is the last scanline of this region, some preparation needs to be
+  ; done for the next region, first save reg A in the stack to keep
+  ; the graphics for the obstacle that need to be drawn in the first scanline
+  ; of the region 2
+  pha             ; 3 (40 -> 43)
+  lda #$F0        ; 2 (43)
+  sta HMM0        ; 3 (46) - Move GRP0 1 pixel to the right
+  lda #2          ; 2 (48)
+  sta ENAM0       ; 3 (51)
+  sta ENAM1       ; 3 (54)
+  pla             ; 4 (58)
+
+_region_1__check_end_of_region:         ; - (max possible count here is 58)
+  dey                                   ; 2 (60)
+  cpy #CROUCHING_REGION_1_MIN_Y         ; 2 (62)
+  bpl _crouching_region_1               ; 2/3 (64/65)
 
   ; If the crouching region 1 is complete, then the crouching region 2 
-  ; is next, which we know spans for 8 scanlines
-
-  sta WSYNC                 ; 3 (TODO: Update cycle count here)
+  ; is next, which spans for 7 scanlines
+  sta WSYNC                             ; 3 (67)
 
 _crouching_region_2:
   ; 1st scanline ==============================================================

@@ -137,12 +137,12 @@ _draw_sprite:     ; - (17)
   lda #%11010111  ; 2 (24)
   sta GRP1        ; 3 (27)
   lda #2  ; 
-  sta ENAM1
   sta ENAM0
+  sta ENAM1
   lda #%00100101  ; 2 (19) 2x GRP1 4x M1
-  sta NUSIZ1      ; 3 (22)
+  sta NUSIZ0      ; 3 (22)
   lda #1
-  sta NUSIZ0
+  sta NUSIZ1
 
 _end_of_scanline:
   dey             ; 2 (34)

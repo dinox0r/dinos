@@ -155,16 +155,15 @@ DINO_SPRITE1_OFFSETS:
   .byte $00  ;  ████████
   .byte $00  ;  ████████
   .byte $F0  ;   ███████
-  .byte $10  ;  ████████  ←─────────────────┐ <- this -1 px offset
-  .ds 1      ;                              │
-DINO_SPRITE1_OFFSETS_END = * ;              │
-;                                           │
-; DINO MISSILE OFFSET                       └────────────────────────────────┐
-;                                                                            │
-; MP0 is strobed at a moment T                                               │
-;  │        ┌── then GRP0 is strobed at T+3 CPU cycles (9 pixels) after MP0  │
-;  │        │                                                                │
-;  │        │<─── BUT all GPR0 will be offset by -1, so it stitches with M0 ─┘
+  .byte $00  ;  ████████
+  .ds 1      ;
+DINO_SPRITE1_OFFSETS_END = *
+
+; DINO MISSILE OFFSET
+;
+; MP0 is strobed at a moment T
+;  │        ┌── then GRP0 is strobed at T+3 CPU cycles (9 pixels) after MP0
+;  │        │   BUT GPR0 will be offset by -1, so it stitches with M0
 ;  │        │
 ;  ↓        ↓
 ;  |        |████████
