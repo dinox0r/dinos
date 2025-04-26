@@ -231,7 +231,7 @@ DINO_MIS_OFFSETS_END = *
 ;    X overlapping pixels
 ;    ▯ Non drawn by the current kernel
 ;
-;                               ████████
+;                       ________████████  <-- this will be drawn in the next scanline
 ;                 ░   ▒▒▒X███  ██ ░██████
 ;                 ███████████████████████
 ;                 ███████████████████████
@@ -269,77 +269,45 @@ DINO_MIS_OFFSETS_END = *
 ;                 ⏐   ▯     ⏐    > will be drawn by the floor kernel
 ;                 ⏐   ▯▯    ⏐   \
 ;
+;
+;   ░   ▒▒▒X███  ██ ░██████  #%11010111
+;   ▒▒▒▒▒▒▒X███████████████  #%11111111
+;   ▒▒▒▒▒▒▒X███████████████  #%11111111
+;    ▒▒▒▒▒▒XX██████████████  #%11111111
+;    ▒▒▒▒▒▒XX████████░       #%11111000
+
+;     ██████████  ███████  
+
+;     ▒▒▒▒▒XXX█    ██████  
+
+;      ███ ██  ██
 DINO_CROUCHING_SPRITE:
-  .ds 1             ; |        |
-  .byte %11101100   ; |███ ██  |
-  .byte %00111001   ; |  ███  █|
-  .byte %11110000   ; |████    |
-  .byte %11111111   ; |████████|
-  .byte %11111111   ; |████████|
-  .byte %11111111   ; |████████|
-  .byte %11011111   ; |██ █████|
-  .byte %01111110   ; | ██████ |
-  .ds 1             ; |        |
+  .byte %00000000
+  .byte %00000000
+  .byte %11111000
+  .byte %11111111
+  .byte %11111111
+  .byte %11111111
+  .byte %11010111
+DINO_CROUCHING_SPRITE_END = *
 
-DINO_CROUCHING_SPRITE_OFFSETS:
-            ; ⏐   ▯▯    ⏐
-            ; ⏐   ▯     ⏐                     GRP0 offset
-  .ds 1     ; ⏐   ▯▯   ▯⏐▯
-  .byte $40 ; ⏐   ███ ██⏐  ▓▓            -5
-  .byte $60 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      -6
-  .byte $00 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0
-  .byte $00 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0
-  .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
-  .byte $00 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0
-  .byte $00 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0
-  .byte $C0 ; ⏐         ⏐     ██████     +4
-  .ds 1     ; ↑         ↑
-            ; |       M0/GRP0 position (cycle 25)
-            ; BALL position (cycle 22)
-DINO_CROUCHING_SPRITE_OFFSETS_END = *
+DINO_CROUCHING_MIS_0:
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
 
-DINO_CROUCHING_MISSILE_0:
-  ;                                          offset           size
-  ;                                    HMM0 bits 7,6,5,4   NUSIZE0 bits 5,4
-  ; Enable M0 bit   ⏐   ▯▯    ⏐
-  ;            ⏐    ⏐   ▯     ⏐
-  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
-  .byte %01000110 ; ⏐   ███ ██⏐  ▓▓            -4               2
-  .byte %10001010 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +8               4
-  .byte %11101110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██        +2               8
-  .byte %00001110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████     0               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %11101110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████    +2               8
-  .byte %01011110 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████    -5               8
-  .byte %00000000 ; ⏐         ⏐     ██████      0               0
-  .ds 1           ; ↑         ↑
-  ; Missile pos (cycle 22)   M0/GRP0 position (cycle 25)
-
-DINO_CROUCHING_MISSILE_1:
-  ;                                          offset           size
-  ;                                    HMM1 bits 7,6,5,4  NUSIZE1 bits 5,4
-  ;   Enable M1 bit ⏐   ▯▯    ⏐
-  ;            ⏐    ⏐   ▯     ⏐
-  .ds 1 ;      ↓    ⏐   ▯▯   ▯⏐▯
-  .byte %00100000 ; ⏐   ███ ██⏐  ▓▓             0               0
-  .byte %11111110 ; ⏐  ░░░░░░░⏐░██  █▓▓▓▓      +1               8
-  .byte %00001110 ; ⏐ ░░░░░░XX⏐▓▓▓▓XX██         0               8
-  .byte %11111110 ; ⏐ ░░░░XXXX⏐▓▓▓▓████████    +1               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %00001110 ; ⏐░░░░░XXX▓⏐▓▓▓▓████████     0               8
-  .byte %00000010 ; ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████     0               1
-  .byte %11110000 ; ⏐         ⏐     ██████     +1               0
-  .ds 1 ;    ↑↑     ↑         ↑
-  ;          ⏐⏐     ⏐     M0/GRP0 position (cycle 25)
-  ;  Missile size   Missile pos (cycle 22)
-
-  ;
-  ; Legend:
-  ;    █ GRP0 pixels
-  ;    ▒ missile 0 pixels
-  ;    ░ missile 1 pixels
-  ;    X overlapping pixels
-  ;    ▯ Non drawn by the current kernel
+DINO_CROUCHING_MIS_1:
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
 
 PTERO_WINGS_OPEN_SPRITE:
   ; Sprite drawn as a combinatio

@@ -117,7 +117,7 @@
   ;   X - Obstacle sprite graphics, to be written to GRP1.
   ;------------------------------------------------------------------------------
   MAC DRAW_OBSTACLE   ; 11 cycles
-    sta CTRLPF        ; 3 (3)
+    sta CTRLPF        ; 3 (3) - Set the ball size
     lsr               ; 2 (5) - Shift A right once to align ENABL bit
     sta ENABL         ; 3 (8) - Enable/disable ball based on shifted bit
     stx GRP1          ; 3 (11)

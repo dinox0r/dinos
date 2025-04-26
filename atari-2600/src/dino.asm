@@ -82,7 +82,8 @@ CROUCHING_REGION_1_MAX_Y = #CACTUS_AREA_MAX_Y
 CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_SCANLINES_REGION_1
 CROUCHING_REGION_2_MAX_Y = #CROUCHING_REGION_1_MIN_Y
 CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_SCANLINES_REGION_2
-
+   ECHO "CROUCHING_REGION_2_MAX_Y =",#CROUCHING_REGION_2_MAX_Y
+   ECHO "DINO_CROUCHING_SPRITE_END =",#DINO_CROUCHING_SPRITE_END
 DINO_JUMP_INIT_VY_INT = #5
 DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
@@ -136,12 +137,8 @@ DINO_VY_FRACT              .byte   ; 1 byte   (7)
 UP_PRESSED_FRAMES          .byte   ; 1 byte   (8)
 
 PTR_DINO_SPRITE            .word   ; 2 bytes  (10)
-PTR_DINO_SPRITE_2          .word   ; 2 bytes  (12)
 PTR_DINO_OFFSET            .word   ; 2 bytes  (14)
-PTR_DINO_OFFSET_2          .word   ; 2 bytes  (16)
 PTR_DINO_MIS0              .word   ; 2 bytes  (18)
-PTR_DINO_MIS0_COPY         .word   ; 2 bytes  (20)
-PTR_DINO_MIS1              .word   ; 2 bytes  (22)
 
 ; Obstacle Variables
 OBSTACLE_TYPE              .byte   ; 1 byte   (23)
@@ -157,7 +154,6 @@ PTR_OBSTACLE_BALL          .word   ; 2 bytes  (34)
 
 ; TIA Object Control
 MISSILE_P0                 .byte   ; 1 byte   (35)
-MISSILE_P1                 .byte   ; 1 byte   (36)
 ENABLE_BALL                .byte   ; 1 byte   (37)
 BG_COLOUR                  .byte   ; 1 byte   (38)
 
@@ -173,7 +169,9 @@ PTR_MIDDLE_SECTION_KERNEL  .word   ; 2 bytes  (45)
 ; referenced under different names, something like temporary variables that 
 ; can be used differently by different kernels (which are only active one 
 ; at a time, leaving no risk of overlap)
-CROUCHING_REGION_2_SCANLINE_INDEX .byte  ; 1 byte (46)
+
+; To save the state of a register temporarily during tight situations
+TEMP                       .byte  ; 1 byte 
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -513,25 +511,6 @@ _update_jump_pos:
   jmp _end_legs_anim
 
 _crouching:
-  lda #<[DINO_CROUCHING_SPRITE - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_SPRITE_2
-  lda #>[DINO_CROUCHING_SPRITE - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_SPRITE_2+1
-
-  lda #<[DINO_CROUCHING_SPRITE_OFFSETS - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_OFFSET_2
-  lda #>[DINO_CROUCHING_SPRITE_OFFSETS - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_OFFSET_2+1
-
-  lda #<[DINO_CROUCHING_MISSILE_0 - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_MIS0_COPY
-  lda #>[DINO_CROUCHING_MISSILE_0 - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_MIS0_COPY+1
-
-  lda #<[DINO_CROUCHING_MISSILE_1 - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_MIS1
-  lda #>[DINO_CROUCHING_MISSILE_1 - CROUCHING_REGION_2_MIN_Y]
-  sta PTR_DINO_MIS1+1
 
 
 _update_leg_anim:
@@ -665,7 +644,10 @@ dino_setup_kernel:;----->>> 5 scanlines <<<-----
 
                                 ; - (24)
   sta RESP0                     ; 3 (27)
-  jmp _end_grp0_coarse_position ; 3 (30)
+
+  ; Turns the next 'sta RESP0' (opcodes 85 10) into (2C 85 10) or 'bit $8510'
+  ; which does nothing, avoiding the need for a 'jmp _end_grp0_coarse_position'
+  .byte $2C
 
 _dino_is_not_crouching_1:       ; - (25)
   sta RESP0  ; 3 (28) - TV beam is now at dino's x pos
@@ -675,6 +657,7 @@ _end_grp0_coarse_position:
   lda #$10         ; 2 (30/32) - In both cases, Player 0 has to be shifted
   sta HMP0         ; 3 (33/35) to the left by 1 pixel
   sta WSYNC        ; 3 (36/39)
+
   ; 2nd scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -686,9 +669,8 @@ _end_grp0_coarse_position:
 
   ; Set M0 coarse position
   ;
-  ; If dino is crouching, M0 needs to be in the same exact position as GRP0
-  ; that is, M0 needs to be strobed at cycle 25. Otherwise, M0 needs to be
-  ; strobed at cycle 22
+  ; If dino is crouching, M0 needs to be strobed at cycle 25. Otherwise, 
+  ; M0 needs to be strobed at cycle 22
   lda #FLAG_DINO_CROUCHING   ; 2 (8)
   bit GAME_FLAGS             ; 3 (11)
   ; this nop shifts the _dino_is_not_crouching
@@ -699,17 +681,16 @@ _end_grp0_coarse_position:
   ; right in this section
   sbeq _dino_is_not_crouching_2 ; 2/3 (13/14)
                        ; - (13)
-  nop                  ; 2 (15)
+  inc $2D              ; 5 (18) - Wait 5 cycles, 2 bytes only
 
-  lda COLUBK           ; 3 ()
-  sta RESM1            ; 3 ()
-  sta RESM0            ; 3 () <-- same place as GRP0
+  sta RESM1            ; 3 (21)
+  sta RESM0            ; 3 (24)
   jmp _end_m0_coarse_position  ; 3 (31)
 
 _dino_is_not_crouching_2: ; - (14)
-  INSERT_NOPS 2        ; 8 (22)
+  INSERT_NOPS 2        ; 4 (18)
 
-  sta RESM0            ; 3 (25) <-- 3 cycles before GRP0
+  sta RESM0            ; 3 (21)
 
 _end_m0_coarse_position: ; (25/31)
 
@@ -722,65 +703,6 @@ _set_obstacle_position:
   clc                ; 2 (27/33) Clear the carry for the addition below
   lda OBSTACLE_X_INT ; 3 (30/36)
 
-;  cmp #0
-;  bcs _set_obstacle_x_pos_over_8_or_equal
-
-;_set_obstacle_x_pos_under_8:
-;  sta WSYNC
-;
-;  ; 3rd scanline ==============================================================
-;  sta HMOVE ; 3 (3)
-;  ; wait 23 cycles
-;  dec $2D   ; 5 (8)   2 bytes / 2
-;  dec $2D   ; 5 (13)  2 bytes / 4
-;  dec $2D   ; 5 (13)  2 bytes / 4
-;  ;php       ; 3 (16)  1 byte  / 5
-;  ;plp       ; 4 (20)  1 byte  / 6
-;  nop       ; 2 (22)
-;  nop       ; 2 (22)
-;  sta RESP1  ; 3 (26)
-;  sta RESBL  ; 3 (29)
-;  ; now hit HMOVE with the most possible amount to the left in this scanline
-;  ;lda #0
-;  lda #$70
-;  sta HMP1
-;  sta HMBL
-;
-;  sta WSYNC
-;
-;  ; 4th scanline ==============================================================
-;  sta HMOVE             ; 3 (3)
-;  ; we have x < 8, 
-;  ; 7 hmove -1 -> $10
-;  ; 6 hmove -2 -> $20
-;  ; 5 -3
-;  ; 4 -4
-;  ; 3 -5
-;  ; 2 -6
-;  ; 1 -7
-;  ; 0  X
-;  ; wait 24 cycles to hit
-;  ; in the next scanline, we now move 
-;  lda #8                ; 2 (5)
-;  sec                   ; 2 (7)
-;  sbc OBSTACLE_X_INT    ; 3 (9)
-;  asl                   ; 2 (11)
-;  asl                   ; 2 (13)
-;  asl                   ; 2 (15)
-;  asl                   ; 2 (17)
-;  php                   ; 3 (20)
-;  plp                   ; 4 (24)
-;  sta $2D               ; 3 (27)
-;  sta $2D               ; 3 (27)
-;  lda #$70
-;  sta HMP1              ; 3 ()
-;  sta HMBL              ; 3 ()
-;
-;  sta WSYNC
-;
-;  jmp _last_setup_scanline
-
-;_set_obstacle_x_pos_over_8_or_equal:
   ; TODO: Improve the explanation of the 37
   ; tia cycles = x + 68 - 9 - 9 - 12 
   ; 68 TIA colour cycles ~ 22.5 6507 CPU cycles from HBLANK to the start of 
@@ -1051,7 +973,7 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 
 _crouching_region_1:
   sta WSYNC        ; 3 (from sky_kernel: 62 -> 65)
-                   ;   (from this kernel: 67 -> 70)
+                   ;   (from this kernel: 69 -> 72)
   ; 1st scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -1078,16 +1000,12 @@ _crouching_region_1:
   ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒      and '__' are the 2px GRP0 spaces
   ;                                (1 and 0 respectively)
 
-  ; Clear HMP1 and HMBL fine offsets to prevent obstacle shifting
-  ; on the following scanline (Region 2 setup begins)
-  sta HMCLR                           ; 3 (30)
-
 _region_1__end_of_1st_scanline: ; - (max count up to here is 30)
   ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the obstacle
   ; in the second scanline
-  sta HMCLR        ; 3 (33)
+  sta HMCLR        ; 3 (30)
 
-  sta WSYNC        ; 3 (36)
+  sta WSYNC        ; 3 (33)
   ; 2nd scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -1121,24 +1039,28 @@ _region_1__end_of_2nd_scanline:  ; - (24/35)
   ; done for the next region, first save reg A in the stack to keep
   ; the graphics for the obstacle that need to be drawn in the first scanline
   ; of the region 2
-  pha             ; 3 (40 -> 43)
-  lda #$F0        ; 2 (43)
-  sta HMM0        ; 3 (46) - Move GRP0 1 pixel to the right
-  lda #2          ; 2 (48)
-  sta ENAM0       ; 3 (51)
-  sta ENAM1       ; 3 (54)
-  pla             ; 4 (58)
+  sta TEMP        ; 3 (40 -> 43)
 
-_region_1__check_end_of_region:         ; - (max possible count here is 58)
-  dey                                   ; 2 (60)
-  cpy #CROUCHING_REGION_1_MIN_Y         ; 2 (62)
-  bpl _crouching_region_1               ; 2/3 (64/65)
+  lda #$F5        ; 2 (45)
+  sta HMP0        ; 3 (48) - Move the dino's sprite back 1px
+  sta NUSIZ0      ; 3 (51) - Set M0 size to 8px while keeping P0 at 2x size
 
-  ; If the crouching region 1 is complete, then the crouching region 2 
-  ; is next, which spans for 7 scanlines
-  sta WSYNC                             ; 3 (67)
+  lda #2          ; 2 (53) - Enable both missiles
+  sta ENAM0       ; 3 (56)
+  sta ENAM1       ; 3 (59)
+
+  lda TEMP        ; 3 (62) - Restores the obstacle sprite in reg A
+
+_region_1__check_end_of_region:         ; - (max possible count here is 62)
+  dey                                   ; 2 (64)
+  cpy #CROUCHING_REGION_1_MIN_Y         ; 2 (66)
+  bpl _crouching_region_1               ; 2/3 (68/69)
 
 _crouching_region_2:
+  ; If the crouching region 1 is complete, then the crouching region 2 
+  ; is next, which spans for 7 scanlines
+  sta WSYNC                             ; 3 (71)
+
   ; 1st scanline ==============================================================
                  ; - (0)
   sta HMOVE      ; 3 (3)
@@ -1147,37 +1069,26 @@ _crouching_region_2:
   ; son the next canline
   DRAW_OBSTACLE  ; 11 (14)
 
-  ; Here is the trick, we know that Y is going to be from 
-  ; #CROUCHING_REGION_2_MAX_Y to #CROUCHING_REGION_2_MIN_Y, so we can use 
-  ; these (actually #CROUCHING_REGION_2_MAX_Y) to offset the address of the 
-  ; crouching dino sprite, so we can use an 'lda aaaa,y' which only incurs in 4
-  ; cycles
-  lda (PTR_DINO_SPRITE_2),y   ; 5 (8)
-  sta DINO_SPRITE             ; 3 (11)
+  lda #0         ; 2 (16)
+  sta NUSIZ1     ; 3 (19)
 
-  lda (PTR_DINO_OFFSET_2),y   ; 5 (16)
-  sta HMP0                    ; 3 (19)
+  lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_MAX_Y+#1,y ; 4 (18)
+  ;sta HMM0      ; 3 (21)
 
-  lda (PTR_DINO_MIS0_COPY),y      ; 5 (24)
-  DECODE_MISSILE_PLAYER 0     ; 13 (37)
 
-  lda (PTR_DINO_MIS1),y       ; 5 (42)
-  DECODE_MISSILE_PLAYER 1     ; 13 
+  lda #1
+  sta NUSIZ1
 
+  sta HMCLR
   sta WSYNC                   ; 3 (57)
 
   ; 2nd scanline ==============================================================
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
-  lda MISSILE_P1
-  sta ENAM1
-  lda DINO_SPRITE                       ; 3
-  ;lda #0                               ; for debugging, hides GRP0
-  sta GRP0                              ; 3
-  lda MISSILE_P0                         ; 3
-  sta ENAM0                             ; 3
-  INSERT_NOPS 10                        ; 20
+  sta GRP0
+
+  INSERT_NOPS 12                        ; 20
 
   sta HMCLR
 
@@ -1187,6 +1098,9 @@ _crouching_region_2:
                                         ; kernel, +1 turns Y ≥ C into Y > C
   bcs _crouching_region_2               ; 2/3
 
+
+  lda #0         ; 2 (16)
+  sta NUSIZ1     ; 3 (19)
 
   jmp legs_and_floor_kernel
 
