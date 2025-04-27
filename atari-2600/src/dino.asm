@@ -82,8 +82,9 @@ CROUCHING_REGION_1_MAX_Y = #CACTUS_AREA_MAX_Y
 CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_SCANLINES_REGION_1
 CROUCHING_REGION_2_MAX_Y = #CROUCHING_REGION_1_MIN_Y
 CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_SCANLINES_REGION_2
-   ECHO "CROUCHING_REGION_2_MAX_Y =",#CROUCHING_REGION_2_MAX_Y
-   ECHO "DINO_CROUCHING_SPRITE_END =",#DINO_CROUCHING_SPRITE_END
+   ; For debugging:
+   ;ECHO "CROUCHING_REGION_2_MAX_Y =",#CROUCHING_REGION_2_MAX_Y
+   ;ECHO "DINO_CROUCHING_SPRITE_END =",#DINO_CROUCHING_SPRITE_END
 DINO_JUMP_INIT_VY_INT = #5
 DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
@@ -1013,27 +1014,12 @@ _region_1__end_of_1st_scanline: ; - (max count up to here is 30)
   sta GRP0         ; 3 (6) - Draw the dino's top of the head (if this is the
                    ; last scanline
 
-  CHECK_Y_WITHIN_OBSTACLE          ; 9 (15)
-  bcs _region_1__y_within_obstacle ; 2/3 (17/18)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE _region_1__end_of_2nd_scanline ; 29 (35)
 
-_region_1__y_not_within_obstacle:    ; - (17)
-  lda #0                             ; 2 (19)
-  tax                                ; 2 (21)
-  jmp _region_1__end_of_2nd_scanline ; 3 (24)
-
-_region_1__y_within_obstacle:    ; - (18)
-
-  ; See label '_sky__y_within_ptero' for explanation on this:
-  LAX (PTR_OBSTACLE_SPRITE),y    ; 5 (23)
-  lda (PTR_OBSTACLE_BALL),y      ; 5 (28)
-  sta HMBL                       ; 3 (31)
-  asl                            ; 2 (33)
-  asl                            ; 2 (35)
-
-_region_1__end_of_2nd_scanline:  ; - (24/35)
+_region_1__end_of_2nd_scanline:  ; - (max count: 35)
 
   ; Check if this is the last scanline of the first region
-  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (26/37)
+  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (37)
   bne _region_1__check_end_of_region  ; 2/3 (max count here 37 -> 39/40)
   ; If this is the last scanline of this region, some preparation needs to be
   ; done for the next region, first save reg A in the stack to keep
@@ -1072,12 +1058,10 @@ _crouching_region_2:
   lda #0         ; 2 (16)
   sta NUSIZ1     ; 3 (19)
 
-  lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_MAX_Y+#1,y ; 4 (18)
-  ;sta HMM0      ; 3 (21)
+  lda DINO_CROUCHING_MIS_0_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 (18)
+  sta HMM0      ; 3 (21)
 
-
-  lda #1
-  sta NUSIZ1
+  lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 (18)
 
   sta HMCLR
   sta WSYNC                   ; 3 (57)
@@ -1086,9 +1070,8 @@ _crouching_region_2:
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
+  ; Draw the dino
   sta GRP0
-
-  INSERT_NOPS 12                        ; 20
 
   sta HMCLR
 

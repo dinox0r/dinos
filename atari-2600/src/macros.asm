@@ -81,6 +81,62 @@
     adc #OBSTACLE_HEIGHT    ; 2 (9)
   ENDM
 
+; -------------------------------------------------------------------------
+; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE
+;
+; Checks if the current Y position (scanline) falls within the obstacle's
+; vertical range. If so, loads the corresponding obstacle sprite and ball
+; data for the next scanline.
+;
+; Behavior:
+; - If the scanline is within the obstacle's range:
+;     - Load obstacle sprite data into A (and X).
+;     - Load obstacle ball data into A.
+;     - Setup fine motion for ball (HMBL) and prepare graphics for drawing.
+; - If the scanline is outside the obstacle's range:
+;     - Clear A and X.
+;     - Jump to a user-provided label to continue execution.
+;
+; Ball data uses the same encoding format as the dino missile:
+;     bit index: 7 6 5 4 3 2 1 0
+;                \_____/ \_/   ↑
+;                 HMBL    │    │
+;                         │    └─ ENABL
+;                      CTRLPF  (needs to be shifted left twice)
+;
+; Parameters:
+;   {1} = Label to jump to when scanline is outside obstacle range
+  MAC LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE  ; (18/29) cycles
+.TARGET_BRANCH_WHEN_FINISHED SET {1}
+    ; Calculate: (current Y - obstacle Y) + obstacle height
+    ; If result overflows (carry set), Y is within the obstacle
+    tya                              ; 2 (2) - A = current scanline
+    sec                              ; 2 (4) -
+    sbc OBSTACLE_Y                   ; 3 (7) - A = Y - obstacle Y
+    adc #OBSTACLE_HEIGHT             ; 2 (9) - A += obstacle height
+
+    bcs .obstacle_y_within_range     ; 2/3 (11/12) - Branch if inside
+
+.obstacle_y_outside_range:           ; - (11)
+    lda #0                           ; 2 (13) - Clear A and X
+    tax                              ; 2 (15)
+    jmp .TARGET_BRANCH_WHEN_FINISHED ; 3 (18)
+
+.obstacle_y_within_range:            ; - (12)
+    ; LAX (illegal opcode) is used here to load the sprite data into X,
+    ; saving 2 cycles compared to separate LDA + TAX.
+    LAX (PTR_OBSTACLE_SPRITE),y       ; 5 (17)
+
+    ; Load obstacle ball (missile) properties
+    ; (Format matches dino missile format: HMBL | ENABL | CTRLPF)
+    lda (PTR_OBSTACLE_BALL),y         ; 5 (22)
+
+    ; Setup ball fine motion and alignment
+    sta HMBL                         ; 3 (25)
+    asl                              ; 2 (27)
+    asl                              ; 2 (29)
+  ENDM
+
   ; Same as CHECK_Y_WITHIN_OBSTACLE but assumes carry is set
   ; --------------------------------------------------------------------
   MAC CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY       ; 7 cycles
