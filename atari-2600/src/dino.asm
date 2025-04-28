@@ -968,7 +968,13 @@ _region_1__end_of_1st_scanline: ; - (max count up to here is 30)
   sta GRP0         ; 3 (6) - Draw the dino's top of the head (if this is the
                    ; last scanline
 
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY,_region_1__end_of_2nd_scanline ; 30 (36)
+  ; ⚠ IMPORTANT:
+  ; ------------
+  ; Registers A and X hold obstacle sprite data after this macro and must not
+  ; be modified until drawing is complete.
+  ;
+  ; This macro costs 30 (36)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _region_1__end_of_2nd_scanline
 
 _region_1__end_of_2nd_scanline:  ; - (max count: 36)
 
@@ -981,8 +987,7 @@ _region_1__end_of_2nd_scanline:  ; - (max count: 36)
   ; of the region 2
   sta TEMP        ; 3 (41 -> 44)
 
-  lda #$F5        ; 2 (46)
-  sta HMP0        ; 3 (49) - Move the dino's sprite back 1px
+  lda #%00110000  ; 2 (46)
   sta NUSIZ0      ; 3 (52) - Set M0 size to 8px while keeping P0 at 2x size
 
   lda #2          ; 2 (54) - Enable both missiles
@@ -1015,7 +1020,10 @@ _crouching_region_2:
   lda DINO_CROUCHING_MIS_0_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 (18)
   sta HMM0      ; 3 (21)
 
-  lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 (18)
+  ; ⚠ IMPORTANT:
+  ; reg A can't be changed after this, as it contains the GRP0 sprite data 
+  ; that will be sent to the TIA in the next scanline
+  lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 ()
 
   sta HMCLR
   sta WSYNC                   ; 3 (57)
@@ -1026,13 +1034,15 @@ _crouching_region_2:
 
   sta GRP0                  ; 3 (6) - Draw the dino sprite
 
-  ; After this macro, both reg A and X can't be changed, as they contain the
-  ; obstacle sprite data
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY,_region_2_end_of_2nd_scanline ; 32 (38)
+  ; ⚠ IMPORTANT:
+  ; ------------
+  ; Registers A and X hold obstacle sprite data after this macro and must not
+  ; be modified until drawing is complete.
+  ;
+  ; This macro costs 32 (38)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _region_2_end_of_2nd_scanline
 
 _region_2_end_of_2nd_scanline:
-  ; Clear fine offsets to avoid shifting the dino sprite and missiles again
-  sta HMCLR
 
   dey                                   ; 2
   cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the sky
@@ -1091,7 +1101,14 @@ _cactus__end_of_1st_scanline:
   sta GRP0                    ; 3
   lda MISSILE_P0              ; 3
   sta ENAM0                   ; 3
-  INSERT_NOPS 10              ; 20
+
+                              ; - Wait/waste 20 cycles
+  php                         ; 3
+  plp                         ; 4
+  php                         ; 3
+  plp                         ; 4
+  lda ($80,x)                 ; 6 - 6 bytes in total
+
   sta HMCLR                   ; 3
 
   dey                                   ; 2 (5)

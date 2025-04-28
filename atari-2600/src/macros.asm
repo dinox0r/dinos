@@ -149,7 +149,7 @@
     ;                      CTRLPF  (needs to be shifted left twice)
     lda (PTR_OBSTACLE_BALL),y         ; 5 (22)
 
-    ; IMPORTANT:
+    ; ⚠ IMPORTANT:
     ; Before applying fine motion to the obstacle ball, clear fine offsets.
     ; This avoids repeated leftover shifts from the other objects
     ; when restarting the 2x kernel's first scanline.
