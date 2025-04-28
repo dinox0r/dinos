@@ -20,6 +20,10 @@ RND_MEM_LOC_1 = $c1  ; "random" memory locations to sample the upper/lower
 RND_MEM_LOC_2 = $e5  ; bytes when the machine starts. Hopefully this finds
                      ; some garbage values that can be used as seed
 
+; Constants for the LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro
+SET_CARRY = #1
+IGNORE_CARRY = #0
+
 BKG_LIGHT_GRAY = #13
 DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
@@ -873,75 +877,24 @@ _sky__end_of_1st_scanline: ; - (39/57)
   stx ENAM0                      ; 3 (9) - Toggle missile for dino extra detail
                                  ; in this scanline (if needed)
 
-  ; 'sec' is invoked at the end of the 1st scanline (saving 2 cycles here)
-  CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY  ; 7 (16)
-  bcs _sky__y_within_ptero             ; 2/3 (18/19)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY,_sky__end_of_2nd_scanline ; 30 (39)
 
-_sky__y_not_within_ptero:        ; - (18)
-  lda #0                         ; 2 (20)
-  tax                            ; 2 (22)
-  nop                            ; 2 (24) - These are needed to reach 24
-  nop                            ; 2 (26) cycles after strobing HMOVE
-  ; Remove HMP0 and HMM0 fine offsets so they don't keep shifting the dino
-  ; when jumping back to the 1st scanline. Doing HMCLR is fine because there
-  ; won't be fine offsets for the ptero (we are in y_not_within_ptero)
-  sta HMCLR                      ; 3 (29)
-  jmp _sky__end_of_2nd_scanline  ; 3 (32)
-
-_sky__y_within_ptero:            ; - (19)
-
-  ; ptero graphics
-  LAX (PTR_OBSTACLE_SPRITE),y    ; 5 (24)
-  ; Using an illegal opcode (LAX) which will leave a copy of A into X, I'm doing
-  ; this here because there is no 'ldx (aa),y', the non illegal opcode option is
-  ; is to do 'lda (aa),y' first and then 'tax' which will costs 7 cycles, but
-  ; the illegal opcode only takes 5. 
-  ; reg X will contain the ptero data, so
-  ; next scanline we can do 'stx GRP1' provided we don't overwrite reg X
-
-  ; We still have to remove HMP0 and HMM0 fine offsets so they don't shift
-  ; the dino again when jumping back to the 1st scanline, but the HMxx
-  ; registers don’t play nice if you set them within 24 CPU cycles of strobing 
-  ; HMOVE. At this point, enough time has passed to do this clearing, just 
-  ; before setting the fine offsets for the ptero
-  sta HMCLR                      ; 3 (27)
-
-  ; ptero ball
-  ; the data pointed by PTR_OBSTACLE_BALL has the same format as the dino's 
-  ; missile:
-  ; bit index: 7 6 5 4 3 2 1 0
-  ;            \_____/ \_/   ↑
-  ;             HMBL    │    │
-  ;                     │    └── ENABL
-  ;                   CTRLPF (needs to be shifted to the left twice)
-  lda (PTR_OBSTACLE_BALL),y      ; 5 (24)
-  ; thanks to LAX, reg X will have a copy of the data encoded in
-  ; (*PTR_OBSTACLE_BALL) which means is a copy of the data prior to shifting,
-  ; hence the fine offsets for the ball can be applied.
-  sta HMBL                       ; 3 (37)
-  asl                            ; 2 (39)
-  asl                            ; 2 (41)
-
-_sky__end_of_2nd_scanline:  ; - (36/41)
+_sky__end_of_2nd_scanline:  ; - (39)
 
   ; Cactus/Crouching area very first scanline
-  dey                       ; 2 (38/57)
+  dey                       ; 2 (41)
   ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
   ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
   ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1          ; 2 (40/59)
-  bcs sky_kernel             ; 2/3 (taken 43/57) (not taken 42/56)
+  cpy #SKY_MIN_Y+#1          ; 2 (43)
+  bcs sky_kernel             ; 2/3 (45/46)
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
 
-_check_if_crouching:         ; - (42/61)
-  ; At this point, there are 2 counts, one comes from the Y coordinate not 
-  ; being within the ptero bounds (50 or whatever, we have room and can 
-  ; ignore for now), the other one comes from the Y coordinate being within
-  ; the ptero bounds, and has 67)
-  jmp (PTR_MIDDLE_SECTION_KERNEL)  ; 5 (42 -> 47, 61 -> 66)
+_check_if_crouching:               ; - (45)
+  jmp (PTR_MIDDLE_SECTION_KERNEL)  ; 5 (50)
 
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
@@ -974,7 +927,7 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 
 _crouching_region_1:
   sta WSYNC        ; 3 (from sky_kernel: 62 -> 65)
-                   ;   (from this kernel: 69 -> 72)
+                   ;   (from this kernel: 70 -> 73)
   ; 1st scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -1005,8 +958,9 @@ _region_1__end_of_1st_scanline: ; - (max count up to here is 30)
   ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the obstacle
   ; in the second scanline
   sta HMCLR        ; 3 (30)
+  sec              ; 2 (32)
 
-  sta WSYNC        ; 3 (33)
+  sta WSYNC        ; 3 (35)
   ; 2nd scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
@@ -1014,38 +968,38 @@ _region_1__end_of_1st_scanline: ; - (max count up to here is 30)
   sta GRP0         ; 3 (6) - Draw the dino's top of the head (if this is the
                    ; last scanline
 
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE _region_1__end_of_2nd_scanline ; 29 (35)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY,_region_1__end_of_2nd_scanline ; 30 (36)
 
-_region_1__end_of_2nd_scanline:  ; - (max count: 35)
+_region_1__end_of_2nd_scanline:  ; - (max count: 36)
 
   ; Check if this is the last scanline of the first region
-  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (37)
-  bne _region_1__check_end_of_region  ; 2/3 (max count here 37 -> 39/40)
+  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (38)
+  bne _region_1__check_end_of_region  ; 2/3 (max count here 38 -> 40/41)
   ; If this is the last scanline of this region, some preparation needs to be
   ; done for the next region, first save reg A in the stack to keep
   ; the graphics for the obstacle that need to be drawn in the first scanline
   ; of the region 2
-  sta TEMP        ; 3 (40 -> 43)
+  sta TEMP        ; 3 (41 -> 44)
 
-  lda #$F5        ; 2 (45)
-  sta HMP0        ; 3 (48) - Move the dino's sprite back 1px
-  sta NUSIZ0      ; 3 (51) - Set M0 size to 8px while keeping P0 at 2x size
+  lda #$F5        ; 2 (46)
+  sta HMP0        ; 3 (49) - Move the dino's sprite back 1px
+  sta NUSIZ0      ; 3 (52) - Set M0 size to 8px while keeping P0 at 2x size
 
-  lda #2          ; 2 (53) - Enable both missiles
-  sta ENAM0       ; 3 (56)
-  sta ENAM1       ; 3 (59)
+  lda #2          ; 2 (54) - Enable both missiles
+  sta ENAM0       ; 3 (57)
+  sta ENAM1       ; 3 (60)
 
-  lda TEMP        ; 3 (62) - Restores the obstacle sprite in reg A
+  lda TEMP        ; 3 (63) - Restores the obstacle sprite in reg A
 
-_region_1__check_end_of_region:         ; - (max possible count here is 62)
-  dey                                   ; 2 (64)
-  cpy #CROUCHING_REGION_1_MIN_Y         ; 2 (66)
-  bpl _crouching_region_1               ; 2/3 (68/69)
+_region_1__check_end_of_region:         ; - (max possible count here is 63)
+  dey                                   ; 2 (65)
+  cpy #CROUCHING_REGION_1_MIN_Y         ; 2 (67)
+  bpl _crouching_region_1               ; 2/3 (69/70)
 
 _crouching_region_2:
   ; If the crouching region 1 is complete, then the crouching region 2 
   ; is next, which spans for 7 scanlines
-  sta WSYNC                             ; 3 (71)
+  sta WSYNC                             ; 3 (72)
 
   ; 1st scanline ==============================================================
                  ; - (0)
@@ -1070,11 +1024,15 @@ _crouching_region_2:
                             ; - (0)
   sta HMOVE                 ; 3 (3)
 
-  ; Draw the dino
-  sta GRP0
+  sta GRP0                  ; 3 (6) - Draw the dino sprite
 
+  ; After this macro, both reg A and X can't be changed, as they contain the
+  ; obstacle sprite data
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY,_region_2_end_of_2nd_scanline ; 32 (38)
+
+_region_2_end_of_2nd_scanline:
+  ; Clear fine offsets to avoid shifting the dino sprite and missiles again
   sta HMCLR
-
 
   dey                                   ; 2
   cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the sky
@@ -1082,8 +1040,10 @@ _crouching_region_2:
   bcs _crouching_region_2               ; 2/3
 
 
+  sta TEMP
   lda #0         ; 2 (16)
   sta NUSIZ1     ; 3 (19)
+  lda TEMP
 
   jmp legs_and_floor_kernel
 
