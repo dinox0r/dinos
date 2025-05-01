@@ -29,17 +29,13 @@ DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y+#DINO_HEIGHT
 
-SKY_SCANLINES = #31
-CACTUS_SCANLINES = #30
+PLAY_AREA_SCANLINES = #61
 FLOOR_SCANLINES = #2
 GRAVEL_SCANLINES = #9
 
-DINO_PLAY_AREA_SCANLINES = #SKY_SCANLINES+#CACTUS_SCANLINES+#FLOOR_SCANLINES+#GRAVEL_SCANLINES
-SKY_MAX_Y = #DINO_PLAY_AREA_SCANLINES
-SKY_MIN_Y = #SKY_MAX_Y-#SKY_SCANLINES
-CACTUS_AREA_MAX_Y = #SKY_MIN_Y
-CACTUS_AREA_MIN_Y = #CACTUS_AREA_MAX_Y-#CACTUS_SCANLINES
-GROUND_AREA_MAX_Y = #CACTUS_AREA_MIN_Y-#FLOOR_SCANLINES
+PLAY_AREA_MAX_Y = #PLAY_AREA_SCANLINES+#FLOOR_SCANLINES+#GRAVEL_SCANLINES
+PLAY_AREA_MIN_Y = #PLAY_AREA_MAX_Y-#PLAY_AREA_SCANLINES
+GROUND_AREA_MAX_Y = #PLAY_AREA_MIN_Y-#FLOOR_SCANLINES
 GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GRAVEL_SCANLINES
 
 ; Crouching Kernel Regions
@@ -72,17 +68,7 @@ CROUCHING_SCANLINES_REGION_1 = #15+#7
 CROUCHING_SCANLINES_REGION_2 = #8
 CROUCHING_SCANLINES = #CROUCHING_SCANLINES_REGION_1+#CROUCHING_SCANLINES_REGION_2
 
-  ; Sanity Check
-  ; ---------------------------------------------------------------------------
-  ; The crouching and cactus kernels share the same screen region,
-  ; so they must match in both vertical position and total scanline count.
-  IF CROUCHING_SCANLINES != CACTUS_SCANLINES
-    ECHO "Error: CROUCHING_SCANLINES must equal CACTUS_SCANLINES"
-    ERR
-  ENDIF
-
-; Crouching area starts at the same location where the cactus area is at
-CROUCHING_REGION_1_MAX_Y = #CACTUS_AREA_MAX_Y
+CROUCHING_REGION_1_MAX_Y = #GROUND_AREA_MAX_Y+#CROUCHING_SCANLINES
 CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_SCANLINES_REGION_1
 CROUCHING_REGION_2_MAX_Y = #CROUCHING_REGION_1_MIN_Y
 CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_SCANLINES_REGION_2
@@ -246,7 +232,7 @@ game_init:
   ; TODO: Remove/Update after testing obstacle positioning
   lda #1
   sta OBSTACLE_TYPE
-  lda #SKY_MAX_Y-#4
+  lda #PLAY_AREA_MAX_Y-#4
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -616,13 +602,13 @@ score_setup_kernel:;---->>> 2 scanlines <<<----
 score_kernel:;---------->>> 10 scanlines <<<---
   DEBUG_SUB_KERNEL #$20,#10
 
-clouds_kernel_setup:;-->>> 2 scanlines <<<-----
+sky_kernel_setup:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30,#2
 
-clouds_kernel:;-------->>> 15 scanlines <<<----
+sky_kernel:;-------->>> 15 scanlines <<<----
   DEBUG_SUB_KERNEL #$4C,#15
 
-dino_setup_kernel:;----->>> 5 scanlines <<<-----
+dino_position_setup_kernel:;----->>> 5 scanlines <<<-----
   ; From the DEBUG_SUB_KERNEL macro:
   ;  sta HMOVE   3 cycles (3 so far in this scanline)
   ;  bne .loop   not taken, so 2 cycles (5)
@@ -766,16 +752,16 @@ _last_setup_scanline:
   ; 5th scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
-  ldy #SKY_MAX_Y   ; 2 (5)
+  ldy #PLAY_AREA_MAX_Y   ; 2 (5)
 
   ; Prefetch the IS_CROUCHING value to save 2 cycles doing the check
   lda #FLAG_DINO_CROUCHING   ; 2 (7)
   bit GAME_FLAGS             ; 3 (10)
   bne __assign_crouching_kernel  ; 2/3 (12/13)
 
-  lda #<cactus_area_kernel        ; 2 (14)
+  lda #<legs_and_floor_kernel        ; 2 (14)
   sta PTR_MIDDLE_SECTION_KERNEL   ; 3 (17)
-  lda #>cactus_area_kernel        ; 2 (19)
+  lda #>legs_and_floor_kernel        ; 2 (19)
   sta PTR_MIDDLE_SECTION_KERNEL+1 ; 3 (22)
   jmp __end_middle_section_kernel_setup ; 3 (25)
 
@@ -804,7 +790,7 @@ __end_middle_section_kernel_setup:
   lda #0
   tax
 
-sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
+play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta WSYNC      ; 3 (37/35)
   ; 1st scanline ==============================================================
                  ; - (0)
@@ -814,18 +800,18 @@ sky_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   DRAW_OBSTACLE  ; 11 (14)
 
   CHECK_Y_WITHIN_DINO            ; 9 (23)
-  bcs _sky__y_within_dino        ; 2/3 (25/26)
+  bcs _play_area__y_within_dino        ; 2/3 (25/26)
 
-_sky__y_not_within_dino:         ; - (25)
+_play_area__y_not_within_dino:         ; - (25)
   lda #0                         ; 2 (27)  Disable the missile for P0
   tax                            ; 2 (29)  Good time to write to HMMx regs!!
   ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the ptero
   ; in the second scanline. Doing HMCLR is fine because there won't be 
   ; fine offsets for the dino (we are in y_no_within_dino)
   sta HMCLR                      ; 3 (32)
-  jmp _sky__end_of_1st_scanline  ; 3 (35)
+  jmp _play_area__end_of_1st_scanline  ; 3 (35)
 
-_sky__y_within_dino:             ; - (26)
+_play_area__y_within_dino:             ; - (26)
   ; --- Dino Missile Setup ---
   ; The data pointed to by PTR_DINO_MIS0 has the following bit layout:
   ;
@@ -864,7 +850,7 @@ _sky__y_within_dino:             ; - (26)
   ; scanline, this implies not touching reg A for the rest of this scan line
   lda (PTR_DINO_SPRITE),y        ; 5 (57)
 
-_sky__end_of_1st_scanline: ; - (39/57)
+_play_area__end_of_1st_scanline: ; - (39/57)
   sec                      ; 2 (41/59) - Set the carry for the sbc instruction
                            ; that will happen in the next scanline for the
                            ; Y-bounds check of the ptero
@@ -877,19 +863,19 @@ _sky__end_of_1st_scanline: ; - (39/57)
   stx ENAM0                      ; 3 (9) - Toggle missile for dino extra detail
                                  ; in this scanline (if needed)
 
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY,_sky__end_of_2nd_scanline ; 30 (39)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY,_play_area__end_of_2nd_scanline ; 30 (39)
 
-_sky__end_of_2nd_scanline:  ; - (39)
+_play_area__end_of_2nd_scanline:  ; - (39)
 
   ; Cactus/Crouching area very first scanline
   dey                       ; 2 (41)
-  ; The +#1 bellow is because the carry will be set if Y ≥ SKY_MIN_Y,
-  ; (both when Y > SKY_MIN_Y or Y == SKY_MIN_Y), we want to ignore
-  ; the carry being set when Y == SKY_MIN_Y, that is, to turn this
+  ; The +#1 bellow is because the carry will be set if Y ≥ PLAY_AREA_MIN_Y,
+  ; (both when Y > PLAY_AREA_MIN_Y or Y == PLAY_AREA_MIN_Y), we want to ignore
+  ; the carry being set when Y == PLAY_AREA_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #SKY_MIN_Y+#1          ; 2 (43)
-  bcs sky_kernel             ; 2/3 (45/46)
+  cpy #PLAY_AREA_MIN_Y+#1          ; 2 (43)
+  bcs play_area_kernel             ; 2/3 (45/46)
   ; On the last scanline of this area, and just before starting the next 
   ; scanline
 
@@ -926,7 +912,7 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
 ;
 
 _crouching_region_1:
-  sta WSYNC        ; 3 (from sky_kernel: 62 -> 65)
+  sta WSYNC        ; 3 (from play_area_kernel: 62 -> 65)
                    ;   (from this kernel: 70 -> 73)
   ; 1st scanline ==============================================================
                    ; - (0)
@@ -1026,7 +1012,7 @@ _crouching_region_2:
   lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 ()
 
   sta HMCLR
-  sta WSYNC                   ; 3 (57)
+  sta WSYNC                 ; 3 (57)
 
   ; 2nd scanline ==============================================================
                             ; - (0)
@@ -1045,8 +1031,8 @@ _crouching_region_2:
 _region_2_end_of_2nd_scanline:
 
   dey                                   ; 2
-  cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the sky
-                                        ; kernel, +1 turns Y ≥ C into Y > C
+  cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the play
+                                        ; area kernel, +1 turns Y ≥ C into Y > C
   bcs _crouching_region_2               ; 2/3
 
 
@@ -1056,64 +1042,6 @@ _region_2_end_of_2nd_scanline:
   lda TEMP
 
   jmp legs_and_floor_kernel
-
-cactus_area_kernel: ;-------------->>> 31 2x scanlines <<<-----------------
-  sta WSYNC                 ; 3 (from sky_kernel: 62 -> 65)
-
-  ; 1st scanline ==============================================================
-                              ; - (0)
-  sta HMOVE                   ; 3 (3)
-
-  lda #$BA
-  sta COLUBK
-
-  CHECK_Y_WITHIN_DINO         ; 9 (12)
-  bcs _cactus__y_within_dino  ; 2/3 (14 / 15)
-
-_cactus__y_not_within_dino:
-  lda #0                              ; 3 (17)  Disable the missile for P0
-  sta DINO_SPRITE                     ; 3 (20)
-  sta DINO_SPRITE_OFFSET              ; 3 (23)
-  sta MISSILE_P0                       ; 3 (26)
-  jmp _cactus__end_of_1st_scanline    ; 3 (29)
-
-_cactus__y_within_dino:
-  ; graphics
-  LAX (PTR_DINO_SPRITE),y               ; 5+ (20) LAX undocumented opcode
-  sta DINO_SPRITE                       ; 3  (23)
-
-  ; graphics offset
-  lda (PTR_DINO_OFFSET),y               ; 5+ (28)
-  sta HMP0                              ; 3  (31)
-
-  ; missile
-  lda (PTR_DINO_MIS0),y                  ; 5+ (36)
-  DECODE_MISSILE_PLAYER 0        ; 13
-
-_cactus__end_of_1st_scanline:
-  sta WSYNC                             ; 3
-
-  ; 2nd scanline ==============================================================
-                              ; - (0)
-  sta HMOVE                   ; 3 (3)
-  lda DINO_SPRITE             ; 3
-  ;lda #0                     ; for debugging, hides GRP0
-  sta GRP0                    ; 3
-  lda MISSILE_P0              ; 3
-  sta ENAM0                   ; 3
-
-                              ; - Wait/waste 20 cycles
-  php                         ; 3
-  plp                         ; 4
-  php                         ; 3
-  plp                         ; 4
-  lda ($80,x)                 ; 6 - 6 bytes in total
-
-  sta HMCLR                   ; 3
-
-  dey                                   ; 2 (5)
-  cpy #CACTUS_AREA_MIN_Y+#1             ; 2 (7) - +1 turns Y ≥ C into Y > C
-  bcs cactus_area_kernel            ; 2/3 (9 / 10)
 
 legs_and_floor_kernel:
 

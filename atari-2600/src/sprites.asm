@@ -254,21 +254,6 @@ DINO_MIS_OFFSETS_END = *
 ;                    ▯
 ;                    ▯▯
 ;
-;      BALL position (cycle 20)
-;                 |     M0/GRP0 position (cycle 23)
-;                 ↑         ↑              HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-;                 ⏐         ⏐     ██████
-;                 ⏐░  ▓▓▓▓▓▓⏐▓▓  ██ █████  <-- ball size 1 and missile size 8
-;                 ⏐░░░░░XXX▓⏐▓▓▓▓████████  /
-;                 ⏐░░░░░XXX▓⏐▓▓▓▓████████  |  are set to size 8
-;                 ⏐ ░░░░XXXX⏐▓▓▓▓████████   > both ball and missile
-;                 ⏐ ░░░░XXXX⏐▓▓▓▓████      |  in all these scan lines
-;                 ⏐  ░░░░░░░⏐░██  █▓▓▓▓    \
-;                 ⏐   ███ ██⏐  ▓▓          <-- missile set to size 2
-;                 ⏐   ▯▯   ▯⏐▯  /
-;                 ⏐   ▯     ⏐    > will be drawn by the floor kernel
-;                 ⏐   ▯▯    ⏐   \
-;
 ;
 ;   ░   ▒▒▒X███  ██ ░██████  #%11010111
 ;   ▒▒▒▒▒▒▒X███████████████  #%11111111
