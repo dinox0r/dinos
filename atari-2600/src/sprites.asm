@@ -250,9 +250,12 @@ DINO_MIS_OFFSETS_END = *
 ;                  █████████████████     
 ;                   ██████████  ███████  
 ;                    ███ ██  ██
-;                    ▯▯   ▯▯
-;                    ▯
-;                    ▯▯
+;
+; The rest of the dino (the legs) will be drawn by the floor kernel, as their
+; graphics match the same position as the dino when standing:
+;                   |██   ██ |
+;                   |█       |
+;                   |██      |
 ;
 ;
 ;   ░   ▒▒▒X███  ██ ░██████  #%11010111

@@ -27,54 +27,46 @@ IGNORE_CARRY = #0
 BKG_LIGHT_GRAY = #13
 DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
-INIT_DINO_TOP_Y = #INIT_DINO_POS_Y+#DINO_HEIGHT
+INIT_DINO_TOP_Y = #INIT_DINO_POS_Y + #DINO_HEIGHT
 
-PLAY_AREA_SCANLINES = #61
+
+PLAY_AREA_SCANLINES = #61    ; All of these are measured as 2x scanlines
 FLOOR_SCANLINES = #2
 GRAVEL_SCANLINES = #9
 
-PLAY_AREA_MAX_Y = #PLAY_AREA_SCANLINES+#FLOOR_SCANLINES+#GRAVEL_SCANLINES
-PLAY_AREA_MIN_Y = #PLAY_AREA_MAX_Y-#PLAY_AREA_SCANLINES
-GROUND_AREA_MAX_Y = #PLAY_AREA_MIN_Y-#FLOOR_SCANLINES
-GROUND_AREA_MIN_Y = #GROUND_AREA_MAX_Y-#GRAVEL_SCANLINES
+PLAY_AREA_TOP_Y = #PLAY_AREA_SCANLINES + #FLOOR_SCANLINES + #GRAVEL_SCANLINES
+PLAY_AREA_BOTTOM_Y = #PLAY_AREA_TOP_Y - #PLAY_AREA_SCANLINES
+
+GROUND_AREA_TOP_Y = #PLAY_AREA_BOTTOM_Y - #FLOOR_SCANLINES
+GROUND_AREA_BOTTOM_Y = #GROUND_AREA_TOP_Y - #GRAVEL_SCANLINES
 
 ; Crouching Kernel Regions
 ; -----------------------------------------------------------------------------
-; The crouching sprite is divided into two regions, measured in 2x scanlines:
+; The crouching sprite is divided into X regions, measured in 2x scanlines:
 ;
-; Region 1: 15 + 6 + 1 = 22 scanlines
-; - The first 15 scanlines are empty (above the dino), spanning from the top of
-;   the screen down to where the dino's head would be if standing. Only the
-;   obstacle is drawn in this area.
-; - The next 6 scanlines are also empty—these would normally include the dino's
-;   head, but since it's crouching, only the obstacle is drawn here as well.
-; - The last scanline in this region draws the top of the crouching dino's head.
-;   It uses a 1x pixel sprite pattern and no missiles, which breaks the
-;   optimization strategy used in Region 2. For this reason, it's included in
-;   Region 1. This scanline also serves as a setup line for the next phase
-;   of the kernel.
+; Region 1: 
+; - This region draws the top of the crouching dino's head.
+;   It uses a 1x pixel sprite pattern and no missiles. This scanline also 
+;   serves as a setup line for the next phase of the kernel.
 ;
-; Region 2: 8 scanlines
-; - These scanlines make up the main body of the crouching dino.
-; - They share a consistent sprite pattern, enabling several optimizations:
-;   - GRP0 stays in a fixed position, avoiding HMM0 updates.
-;   - NUSIZ0 remains unchanged (2x size).
-;   - Both missiles will remain enabled, only updating offsets and sizes.
+; Region 2: 
 ;
 ; The dino's legs are drawn by the "legs and floor" kernel,
 ; which runs immediately after Region 2.
 
-CROUCHING_SCANLINES_REGION_1 = #15+#7
-CROUCHING_SCANLINES_REGION_2 = #8
-CROUCHING_SCANLINES = #CROUCHING_SCANLINES_REGION_1+#CROUCHING_SCANLINES_REGION_2
+CROUCHING_SCANLINES_REGION_1 = #1
+CROUCHING_SCANLINES_REGION_2 = #1
+CROUCHING_SCANLINES_REGION_3 = #8
+CROUCHING_SCANLINES = #CROUCHING_SCANLINES_REGION_1 + #CROUCHING_SCANLINES_REGION_2 + #CROUCHING_SCANLINES_REGION_3
 
-CROUCHING_REGION_1_MAX_Y = #GROUND_AREA_MAX_Y+#CROUCHING_SCANLINES
-CROUCHING_REGION_1_MIN_Y = #CROUCHING_REGION_1_MAX_Y-#CROUCHING_SCANLINES_REGION_1
-CROUCHING_REGION_2_MAX_Y = #CROUCHING_REGION_1_MIN_Y
-CROUCHING_REGION_2_MIN_Y = #CROUCHING_REGION_2_MAX_Y-#CROUCHING_SCANLINES_REGION_2
+CROUCHING_REGION_1_TOP_Y = #PLAY_AREA_BOTTOM_Y + #CROUCHING_SCANLINES
+;CROUCHING_REGION_3_BOTTOM_Y = #CROUCHING_REGION_1_TOP_Y - #CROUCHING_SCANLINES
+
    ; For debugging:
-   ;ECHO "CROUCHING_REGION_2_MAX_Y =",#CROUCHING_REGION_2_MAX_Y
-   ;ECHO "DINO_CROUCHING_SPRITE_END =",#DINO_CROUCHING_SPRITE_END
+   ECHO "PLAY_AREA_BOTTOM_Y =", #PLAY_AREA_BOTTOM_Y
+   ECHO "CROUCHING_REGION_1_TOP_Y =", #CROUCHING_REGION_1_TOP_Y
+   ECHO "CROUCHING_SCANLINES = ", #CROUCHING_SCANLINES
+
 DINO_JUMP_INIT_VY_INT = #5
 DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
@@ -117,44 +109,47 @@ TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
   SEG.U variables
   ORG $80
 
-; Dino Sprite Variables
-DINO_TOP_Y_INT             .byte   ; 1 byte   (1)
-DINO_TOP_Y_FRACT           .byte   ; 1 byte   (2)
-DINO_COLOUR                .byte   ; 1 byte   (3)
-DINO_SPRITE                .byte   ; 1 byte   (4)
-DINO_SPRITE_OFFSET         .byte   ; 1 byte   (5)
-DINO_VY_INT                .byte   ; 1 byte   (6)
-DINO_VY_FRACT              .byte   ; 1 byte   (7)
-UP_PRESSED_FRAMES          .byte   ; 1 byte   (8)
+; Dino State Variables
+DINO_TOP_Y_INT             .byte   ; 1 byte   (0)
+DINO_TOP_Y_FRACT           .byte   ; 1 byte   (1)
+DINO_VY_INT                .byte   ; 1 byte   (2)
+DINO_VY_FRACT              .byte   ; 1 byte   (3)
 
-PTR_DINO_SPRITE            .word   ; 2 bytes  (10)
-PTR_DINO_OFFSET            .word   ; 2 bytes  (14)
-PTR_DINO_MIS0              .word   ; 2 bytes  (18)
+PTR_DINO_SPRITE            .word   ; 2 bytes  (4)
+PTR_DINO_OFFSET            .word   ; 2 bytes  (6)
+PTR_DINO_MISSILE           .word   ; 2 bytes  (8)
+
+; Input variables
+KEY_UP_PRESSED_FRAMES      .byte   ; 1 byte   (10)
 
 ; Obstacle Variables
-OBSTACLE_TYPE              .byte   ; 1 byte   (23)
-OBSTACLE_Y                 .byte   ; 1 byte   (24)
-OBSTACLE_X_INT             .byte   ; 1 byte   (25)
-OBSTACLE_X_FRACT           .byte   ; 1 byte   (26)
-OBSTACLE_VX_INT            .byte   ; 1 byte   (27)
-OBSTACLE_VX_FRACT          .byte   ; 1 byte   (28)
+OBSTACLE_TYPE              .byte   ; 1 byte   (11)
+OBSTACLE_Y                 .byte   ; 1 byte   (12)
+OBSTACLE_X_INT             .byte   ; 1 byte   (13)
+OBSTACLE_X_FRACT           .byte   ; 1 byte   (14)
+OBSTACLE_VX_INT            .byte   ; 1 byte   (15)
+OBSTACLE_VX_FRACT          .byte   ; 1 byte   (16)
 
-PTR_OBSTACLE_SPRITE        .word   ; 2 bytes  (30)
-PTR_OBSTACLE_OFFSET        .word   ; 2 bytes  (32)
-PTR_OBSTACLE_BALL          .word   ; 2 bytes  (34)
+PTR_OBSTACLE_SPRITE        .word   ; 2 bytes  (17)
+PTR_OBSTACLE_OFFSET        .word   ; 2 bytes  (19)
+PTR_OBSTACLE_BALL          .word   ; 2 bytes  (21)
 
-; TIA Object Control
+; Play area
+PLAY_AREA_MIN_Y            .byte   ; 1 byte   (23)
+FOREGROUND_COLOUR          .byte   ; 1 byte   (24)
+BACKGROUND_COLOUR          .byte   ; 1 byte   (25)
+
+PTR_AFTER_PLAY_AREA_KERNEL .word   ; 2 bytes  (26)
+
+; Gameplay variables
+GAME_FLAGS                 .byte   ; 1 byte   (28)
+FRAME_COUNT                .word   ; 2 bytes  (29)
+RND_SEED                   .word   ; 2 bytes  (31)
+
+; Candidates for removal (something to do later)
+DINO_SPRITE                .byte   ; 1 byte   (33)
+DINO_SPRITE_OFFSET         .byte   ; 1 byte   (34)
 MISSILE_P0                 .byte   ; 1 byte   (35)
-ENABLE_BALL                .byte   ; 1 byte   (37)
-BG_COLOUR                  .byte   ; 1 byte   (38)
-
-; Game State / Control
-GAME_FLAGS                 .byte   ; 1 byte   (39)
-FRAME_COUNT                .word   ; 2 bytes  (41)
-RND_SEED                   .word   ; 2 bytes  (43)
-
-; Kernel Pointer
-PTR_MIDDLE_SECTION_KERNEL  .word   ; 2 bytes  (45)
 
 ; This section is to include variables that share the same memory but are 
 ; referenced under different names, something like temporary variables that 
@@ -162,7 +157,7 @@ PTR_MIDDLE_SECTION_KERNEL  .word   ; 2 bytes  (45)
 ; at a time, leaving no risk of overlap)
 
 ; To save the state of a register temporarily during tight situations
-TEMP                       .byte  ; 1 byte 
+TEMP                       .byte   ; 1 byte   (36)
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -210,9 +205,9 @@ game_init:
   sta DINO_TOP_Y_INT
 
   lda #3
-  sta DINO_COLOUR
+  sta FOREGROUND_COLOUR
   lda #BKG_LIGHT_GRAY
-  sta BG_COLOUR
+  sta BACKGROUND_COLOUR
 
   lda #<[DINO_SPRITE_1 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE
@@ -225,14 +220,14 @@ game_init:
   sta PTR_DINO_OFFSET+1
 
   lda #<[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
-  sta PTR_DINO_MIS0
+  sta PTR_DINO_MISSILE
   lda #>[DINO_MIS_OFFSETS - INIT_DINO_POS_Y]
-  sta PTR_DINO_MIS0+1
+  sta PTR_DINO_MISSILE+1
 
   ; TODO: Remove/Update after testing obstacle positioning
   lda #1
   sta OBSTACLE_TYPE
-  lda #PLAY_AREA_MAX_Y-#4
+  lda #PLAY_AREA_TOP_Y-#4
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -278,7 +273,7 @@ start_frame_setup:
   lda #BKG_LIGHT_GRAY   ;
   sta COLUBK            ; Set initial background
 
-  lda DINO_COLOUR       ; dino sprite colour
+  lda FOREGROUND_COLOUR       ; dino sprite colour
   sta COLUP0
   sta COLUP1
 
@@ -316,13 +311,13 @@ _check_joystick_up:
   bne _reset_up_counter  ; not pressing UP, reset up counter
 
 _on_joystick_up:
-  inc UP_PRESSED_FRAMES
+  inc KEY_UP_PRESSED_FRAMES
   bne _keep_checking_joystick_up  ; if up-counter > 255 then up-counter = 255
   lda #255
-  sta UP_PRESSED_FRAMES
+  sta KEY_UP_PRESSED_FRAMES
 
 _keep_checking_joystick_up:
-  lda UP_PRESSED_FRAMES
+  lda KEY_UP_PRESSED_FRAMES
   cmp #10
   bcs _end_check_joystick
 
@@ -342,18 +337,22 @@ _keep_checking_joystick_up:
   jmp _end_check_joystick
 
 _on_joystick_down:
-  ; if it's already crouching or jumping, ignore
+  ; If the dino is already crouching or jumping, ignore the input
   lda #FLAG_DINO_CROUCHING_OR_JUMPING
   bit GAME_FLAGS
   bne _reset_up_counter
 
-  ora GAME_FLAGS ; A <- A | GAME_FLAGS  => #FLAG_DINO_CROUCHING | GAME_FLAGS
+  ; At this point, the dino is neither crouching nor jumping.
+  ; reg A still holds #FLAG_DINO_CROUCHING (since the two flags are exclusive),
+  ; so it can be used to directly set the crouching bit in GAME_FLAGS.
+  ora GAME_FLAGS
   sta GAME_FLAGS
+
   ;
   ; fall through to reset the up-counter
 _reset_up_counter:
   lda #0
-  sta UP_PRESSED_FRAMES
+  sta KEY_UP_PRESSED_FRAMES
 
 _end_check_joystick:
 
@@ -432,6 +431,12 @@ _check_if_dino_is_crouching:
   bit GAME_FLAGS
   bne _crouching
 
+  ; If the dino is neither jumping nor crouching, restore its standing Y
+  ; position. This ensures the dino is drawn correctly after the player
+  ; releases the down input.
+  lda #INIT_DINO_TOP_Y
+  sta DINO_TOP_Y_INT
+
   ; neither jumping or crouching, just standing, update the leg animation
   jmp _update_leg_anim
 
@@ -495,14 +500,18 @@ _update_jump_pos:
   sec
   lda #<DINO_MIS_OFFSETS_END
   sbc DINO_TOP_Y_INT
-  sta PTR_DINO_MIS0
+  sta PTR_DINO_MISSILE
   lda #>DINO_MIS_OFFSETS_END
   sbc #0
-  sta PTR_DINO_MIS0+1
+  sta PTR_DINO_MISSILE+1
   jmp _end_legs_anim
 
 _crouching:
-
+  ; Set the dino's Y position to the top of the crouching region.
+  ; This can be any value outside the standing range. The idea is to ensure the
+  ; dino won't be drawn as standing before the crouching kernels kick in.
+  lda #0
+  sta DINO_TOP_Y_INT
 
 _update_leg_anim:
   ; Dino leg animation
@@ -592,7 +601,7 @@ remaining_vblank:
   jmp splash_screen_kernel
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-; GAME KERNEL
+; GAME KERNELs
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 game_kernels:
 
@@ -666,24 +675,25 @@ _end_grp0_coarse_position:
   bit GAME_FLAGS             ; 3 (11)
   ; this nop shifts the _dino_is_not_crouching
   ; label so it doesn't cross page boundary
-  nop
-  nop
+  nop             ; 2 (13)
+  nop             ; 2 (15)
   ; using the sbeq macro here as is super important to get the timing
   ; right in this section
-  sbeq _dino_is_not_crouching_2 ; 2/3 (13/14)
-                       ; - (13)
-  inc $2D              ; 5 (18) - Wait 5 cycles, 2 bytes only
+  sbeq _dino_is_not_crouching_2 ; 2/3 (17/18)
+_dino_is_crouching_2:  ; - (17)
+  inc $2D              ; 5 (25) - Wait 5 cycles (2 bytes)
 
-  sta RESM1            ; 3 (21)
-  sta RESM0            ; 3 (24)
-  jmp _end_m0_coarse_position  ; 3 (31)
+  sta RESM1            ; 3 (28)
+  sta RESM0            ; 3 (31)
 
-_dino_is_not_crouching_2: ; - (14)
-  INSERT_NOPS 2        ; 4 (18)
+  jmp _end_m0_coarse_position  ; 3 (34)
 
-  sta RESM0            ; 3 (21)
+_dino_is_not_crouching_2: ; - (18)
+  INSERT_NOPS 2        ; 4 (22)
 
-_end_m0_coarse_position: ; (25/31)
+  sta RESM0            ; 3 (25)
+
+_end_m0_coarse_position: ; (25/34)
 
   ; Do the obstacle's coarse positioning preparations on the remaining of
   ; M0's positioning scanline
@@ -752,34 +762,39 @@ _last_setup_scanline:
   ; 5th scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
-  ldy #PLAY_AREA_MAX_Y   ; 2 (5)
+  ldy #PLAY_AREA_TOP_Y   ; 2 (5)
 
-  ; Prefetch the IS_CROUCHING value to save 2 cycles doing the check
   lda #FLAG_DINO_CROUCHING   ; 2 (7)
   bit GAME_FLAGS             ; 3 (10)
   bne __assign_crouching_kernel  ; 2/3 (12/13)
 
   lda #<legs_and_floor_kernel        ; 2 (14)
-  sta PTR_MIDDLE_SECTION_KERNEL   ; 3 (17)
+  sta PTR_AFTER_PLAY_AREA_KERNEL   ; 3 (17)
   lda #>legs_and_floor_kernel        ; 2 (19)
-  sta PTR_MIDDLE_SECTION_KERNEL+1 ; 3 (22)
-  jmp __end_middle_section_kernel_setup ; 3 (25)
+  sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (22)
 
-__assign_crouching_kernel:        ; - (13)
-  lda  #<dino_crouching_kernel    ; 2 (15)
-  sta PTR_MIDDLE_SECTION_KERNEL   ; 3 (18)
-  lda  #>dino_crouching_kernel    ; 2 (20)
-  sta PTR_MIDDLE_SECTION_KERNEL+1 ; 3 (23)
+  lda #PLAY_AREA_BOTTOM_Y+#1 ; 2 (24)
+
+  jmp __end_middle_section_kernel_setup ; 3 (27)
+
+__assign_crouching_kernel:         ; - (13)
+  lda  #<dino_crouching_kernel     ; 2 (15)
+  sta PTR_AFTER_PLAY_AREA_KERNEL   ; 3 (18)
+  lda  #>dino_crouching_kernel     ; 2 (20)
+  sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (23)
+
+  lda #CROUCHING_REGION_1_TOP_Y    ; 2 (25)
+
 __end_middle_section_kernel_setup:
 
-  ; TODO can remove this sec?
-  sec              ; 2 (27/25) Set the carry ahead of time for the next scanline
+  sta PLAY_AREA_MIN_Y  ; (30/28) - If crouching, the play area min y is changed
 
-  INSERT_NOPS 2    ; 4 (31/29) The usual "leave 24 cycles after HMOVE" shenanigan
+  ; TODO can remove this sec?
+  sec              ; 2 (32/30) Set the carry ahead of time for the next scanline
 
   ; Remove the fine offsets applied to the obstacles before going to the next 
   ; scanline, also leave the other motion registers in a clear state
-  sta HMCLR        ; 3 (34/32) 
+  sta HMCLR        ; 3 (35/33) 
 
   lda #$78         ; for debugging purposes
   sta COLUBK       ;
@@ -813,7 +828,7 @@ _play_area__y_not_within_dino:         ; - (25)
 
 _play_area__y_within_dino:             ; - (26)
   ; --- Dino Missile Setup ---
-  ; The data pointed to by PTR_DINO_MIS0 has the following bit layout:
+  ; The data pointed to by PTR_DINO_MISSILE has the following bit layout:
   ;
   ; bit index: 7 6 5 4 3 2 1 0
   ;            \_____/ \_/ ↑
@@ -821,12 +836,12 @@ _play_area__y_within_dino:             ; - (26)
   ;                     │  └── ENAM0
   ;                   NUSIZ0 (need to be shifted to the left twice)
   ;
-  ; LAX (an undocumented/illegal opcode) loads the byte at (PTR_DINO_MIS0),Y
+  ; LAX (an undocumented/illegal opcode) loads the byte at (PTR_DINO_MISSILE),Y
   ; into both A and X registers simultaneously. This gives us:
   ; - A: to extract and store the shifted NUSIZ0 value
   ; - X: a copy of the original byte for HMM0 and ENAM0 logic later
   ;
-  LAX (PTR_DINO_MIS0),y  ; 5 (31) - Load config byte into A and X
+  LAX (PTR_DINO_MISSILE),y  ; 5 (31) - Load config byte into A and X
   asl                    ; 2 (33)
   asl                    ; 2 (35)
   sta NUSIZ0             ; 3 (38)
@@ -862,8 +877,8 @@ _play_area__end_of_1st_scanline: ; - (39/57)
   sta GRP0                       ; 3 (6) - Dino sprite
   stx ENAM0                      ; 3 (9) - Toggle missile for dino extra detail
                                  ; in this scanline (if needed)
-
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY,_play_area__end_of_2nd_scanline ; 30 (39)
+ ; 30 (39)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _play_area__end_of_2nd_scanline
 
 _play_area__end_of_2nd_scanline:  ; - (39)
 
@@ -874,62 +889,27 @@ _play_area__end_of_2nd_scanline:  ; - (39)
   ; the carry being set when Y == PLAY_AREA_MIN_Y, that is, to turn this
   ; from Y ≥ C to Y > C. For that Y ≥ C + 1 ≡ Y > C.
   ; For example, x ≥ 4 ≡ x > 3  (for an integer x)
-  cpy #PLAY_AREA_MIN_Y+#1          ; 2 (43)
-  bcs play_area_kernel             ; 2/3 (45/46)
-  ; On the last scanline of this area, and just before starting the next 
-  ; scanline
+  cpy PLAY_AREA_MIN_Y              ; 3 (44)
+  bcs play_area_kernel             ; 2/3 (46/47)
 
-_check_if_crouching:               ; - (45)
-  jmp (PTR_MIDDLE_SECTION_KERNEL)  ; 5 (50)
-
+  ; At the final scanline of the play area, and just before the next scanline
+  ; begins, jump to the next kernel. The destination depends on the dino's
+  ; state—either the crouching kernel (if the dino is crouching) or the floor
+  ; kernel (if it's not).
+  jmp (PTR_AFTER_PLAY_AREA_KERNEL)  ; 5 (51)
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
-; The crouching part is split into two regions:
-; 1. Obstacles only: This region draws obstacles (either cacti or pterodactyl)
-;    *without* the dino, following the same logic as in
-;    'cactus_area_kernel.' It covers 15 + 7 = 22 double scanlines:
-;    15 no-dino 2x scanlines from the top to where the dino's head would begin
-;    when standing, plus 7 no-dino scanlines from the head to where the actual
-;    crouching starts.
-;
-; 2. Dino head and body: This sub-kernel draws the dino's head and body, as 
-;    well as the obstacles:
-;
-;                               ██████ 
-;                 ░  ▓▓▓▓▓▓▓▓  ██ █████
-;                 ░░░░░XXX▓▓▓▓▓████████
-;                 ░░░░░XXX▓▓▓▓▓████████
-;                  ░░░░XXXX▓▓▓▓████████
-;                  ░░░░XXXX▓▓▓▓████    
-;                   ░░XXXXXX▓▓  █████  
-;                   ███ ██   ▓▓
-;
-; The rest of the dino (the legs) will be drawn by the floor kernel, as their
-; graphics match the same position as the dino when standing:
-;                  |██   ██ |
-;                  |█       |
-;                  |██      |
-;
 
 _crouching_region_1:
   sta WSYNC        ; 3 (from play_area_kernel: 62 -> 65)
-                   ;   (from this kernel: 70 -> 73)
   ; 1st scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
   DRAW_OBSTACLE    ; 11 (14)
 
-  lda #0           ; 2 (16) - Clear reg A in case this is not the last scanline
-                   ; this will then leave the dino empty in the next scanline
-
-  ; Check if this is the last scanline of the first region
-  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (18)
-  bne _region_1__end_of_1st_scanline  ; 2/3 (20/21)
-
-  ; Final scanline of Region 1:
   ; The next scanline will draw the top of the crouching dino's head.
-  ; GRP0 and sprite data must be prepared in advance.
+  ; Here GRP0 sprite and configuration are prepared in advance.
                   ; - (20)
   lda #%00000101  ; 2 (22) - Configure GRP0 for 2-pixel width (2x size)
   sta NUSIZ0      ; 3 (25)
@@ -938,80 +918,92 @@ _crouching_region_1:
   ;         ________████████  <-- this will be drawn in the next scanline
   ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒     '██' are the non-empty 2px GRP0 pixels
   ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒      and '__' are the 2px GRP0 spaces
-  ;                                (1 and 0 respectively)
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒      (1 and 0 respectively)
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;     ▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒
+  ;      ▒▒▒ ▒▒  ▒▒
+  ;      ▯▯   ▯▯
+  ;      ▯
+  ;      ▯▯
 
 _region_1__end_of_1st_scanline: ; - (max count up to here is 30)
   ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the obstacle
   ; in the second scanline
   sta HMCLR        ; 3 (30)
-  sec              ; 2 (32)
 
-  sta WSYNC        ; 3 (35)
+  sta WSYNC        ; 3 (33)
   ; 2nd scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
-  sta GRP0         ; 3 (6) - Draw the dino's top of the head (if this is the
-                   ; last scanline
+  sta GRP0         ; 3 (6) - Draw the dino's top of the head when crouching
 
   ; ⚠ IMPORTANT:
   ; ------------
   ; Registers A and X hold obstacle sprite data after this macro and must not
   ; be modified until drawing is complete.
   ;
-  ; This macro costs 30 (36)
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _region_1__end_of_2nd_scanline
+  ; 32 (38)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _region_1__end_of_2nd_scanline
 
-_region_1__end_of_2nd_scanline:  ; - (max count: 36)
+_region_1__end_of_2nd_scanline:  ; - (38)
+  dey
+  sta WSYNC       ; 3 ()
 
-  ; Check if this is the last scanline of the first region
-  cpy #CROUCHING_REGION_1_MIN_Y       ; 2 (38)
-  bne _region_1__check_end_of_region  ; 2/3 (max count here 38 -> 40/41)
-  ; If this is the last scanline of this region, some preparation needs to be
-  ; done for the next region, first save reg A in the stack to keep
-  ; the graphics for the obstacle that need to be drawn in the first scanline
-  ; of the region 2
-  sta TEMP        ; 3 (41 -> 44)
-
-  lda #%00110000  ; 2 (46)
-  sta NUSIZ0      ; 3 (52) - Set M0 size to 8px while keeping P0 at 2x size
-
-  lda #2          ; 2 (54) - Enable both missiles
-  sta ENAM0       ; 3 (57)
-  sta ENAM1       ; 3 (60)
-
-  lda TEMP        ; 3 (63) - Restores the obstacle sprite in reg A
-
-_region_1__check_end_of_region:         ; - (max possible count here is 63)
-  dey                                   ; 2 (65)
-  cpy #CROUCHING_REGION_1_MIN_Y         ; 2 (67)
-  bpl _crouching_region_1               ; 2/3 (69/70)
 
 _crouching_region_2:
-  ; If the crouching region 1 is complete, then the crouching region 2 
-  ; is next, which spans for 7 scanlines
-  sta WSYNC                             ; 3 (72)
-
   ; 1st scanline ==============================================================
                  ; - (0)
   sta HMOVE      ; 3 (3)
 
   ; Draw the obstacle first, then load the dino's crouching data to draw
-  ; son the next canline
+  ; on the next canline
   DRAW_OBSTACLE  ; 11 (14)
 
-  lda #0         ; 2 (16)
+  ;                 ▒▒▒▒▒▒▒▒
+  ;   █   ███████  ██ ███████ <-- this will be drawn in the next scanline
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;     ▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒
+  ;      ▒▒▒ ▒▒  ▒▒
+  ;      ▯▯   ▯▯
+  ;      ▯
+  ;      ▯▯
+
+
+  inc $2D
+  inc $2D
+  sta HMCLR
+
+  lda #%00000001 ; 2 () - Set two copies close with missile size 1px
   sta NUSIZ1     ; 3 (19)
 
-  lda DINO_CROUCHING_MIS_0_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 (18)
-  sta HMM0      ; 3 (21)
+  lda #$F0        ; 2 () - Offset the player by 1px to the right starting on
+  sta HMP0        ; 3 () next scanline
+  sta HMM1
+
+  lda #$40
+  sta HMM0
+
+  lda #%00110101  ; 2 ()
+  sta NUSIZ0      ; 3 ()
+
+  lda #%11010111
+  sta ENAM0       ; 3 ()
+  sta ENAM1       ; 3 ()
+
+  ;lda DINO_CROUCHING_MIS_0_END-#CROUCHING_REGION_2_TOP_Y,y ; 4 (18)
+  ;sta HMM0      ; 3 (21)
 
   ; ⚠ IMPORTANT:
-  ; reg A can't be changed after this, as it contains the GRP0 sprite data 
-  ; that will be sent to the TIA in the next scanline
-  lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_MAX_Y,y ; 4 ()
+  ; reg A can't be changed after this, as it contains the GRP0 sprite data that
+  ; will be sent to the TIA in the next scanline
+  ;lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_2_TOP_Y,y ; 4 ()
 
-  sta HMCLR
+  ;sta HMCLR
   sta WSYNC                 ; 3 (57)
 
   ; 2nd scanline ==============================================================
@@ -1030,16 +1022,12 @@ _crouching_region_2:
 
 _region_2_end_of_2nd_scanline:
 
+  sta HMCLR
+
   dey                                   ; 2
-  cpy #CROUCHING_REGION_2_MIN_Y+#1      ; Similarly that what we did in the play
-                                        ; area kernel, +1 turns Y ≥ C into Y > C
-  bcs _crouching_region_2               ; 2/3
+  sta WSYNC
 
-
-  sta TEMP
-  lda #0         ; 2 (16)
-  sta NUSIZ1     ; 3 (19)
-  lda TEMP
+  DEBUG_SUB_KERNEL #$A1,#8
 
   jmp legs_and_floor_kernel
 
@@ -1146,7 +1134,7 @@ _scanline2__end_of_setup:
                               ; - (0)
   sta HMOVE                   ; 3 (3)
 
-  lda DINO_COLOUR
+  lda FOREGROUND_COLOUR
   sta COLUPF
   lda #%01110000
   sta PF0
@@ -1163,10 +1151,10 @@ _scanline2__end_of_setup:
   sta PF2
 
   ; Experimenting changing background color instead of playfield
-;lda DINO_COLOUR
+;lda FOREGROUND_COLOUR
 ;  sta COLUBK
-;ldx BG_COLOUR
-;  lda DINO_COLOUR
+;ldx BACKGROUND_COLOUR
+;  lda FOREGROUND_COLOUR
 ;  stx COLUBK
 ;  sta COLUBK
 
@@ -1182,7 +1170,7 @@ ground_area_kernel:
   sta HMOVE                   ; 3 (3)
   nop
 
-  lda BG_COLOUR
+  lda BACKGROUND_COLOUR
   sta COLUBK
 
   lda #0
@@ -1223,7 +1211,7 @@ _ground__end_of_1st_scanline:
   sta HMCLR
 
   dey                                   ; 2
-  cpy #GROUND_AREA_MIN_Y+#1             ; Similarly that what we did in the sky
+  cpy #GROUND_AREA_BOTTOM_Y+#1          ; Similarly that what we did in the sky
                                         ; kernel, +1 turns Y ≥ C into Y > C
   bcs ground_area_kernel           ; 2/3
 
@@ -1248,7 +1236,7 @@ splash_screen_kernel:
   DEBUG_SUB_KERNEL #$7A,#35
 
 _splash__dino_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------G
-  lda BG_COLOUR    ; 3
+  lda BACKGROUND_COLOUR    ; 3
   sta COLUBK       ; 3
 
   INSERT_NOPS 7    ; 14 Fix the dino_x position for the rest of the kernel
