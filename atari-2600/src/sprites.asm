@@ -282,14 +282,21 @@ DINO_MIS_OFFSETS_END = *
 ;                    ▯
 ;                    ▯▯
 DINO_CROUCHING_SPRITE:
-  .byte %00001111
+  .byte $00
+  .byte $00
+  .byte $00
+  .byte $00
+  .byte $00
+  .byte $00
+  .byte $00
+  ;.byte %10101000
+  ;.byte %11101110
+  ;.byte %11111100
+  ;.byte %11111111
+  ;.byte %11111111
+  ;.byte %11111111
   .byte %11010111
-  .byte %11111111
-  .byte %11111111
-  .byte %11111111
-  .byte %11111100
-  .byte %11101110
-  .byte %10101000
+  .byte %00001111
 DINO_CROUCHING_SPRITE_END = *
 
 DINO_CROUCHING_SPRITE_OFFSET:
@@ -299,7 +306,7 @@ DINO_CROUCHING_SPRITE_OFFSET:
   .byte $00
   .byte $00
   .byte $00
-  .byte $00
+  .byte $F0
   .byte $00
 DINO_CROUCHING_SPRITE_OFFSET_END = *
 
@@ -321,7 +328,7 @@ DINO_CROUCHING_MISSILE_1:
   .byte %00000000
   .byte %00000000
   .byte %00000000
-  .byte %00000000
+  .byte %11110010
   .byte %00000000
 DINO_CROUCHING_MISSILE_1_END = *
 

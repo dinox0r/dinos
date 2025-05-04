@@ -40,31 +40,15 @@ PLAY_AREA_BOTTOM_Y = #PLAY_AREA_TOP_Y - #PLAY_AREA_SCANLINES
 GROUND_AREA_TOP_Y = #PLAY_AREA_BOTTOM_Y - #FLOOR_SCANLINES
 GROUND_AREA_BOTTOM_Y = #GROUND_AREA_TOP_Y - #GRAVEL_SCANLINES
 
-; Crouching Kernel Regions
+; Crouching Kernel
 ; -----------------------------------------------------------------------------
-; The crouching sprite is divided into X regions, measured in 2x scanlines:
-;
-; Region 1: 
-; - This region draws the top of the crouching dino's head.
-;   It uses a 1x pixel sprite pattern and no missiles. This scanline also 
-;   serves as a setup line for the next phase of the kernel.
-;
-; Region 2: 
-;
-; The dino's legs are drawn by the "legs and floor" kernel,
-; which runs immediately after Region 2.
+CROUCHING_SCANLINES = #8
 
-CROUCHING_SCANLINES_REGION_1 = #1
-CROUCHING_SCANLINES_REGION_2 = #1
-CROUCHING_SCANLINES_REGION_3 = #8
-CROUCHING_SCANLINES = #CROUCHING_SCANLINES_REGION_1 + #CROUCHING_SCANLINES_REGION_2 + #CROUCHING_SCANLINES_REGION_3
-
-CROUCHING_REGION_1_TOP_Y = #PLAY_AREA_BOTTOM_Y + #CROUCHING_SCANLINES
-;CROUCHING_REGION_3_BOTTOM_Y = #CROUCHING_REGION_1_TOP_Y - #CROUCHING_SCANLINES
+CROUCHING_REGION_TOP_Y = #PLAY_AREA_BOTTOM_Y + #CROUCHING_SCANLINES
 
    ; For debugging:
    ECHO "PLAY_AREA_BOTTOM_Y =", #PLAY_AREA_BOTTOM_Y
-   ECHO "CROUCHING_REGION_1_TOP_Y =", #CROUCHING_REGION_1_TOP_Y
+   ECHO "CROUCHING_REGION_TOP_Y =", #CROUCHING_REGION_TOP_Y
    ECHO "CROUCHING_SCANLINES = ", #CROUCHING_SCANLINES
 
 DINO_JUMP_INIT_VY_INT = #5
@@ -773,7 +757,7 @@ _last_setup_scanline:
   lda #>legs_and_floor_kernel        ; 2 (19)
   sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (22)
 
-  lda #PLAY_AREA_BOTTOM_Y+#1 ; 2 (24)
+  lda #PLAY_AREA_BOTTOM_Y          ; 2 (24)
 
   jmp __end_middle_section_kernel_setup ; 3 (27)
 
@@ -783,7 +767,7 @@ __assign_crouching_kernel:         ; - (13)
   lda  #>dino_crouching_kernel     ; 2 (20)
   sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (23)
 
-  lda #CROUCHING_REGION_1_TOP_Y    ; 2 (25)
+  lda #CROUCHING_REGION_TOP_Y      ; 2 (25)
 
 __end_middle_section_kernel_setup:
 
@@ -885,7 +869,7 @@ _play_area__end_of_2nd_scanline:  ; - (39)
   ; Cactus/Crouching area very first scanline
   dey                      ; 2 (41)
   cpy PLAY_AREA_MIN_Y      ; 3 (44)
-  bcs play_area_kernel     ; 2/3 (46/47)
+  bne play_area_kernel     ; 2/3 (46/47)
 
   ; At the final scanline of the play area, and just before the next scanline
   ; begins, jump to the next kernel. The destination depends on the dino's
@@ -926,18 +910,18 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
   sta HMCLR      ; 3 (27) - Remove obstacle's fine adjustments (prevent it
                  ;          from continous shifting)
 
-  lda DINO_CROUCHING_SPRITE_OFFSET_END-#CROUCHING_REGION_1_TOP_Y,y ; 4 (31)
+  lda DINO_CROUCHING_SPRITE_OFFSET_END-#1-#CROUCHING_REGION_TOP_Y,y ; 4 (31)
   sta HMP0      ; 3 (34)
 
-  lda DINO_CROUCHING_MISSILE_0_END-#CROUCHING_REGION_1_TOP_Y,y ; 4 (38)
+  lda DINO_CROUCHING_MISSILE_0_END-#1-#CROUCHING_REGION_TOP_Y,y ; 4 (38)
   sta HMM0      ; 3 (41)
   sta ENAM0     ; 3 (44)
 
-  lda DINO_CROUCHING_MISSILE_1_END-#CROUCHING_REGION_1_TOP_Y,y ; 4 (48)
+  lda DINO_CROUCHING_MISSILE_1_END-#1-#CROUCHING_REGION_TOP_Y,y ; 4 (48)
   sta HMM1      ; 3 (51)
   sta ENAM1     ; 3 (54)
 
-  lda DINO_CROUCHING_SPRITE_END-#CROUCHING_REGION_1_TOP_Y,y ; 4 (58)
+  lda DINO_CROUCHING_SPRITE_END-#1-#CROUCHING_REGION_TOP_Y,y ; 4 (58)
 
   sec           ; 2 (60)
   sta WSYNC     ; 3 (63)
@@ -945,6 +929,8 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
   ; 2nd scanline ==============================================================
                 ; - (0)
   sta HMOVE     ; 3 (3)
+  lda #0       ; 2 (41) - Set M1 (and P1) back to a single copy
+  sta NUSIZ1   ; 3 (44)
   sta GRP0      ; 3 (6) - Draw the dino sprite
 
   ; ⚠ IMPORTANT:
@@ -961,7 +947,7 @@ _dino_crouching__end_of_2nd_scanline:
 
   lda #0       ; 2 (41) - Set M1 (and P1) back to a single copy
   sta NUSIZ1   ; 3 (44)
-  sta ENAM1    ; 3 (47) - Disable M1
+  ;sta ENAM1    ; 3 (47) - Disable M1
 
   lda TEMP     ; 3 (50) - Restore reg A
 
