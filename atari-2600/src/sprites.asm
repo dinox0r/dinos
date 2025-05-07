@@ -191,7 +191,7 @@ DINO_SPRITE1_OFFSETS_END = *
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-DINO_MIS_OFFSETS:
+DINO_MISSILE_0_OFFSETS:
                   ;                        offset           size
   .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
   .byte %00000000 ; |   ██   |██       |       0                0
@@ -220,7 +220,7 @@ DINO_MIS_OFFSETS:
   ;    █ GRP0 pixels
   ;    ▒ missile pixels
   ;    X overlapping pixels
-DINO_MIS_OFFSETS_END = *
+DINO_MISSILE_0_OFFSETS_END = *
 
 ; Crouching sprite diagram:
 ;
@@ -288,7 +288,6 @@ DINO_CROUCHING_SPRITE:
   .byte $00
   .byte $00
   .byte $00
-  .byte $00
   ;.byte %10101000
   ;.byte %11101110
   ;.byte %11111100
@@ -310,7 +309,7 @@ DINO_CROUCHING_SPRITE_OFFSET:
   .byte $00
 DINO_CROUCHING_SPRITE_OFFSET_END = *
 
-DINO_CROUCHING_MISSILE_0:
+DINO_CROUCHING_MISSILE_0_CONF:
   .byte %00000000
   .byte %00000000
   .byte %00000000
@@ -319,23 +318,33 @@ DINO_CROUCHING_MISSILE_0:
   .byte %00000000
   .byte %00000000
   .byte %00000000
-DINO_CROUCHING_MISSILE_0_END = *
+DINO_CROUCHING_MISSILE_0_CONF_END = *
 
-DINO_CROUCHING_MISSILE_1:
+DINO_CROUCHING_BALL_CONF_ODD_FRAMES:
   .byte %00000000
   .byte %00000000
   .byte %00000000
   .byte %00000000
   .byte %00000000
   .byte %00000000
-  .byte %11110010
+  .byte %11111111
+  .byte %00001111
+DINO_CROUCHING_BALL_CONF_ODD_FRAMES_END = *
+
+DINO_CROUCHING_BALL_CONF_EVEN_FRAMES:
   .byte %00000000
-DINO_CROUCHING_MISSILE_1_END = *
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %11111111
+  .byte %01111111
+DINO_CROUCHING_BALL_CONF_EVEN_FRAMES_END = *
 
 PTERO_WINGS_OPEN_SPRITE:
-  ; Sprite drawn as a combinatio
-  ; of GRP1 and the BALL (after applying offsets)
-  ;    "unpacked" GRP1 and BALL
+  ; Sprite drawn as a combination of GRP1 and the missile 1:
+  ;    "unpacked" GRP1 and M1
   ;                                 "packed" GRP1
   ;  |        ⏐        |             ⏐        ⏐
   ;  |     █  ⏐        |             ⏐     █  ⏐
@@ -357,8 +366,8 @@ PTERO_WINGS_OPEN_SPRITE:
   ;
   ; Legend:
   ;    █ GRP1 pixels
-  ;    ▒ BALL pixels
-  ;    X overlapping pixels (between GRP1 and BALL)
+  ;    ▒ M1 pixels
+  ;    X overlapping pixels (between GRP1 and M1)
   ;
   ; Upside-down view:
   ;  |        ⏐        |             ⏐        ⏐
@@ -402,35 +411,34 @@ PTERO_WINGS_OPEN_SPRITE_END = *
 ;       LEFT  <---------------------------------------------------------> RIGHT
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-PTERO_WINGS_OPEN_BALL:
-  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  ; Enable BALL bit
-  ;             ⏐
-  .ds 1 ;       ↓   |        ⏐        |
+PTERO_WINGS_OPEN_MISSILE_1_CONF:
+  ;                                    HMM1 bits 7,6,5,4   NUSIZx bits 5,4
+  ; Enable M1 bit
+  ;            ⏐
+  .ds 1 ;      ↓    |        ⏐        |
   .byte %00000000 ; |        ⏐        |         0              0
   .byte %00000000 ; |        ⏐        |         0              0
   .byte %00000000 ; |        ⏐        |         0              0
   .byte %00000000 ; |        ⏐        |         0              0
-  .byte %11111001 ; |        ⏐▓▓▓▓    |         0              0
-  .byte %11111101 ; |       ▓⏐▓▓▓▓▓▓▓ |        +3              4 (10)
-  .byte %00101101 ; |      ▓▓|▓▓▓▓▓▓  |         0              0
-  .byte %11111101 ; |     ███⏐▓▓▓▓▓▓▓▓|        +5              8 (11)
-  .byte %11111001 ; |████████⏐▓▓▓▓    |        -4              8 (11)
-  .byte %00011001 ; | ██████X⏐▓▓▓     |        +1              4 (10)
-  .byte %00000101 ; |  ███ ██⏐▓▓      |        -1              4 (10)
-  .byte %00010001 ; |   ██ ██⏐▓       |         0              0
+  .byte %11111010 ; |        ⏐▓▓▓▓    |         0              0
+  .byte %11111110 ; |       ▓⏐▓▓▓▓▓▓▓ |        +3              4 (10)
+  .byte %00101110 ; |      ▓▓|▓▓▓▓▓▓  |         0              0
+  .byte %11111110 ; |     ███⏐▓▓▓▓▓▓▓▓|        +5              8 (11)
+  .byte %11111010 ; |████████⏐▓▓▓▓    |        -4              8 (11)
+  .byte %00011010 ; | ██████X⏐▓▓▓     |        +1              4 (10)
+  .byte %00000110 ; |  ███ ██⏐▓▓      |        -1              4 (10)
+  .byte %00010010 ; |   ██ ██⏐▓       |         0              0
   .byte %00000000 ; |      ██⏐        |         0              0
   .byte %00000000 ; |     ██ ⏐        |         0              0
   .byte %00000000 ; |     █  ⏐        |         0              0
   .ds 1           ; |        ⏐        |
   ;                          ↑↑
-  ;                 end GRP1/  \-- BALL position
-PTERO_WINGS_OPEN_BALL_END = *
+  ;                 end GRP1/  \-- M1 position
+PTERO_WINGS_OPEN_MISSILE_1_CONF_END = *
 
 PTERO_WINGS_CLOSED_SPRITE:
-  ; Sprite drawn as a combination
-  ; of GRP1 and the BALL (after applying offsets)
-  ;    "unpacked" GRP1 and BALL
+  ; Sprite drawn as a combination of GRP1 and the missile 1:
+  ;    "unpacked" GRP1 and M1
   ;                            "packed" GRP1
   ; |        ⏐        |         ⏐        ⏐
   ; |        ⏐        |         ⏐        ⏐
@@ -452,7 +460,7 @@ PTERO_WINGS_CLOSED_SPRITE:
   ;
   ; Legend:
   ;    █ GRP0 pixels
-  ;    ▒ missile 0 pixels
+  ;    ▒ M1 pixels
   ;    X overlapping pixels
   ;
   ; Upside-down view:
@@ -493,25 +501,25 @@ PTERO_WINGS_CLOSED_SPRITE:
   .ds 1            ;⏐        ⏐
 PTERO_WINGS_CLOSED_SPRITE_END = *
 
-PTERO_WINGS_CLOSED_BALL:
+PTERO_WINGS_CLOSED_MISSILE_1_CONF:
 ; Again, for reference:
 ;       LEFT  <---------------------------------------------------------> RIGHT
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
-  ;                                    HMM0 bits 7,6,5,4   NUSIZE bits 5,4
-  ; Enable BALL bit 
-  ;             ⏐
-  .ds 1 ;       ↓   ⏐        ⏐        |
+  ;                                    HMM1 bits 7,6,5,4   NUSIZx bits 5,4
+  ; Enable M1 bit
+  ;            ⏐
+  .ds 1 ;      ↓    ⏐        ⏐        |
   .byte %00000000 ; ⏐      █ ⏐        |         0              0
   .byte %00000000 ; ⏐      ██⏐        |         0              0
   .byte %00000000 ; ⏐      ██⏐        |         0              0
-  .byte %00000001 ; ⏐      ██⏐▓       |         0              0
-  .byte %11111001 ; ⏐      ██⏐▓▓▓▓    |         0              0
-  .byte %11111101 ; ⏐      █X⏐▓▓▓▓▓▓▓ |        +3              4
-  .byte %00101101 ; ⏐      XX⏐▓▓▓▓▓▓  |         0              0
-  .byte %11111101 ; ⏐     ███⏐▓▓▓▓▓▓▓▓|        +1              8
-  .byte %00011001 ; ⏐████████⏐▓▓▓▓    |        +1              4
+  .byte %00000010 ; ⏐      ██⏐▓       |         0              0
+  .byte %11111010 ; ⏐      ██⏐▓▓▓▓    |         0              0
+  .byte %11111110 ; ⏐      █X⏐▓▓▓▓▓▓▓ |        +3              4
+  .byte %00101110 ; ⏐      XX⏐▓▓▓▓▓▓  |         0              0
+  .byte %11111110 ; ⏐     ███⏐▓▓▓▓▓▓▓▓|        +1              8
+  .byte %00011010 ; ⏐████████⏐▓▓▓▓    |        +1              4
   .byte %00000000 ; ⏐ █████  ⏐        |         0              0
   .byte %00000000 ; ⏐  ███   ⏐        |         0              0
   .byte %00000000 ; ⏐   ██   ⏐        |         0              0
@@ -520,10 +528,9 @@ PTERO_WINGS_CLOSED_BALL:
   .byte %00000000 ; ⏐        ⏐        |         0              0
   .ds 1           ; ⏐        ⏐        |
   ;                           ↑
-  ;                   initial BALL position (cycle 25)
-PTERO_WINGS_CLOSED_BALL_END = *
+  ;                   initial M1 position (cycle 25)
+PTERO_WINGS_CLOSED_MISSILE_1_CONF_END = *
 
-  ;
   ; Legend:
   ;    █ GRP0 pixels
   ;    ▒ missile pixels

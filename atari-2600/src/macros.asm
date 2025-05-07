@@ -45,16 +45,6 @@
     sta NUSIZ{1}          ; 3 (13)
   ENDM
 
-  ; Same as DECODE_MISSILE_PLAYER but using the BALL register
-  ; --------------------------------------------------------------------
-  MACRO DECODE_BALL   ; 13 cycles
-    sta ENABLE_BALL ; 3 (3)
-    sta HMBL        ; 3 (6)
-    asl             ; 2 (8)
-    asl             ; 2 (10)
-    sta CTRLPF      ; 3 (13)
-  ENDM
-
   ; TODO
   ; --------------------------------------------------------------------
   MACRO CHECK_Y_WITHIN_DINO       ; 9 cycles
@@ -85,28 +75,28 @@
 ; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE
 ;
 ; Checks if the current Y position (scanline) falls within the obstacle's
-; vertical range. If so, loads the corresponding obstacle sprite and ball
+; vertical range. If so, loads the corresponding obstacle sprite and missile 1
 ; data for the next scanline.
 ;
 ; Behavior:
 ; - If the scanline is within the obstacle's range:
 ;     - Load obstacle sprite data into A (and X).
-;     - Load obstacle ball data into A.
-;     - Setup fine motion for ball (HMBL) and prepare graphics for drawing.
+;     - Load obstacle missile 1 configuration into A.
+;     - Setup fine motion for M1 (HMM1) and prepare graphics for drawing.
 ; - If the scanline is outside the obstacle's range:
 ;     - Clear A and X.
 ;     - Jump to a user-provided label to continue execution.
 ;
 ; Ball data uses the same encoding format as the dino missile:
 ;     bit index: 7 6 5 4 3 2 1 0
-;                \_____/ \_/   ↑
-;                 HMBL    │    │
-;                         │    └─ ENABL
-;                      CTRLPF  (needs to be shifted left twice)
+;                \_____/ \_/ ↑
+;                 HMM1    │  │
+;                         │  └─ ENAM1
+;                      NUSIZ1 (needs to be shifted left twice)
 ;
 ; Parameters:
 ;   {1} = Label to jump to when scanline is outside obstacle range
-  MACRO LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE ; (32 cycles, 30 if carry is ignored)
+  MACRO LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE ; (29 cycles, 27 if carry is ignored)
 .SET_CARRY_BEFORE_SUBTRACTION SET {1}
 .TARGET_BRANCH_WHEN_FINISHED SET {2}
     ; Calculate: (current Y - obstacle Y) + obstacle height
@@ -130,24 +120,28 @@
     nop                       ; 2 (18, 20)
     nop                       ; 2 (20, 22) - These total to 4 bytes of ROM
 
-    lda #0                    ; 2 (24) - Clear A and X
-    tax                       ; 2 (26)
+    sta $2D                   ; 3 (25)
 
-    sta HMCLR                 ; 3 (29)
-    jmp .TARGET_BRANCH_WHEN_FINISHED ; 3 (32)
+    lda #0                    ; 2 (27) - Clear A and X
+    tax                       ; 2 (29)
 
-.obstacle_y_within_range:            ; - (12)
-    ; LAX (illegal opcode) is used here to load the sprite data into X,
-    ; saving 2 cycles compared to separate LDA + TAX.
-    LAX (PTR_OBSTACLE_SPRITE),y       ; 5 (17)
+    sta HMCLR                         ; 3 (32)
+    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (35)
 
-    ; Load obstacle ball (missile) properties. Duplicated here for reference:
+.obstacle_y_within_range:             ; - (12)
+    ; LAX (illegal opcode) is used here because there is no 'ldx (aa),y'. The
+    ; non-illegal-opcode alternative is to do 'lda (aa),y' and then 'tax'
+    ; incurring in 2 extra cycles, whereas LAX will only cost 5
+    LAX (PTR_OBSTACLE_SPRITE),y          ; 5 (23)
+
+    ; Load obstacle missile configuration. Bit Layout duplicated here for ref:
     ;     bit index: 7 6 5 4 3 2 1 0
-    ;                \_____/ \_/   ↑
-    ;                 HMBL    │    │
-    ;                         │    └─ ENABL
-    ;                      CTRLPF  (needs to be shifted left twice)
-    lda (PTR_OBSTACLE_BALL),y         ; 5 (22)
+    ;                \_____/ \_/ ↑
+    ;                 HMM1    │  │
+    ;                         │  └─ ENAM1
+    ;                      NUSIZ1 (needs to be shifted left twice)
+    lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (17)
+
 
     ; ⚠ IMPORTANT:
     ; Before applying fine motion to the obstacle ball, clear fine offsets.
@@ -157,11 +151,11 @@
     ; - HMxx writes must not happen within 24 CPU cycles of HMOVE.
     ; - By the time this macro runs, enough time should have passed since
     ;   the last HMOVE for HMCLR to be safely written.
-    sta HMCLR                        ; 3 (25)
+    sta HMCLR                            ; 3 (26)
 
-    sta HMBL                         ; 3 (28)
-    asl                              ; 2 (30)
-    asl                              ; 2 (32)
+    ; reg X holds a copy of the original (without shifting) missile 1
+    ; configuration. Bits 7 to 4 contain the untouched fine adjustment
+    sta HMM1                             ; 3 (29)
   ENDM
 
   ; Same as CHECK_Y_WITHIN_OBSTACLE but assumes carry is set
@@ -173,36 +167,39 @@
   ENDM
 
   ; Description:
-  ; Draws a horizontal obstacle using the ball object (ENABL) and GRP1 sprite
-  ; graphics. The macro assumes that a copy of the obstacle configuration
-  ; (CTRLPF + HMBL + ENABL) has already been shifted 2 bits to the left and is 
-  ; currently in the A register. The X register contains the obstacle sprite.
+  ; Draws a horizontal obstacle using the missile 1 object (ENAM1) and GRP1
+  ; sprite graphics. The macro assumes that a copy of the obstacle
+  ; configuration (HMM1 + NUSIZ1 + ENAM1) has already been shifted 2 bits to
+  ; the left and is currently in the A register. The X register contains the
+  ; obstacle sprite.
   ;
   ; Inputs:
-  ;   A - Obstacle data byte (HMBL + CTRLPF + ENABL), shifted left by 2 bits.
+  ;   A - Obstacle data byte (HMM1 + NUSIZ1 + ENAM1), shifted left by 2 bits.
   ;       Bit layout in memory before shifting:
   ;
   ;       bit index: 7 6 5 4 3 2 1 0
-  ;                  \_____/ \_/   ↑
-  ;                   HMBL    │    │
-  ;                           │    └── ENABL
-  ;                         CTRLPF (needs to be shifted to the left twice)
+  ;                  \_____/ \_/ ↑
+  ;                   HMM1    │  │
+  ;                           │  └── ENAM1
+  ;                        NUSIZ1 (needs to be shifted to the left twice)
   ;
   ;       After the left shift by 2 (done previous to the macro invocation),
   ;       A holds:
   ;
   ;       bit index: 7 6 5 4 3 2 1 0
-  ;                  __/ \_/   ↑
-  ;                HMBL   │    │
-  ;                       │    └── ENABL <-- Needs to be shifted to right
-  ;                     CTRLPF
+  ;                  __/ \_/ ↑
+  ;                HMM1   │  │
+  ;                       │  └── ENAM1 <-- Needs to be shifted to right
+  ;                    NUSIZ1
   ;
   ;   X - Obstacle sprite graphics, to be written to GRP1.
   ;------------------------------------------------------------------------------
-  MACRO DRAW_OBSTACLE   ; 11 cycles
-    sta CTRLPF        ; 3 (3) - Set the ball size
-    lsr               ; 2 (5) - Shift A right once to align ENABL bit
-    sta ENABL         ; 3 (8) - Enable/disable ball based on shifted bit
-    stx GRP1          ; 3 (11)
+  MACRO DRAW_OBSTACLE ; 13 cycles
+    sta ENAM1         ; 3 (3) - Enable/disable M1 first. It is assumed this
+                      ;         macro will be invoked first thing in the scanline
+    asl               ; 2 (5)
+    asl               ; 2 (7)
+    sta NUSIZ1        ; 3 (10)
+    stx GRP1          ; 3 (13)
   ENDM
 
