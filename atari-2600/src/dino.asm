@@ -101,8 +101,6 @@ DINO_TOP_Y_FRACT           .byte   ; 1 byte   (1)
 DINO_VY_INT                .byte   ; 1 byte   (2)
 DINO_VY_FRACT              .byte   ; 1 byte   (3)
 
-PTR_DINO_CROUCHING_BALL_CONF .word
-
 PTR_DINO_SPRITE            .word   ; 2 bytes  (4)
 PTR_DINO_OFFSET            .word   ; 2 bytes  (6)
 PTR_DINO_MISSILE_0_CONF      .word   ; 2 bytes  (8)
@@ -502,24 +500,6 @@ _crouching:
   lda #0
   sta DINO_TOP_Y_INT
 
-  ; Check the frame number parity to switch to a different ball configuration
-  lda #%00000100
-  bit FRAME_COUNT
-  bne __load_crouching_ball_conf_for_even_frame
-
-  lda #<[DINO_CROUCHING_BALL_CONF_ODD_FRAMES_END-#1-#CROUCHING_REGION_TOP_Y]
-  sta PTR_DINO_CROUCHING_BALL_CONF
-  lda #>[DINO_CROUCHING_BALL_CONF_ODD_FRAMES_END-#1-#CROUCHING_REGION_TOP_Y]
-  sta PTR_DINO_CROUCHING_BALL_CONF+1
-
-  jmp _update_leg_anim
-
-__load_crouching_ball_conf_for_even_frame:
-  lda #<[DINO_CROUCHING_BALL_CONF_EVEN_FRAMES_END-#1-#CROUCHING_REGION_TOP_Y]
-  sta PTR_DINO_CROUCHING_BALL_CONF
-  lda #>[DINO_CROUCHING_BALL_CONF_EVEN_FRAMES_END-#1-#CROUCHING_REGION_TOP_Y]
-  sta PTR_DINO_CROUCHING_BALL_CONF+1
-
 _update_leg_anim:
   ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
@@ -690,6 +670,7 @@ _dino_is_crouching_2:  ; - (17)
   inc $2D              ; 5 (25) - Wait 5 cycles (2 bytes)
 
   sta RESM0            ; 3 (31)
+  sta $2D
   sta RESBL            ; 3 (28)
 
   jmp _end_m0_coarse_position  ; 3 (34)
@@ -883,7 +864,6 @@ _play_area__end_of_1st_scanline: ; - (41/59)
 
 _play_area__end_of_2nd_scanline:  ; - (42)
 
-  ; Cactus/Crouching area very first scanline
   dey                      ; 2 (46)
   cpy PLAY_AREA_MIN_Y      ; 3 (49)
   bne play_area_kernel     ; 2/3 (49/50)
@@ -898,19 +878,10 @@ _play_area__end_of_2nd_scanline:  ; - (42)
   jmp (PTR_AFTER_PLAY_AREA_KERNEL)  ; 5 (58)
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
-  sta WSYNC      ; 3 (from play_area_kernel: 58 -> 65)
-                 ; 3 (from this kernel: 60 -> 63)
-
-  ; 1st scanline ==============================================================
-                 ; - (0)
-  sta HMOVE      ; 3 (3)
-
-  ; Draw the obstacle first, then load the dino's crouching data to draw
-  ; on the next canline
-  DRAW_OBSTACLE  ; 13 (16)
-
-  ;                 ▒▒▒▒▒▒▒▒
-  ;   █   ███████  ██ ███████ <-- this will be drawn by this region
+_region_1:
+  ;         0_0_0_0_1_1_1_1_ <-- GRP0
+  ;                 ████████ <-- this will be drawn by this region
+  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
   ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
   ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
   ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
@@ -921,75 +892,193 @@ dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<---------------
   ;      ▯
   ;      ▯▯
 
+  sta WSYNC      ; 3 (from play_area_kernel: 58 -> 65)
+                 ; 3 (from this kernel: 60 -> 63)
+
+  ; 1st scanline ==============================================================
+                 ; - (0)
+  sta HMOVE      ; 3 (3)
+
+  ; Draw the obstacle first, then load the dino's crouching data to draw
+  ; on the next scanline
+  DRAW_OBSTACLE  ; 13 (16)
+
+
   lda #%00000101 ; 2 (18) - Set P0 2px size
   sta NUSIZ0     ; 3 (21)
 
+  lda #%00001111 ; 2 (25) - GRP0 sprite data
 
-  lda DINO_CROUCHING_SPRITE_OFFSET_END-#1-#CROUCHING_REGION_TOP_Y,y ; 4 (25)
-  sta HMCLR     ; 3 (28) - Remove obstacle's fine adjustments (prevent it
-                ;          from continous shifting)
-  sta HMP0      ; 3 (31)
-
-  lda DINO_CROUCHING_MISSILE_0_CONF_END-#1-#CROUCHING_REGION_TOP_Y,y ; 4 (35)
-  sta HMM0      ; 3 (38)
-  sta ENAM0     ; 3 (41)
-
-  lda #$00
-  sta COLUPF
-  lda (PTR_DINO_CROUCHING_BALL_CONF),y ; 5 (46)
-  sta HMBL      ; 3 (49)
-  sta ENABL     ; 3 (52)
-  ;asl           ; 2 (54)
-  ;asl           ; 2 (56)
-  ;sta CTRLPF    ; 3 (59)
-
-
-  lda DINO_CROUCHING_SPRITE_END-#1-#CROUCHING_REGION_TOP_Y,y ; 4 (63)
-
-  sec           ; 2 (65)
-  sta WSYNC     ; 3 (68)
+  sta WSYNC      ; 3 ()
 
   ; 2nd scanline ==============================================================
-                ; - (0)
-  sta HMOVE     ; 3 (3)
-  sta GRP0      ; 3 (6) - Draw the dino sprite
+                 ; - (0)
+  sta HMOVE      ; 3 (3)
+  sta GRP0       ; 3 (6) - Draw the dino sprite
 
   ; ⚠ IMPORTANT:
   ; ------------
   ; Registers A and X hold obstacle sprite data after this macro and must not
   ; be modified until drawing is complete.
   ;
-  ; This macro costs 30 (36)
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _dino_crouching__end_of_2nd_scanline
-_dino_crouching__end_of_2nd_scanline:
+  ; This macro costs 29 (35)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _region_1__end_of_2nd_scanline
+_region_1__end_of_2nd_scanline:
 
-  sta TEMP     ; 3 (39) - Save reg A using a variable, which costs 6 cycles
-               ;          (using stack pha/pla costs 7 cycles)
+  dey           ; 2 (59) - Keep decrementing the scanline counter
+  sta WSYNC     ; 3 (62)
 
-  sta HMCLR    ; 3 (53) - Stop GRP0 and Mx from shifting in the scanline
+_region_2:
+  ;                 ▒▒▒▒▒▒▒▒
+  ;   █   ███████  ██ ███████ <-- this region will draw this scanline
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;     ▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒
+  ;      ▒▒▒ ▒▒  ▒▒
+  ;      ▯▯   ▯▯
+  ;      ▯
+  ;      ▯▯
 
-  dey          ; 2 (55) - Keep decrementing the scanline counter
-  cpy #PLAY_AREA_BOTTOM_Y   ; 2 (57)
-  bne dino_crouching_kernel ; 2/3 (59/60)
+  ; 1st scanline ==============================================================
+                ; - (0)
+  sta HMOVE     ; 3 (3)
+  DRAW_OBSTACLE ; 13 (16)
 
-  sta WSYNC    ; 3 (60)
+  lda FOREGROUND_COLOUR ; 3 (19)
+  sta COLUPF            ; 3 (22)
+
+  lda #$F0
+  sta HMP0
+  sta HMM0
+  lda #$10
+  sta HMBL
+
+  lda #%11010111 ; 2 () - GRP0 sprite data
+
+  sec           ; 2 ()
+  sta WSYNC     ; 3 (-)
+
+  ; 2nd scanline ==============================================================
+                ; - (0)
+  sta HMOVE     ; 3 (3)
+  sta GRP0      ; 3 (6) - Draw the dino sprite
+  sta ENAM0     ; 3 (9) - GRP0 = (11010111)₂ so both bit 1 and 0 are set, these
+  sta ENABL     ; 3 (12)  bits enable missile 0 and the ball respectively
+  lda #%10000000 ; 2 (14)
+  sta PF1        ; 3 (17)
+
+  ; ⚠ IMPORTANT:
+  ; ------------
+  ; Registers A and X hold obstacle sprite data after this macro and must not
+  ; be modified until drawing is complete.
+  ;
+  ; This macro costs 27 (45)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _region_2__end_of_2nd_scanline
+_region_2__end_of_2nd_scanline:
+
+  sta TEMP              ; 3 (48)
+  ; COLUPF must be restored to the game background color between
+  ; CPU cycle 39 (after PF1 is drawn by the TIA for the first time in the 
+  ; scanline) and cycle 54 (just before PF1 is drawn again in the same scanline
+  ; —if the playfield is not reflected).
+  lda #0                ; 2 (50)
+  sta PF1               ; 3 (53)
+
+  lda TEMP              ; 3 (56)
+
+  dey                   ; 2 (58) - Keep y (2x scanline counter) updated
+  sta WSYNC             ; 3 (61)
+
+  ; 3rd scanline ==============================================================
+                         ; - (0)
+  sta HMOVE              ; 3 (3)
+  DRAW_OBSTACLE          ; 13 (16)
+
+  lda #%10000000         ; 2 (18) - PF1 can be changed before CPU
+  sta PF1                ; 3 (21)   hits cycle 28, and should be cleared before
+                         ;          CPU cycle 54
+
+  lda #$10               ; 2 (23) - Positioning P0 1px to the left and the ball
+  sta HMP0               ; 3 (26)   6px to the right, this configuration allows
+  lda #$A0               ; 2 (28)   keeping P0 where is at for region 3, while
+  sta HMBL               ; 3 (31)   moving the missile 0 and ball to achieve
+                         ;          the sprite detail
+
+  lda #%00110101         ; 2 (33) - Set missile 0 size to 8px while 
+  sta NUSIZ0             ; 3 (36)   keeping P0 at 2x size
+
+  sec                    ; 2 (38) - Delaying changing PF1 until is displayed
+
+  lda #0                 ; 2 (40) - Reset PF1. PF1 rendering finishes by CPU
+  sta PF1                ; 3 (43)   cycle 39
+
+  lda #%11111111         ; 2 (45) - GRP0 sprite data for next scanline
+
+
+  ;lda DINO_CROUCHING_REGION_3_MISSILE_0_CONF_END-#CROUCHING_REGION_TOP_Y-#2,y ; 4 (33)
+  ;sta HMM0               ; 3 (36)
+
+_region_3:
+
+  ;                 ▒▒▒▒▒▒▒▒
+  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
+  ;   ███████████████████████ \
+  ;   ███████████████████████ |
+  ;    ██████████████████████  > This region will draw these scanlines
+  ;    █████████████████      |
+  ;     ██████████  ███████   /
+  ;      ▒▒▒ ▒▒  ▒▒
+  ;      ▯▯   ▯▯
+  ;      ▯
+  ;      ▯▯
+
+  sta WSYNC              ; 3 (48, 43 if is coming from this kernel)
+  ; 1st scanline ==============================================================
+                ; - (0)
+  sta HMOVE     ; 3 (3)
+  sta GRP0      ; 3 (6)
+
+  ; ⚠ IMPORTANT:
+  ; ------------
+  ; Registers A and X hold obstacle sprite data after this macro and must not
+  ; be modified until drawing is complete.
+  ;
+  ; This macro costs 27 (33)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _region_3__end_of_1st_scanline
+_region_3__end_of_1st_scanline:
+
+  dey    ; 2 (35) - Update the 2x scanline counter here (1st scanline of this 
+         ;          kernel) as the region started in the middle of a 2x scanline
+  cpy #PLAY_AREA_BOTTOM_Y ; 2 (37)
+  beq legs_and_floor_kernel ; 2/3 (39/40)
+
+  sta WSYNC                 ; 3 (42)
+  ; 2nd scanline ==============================================================
+               ; - (0)
+  sta HMOVE    ; 3 (3)
+  DRAW_OBSTACLE ; 13 (16)
+
+  lda DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END-#CROUCHING_REGION_TOP_Y-#3,y ; 4 (20)
+  LAX DINO_CROUCHING_REGION_3_SPRITE_END-#CROUCHING_REGION_TOP_Y-#3,y ; 4 (24)
+
+  sta HMM0      ; 3 (27)
+  asl           ; 2 (29)
+  asl           ; 2 (31)
+  asl           ; 2 (33)
+  asl           ; 2 (35)
+  sta HMBL      ; 3 (38)
+  txa           ; 2 (40)
+  jmp _region_3 ; 3 (43)
 
 legs_and_floor_kernel:
 
   lda #47                              ; 2 (11)
   sta COLUBK                            ; 3 (14)
 
-  ; If dino was crouching, we need to offset GPR0 2 pixels to the left 
-  ; otherwise the HMP0 offset won't match with the legs
-  lda #FLAG_DINO_CROUCHING
-  bit GAME_FLAGS
-  beq _scanline1_dino_is_not_crouching
-  ;lda #$20
-  ;sta HMP0
-
   sta WSYNC
   sta HMOVE
-  jmp _scanline1_dino_is_crouching
 
 _scanline1_dino_is_not_crouching:
   sta WSYNC                             ; 3
@@ -1014,11 +1103,6 @@ _scanline1__y_not_within_dino:
 _scanline1__y_within_dino:
   lda (PTR_DINO_OFFSET),y        ; 5 (28)
   sta DINO_SPRITE_OFFSET         ; 3 (31)
-
-_scanline1_dino_is_crouching:
-  ; graphics
-  lda (PTR_DINO_SPRITE),y        ; 5 (20)
-  sta DINO_SPRITE                ; 3 (23)
 
 _scanline1__end_of_setup:
   sta WSYNC

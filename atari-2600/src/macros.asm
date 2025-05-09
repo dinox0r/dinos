@@ -113,20 +113,16 @@
     bcs .obstacle_y_within_range     ; 2/3 (11/12) - Branch if inside
 
 .obstacle_y_outside_range:    ; - (11) (9 if ignoring the carry)
-                              ;
-                              ; Wait/waste 13 cycles:
-    php                       ; 3 (9 -> 12, 11 -> 14)
-    plp                       ; 4 (16, 18)
-    nop                       ; 2 (18, 20)
-    nop                       ; 2 (20, 22) - These total to 4 bytes of ROM
 
-    sta $2D                   ; 3 (25)
+    pha                       ; 3 (14) - Wait/waste 9 cycles (3 bytes)
+    pla                       ; 4 (18)
+    nop                       ; 2 (20)
 
-    lda #0                    ; 2 (27) - Clear A and X
-    tax                       ; 2 (29)
+    lda #0                    ; 2 (22) - Clear A and X
+    tax                       ; 2 (24)
 
-    sta HMCLR                         ; 3 (32)
-    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (35)
+    sta HMCLR                         ; 3 (26)
+    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (29)
 
 .obstacle_y_within_range:             ; - (12)
     ; LAX (illegal opcode) is used here because there is no 'ldx (aa),y'. The
@@ -139,7 +135,7 @@
     ;                \_____/ \_/ ↑
     ;                 HMM1    │  │
     ;                         │  └─ ENAM1
-    ;                      NUSIZ1 (needs to be shifted left twice)
+    ;                      NUSIZ1 <- needs to be shifted left twice
     lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (17)
 
 
@@ -181,15 +177,15 @@
   ;                  \_____/ \_/ ↑
   ;                   HMM1    │  │
   ;                           │  └── ENAM1
-  ;                        NUSIZ1 (needs to be shifted to the left twice)
+  ;                        NUSIZ1 ←─ needs to be shifted to the left twice
   ;
   ;       After the left shift by 2 (done previous to the macro invocation),
-  ;       A holds:
+  ;       reg A holds:
   ;
   ;       bit index: 7 6 5 4 3 2 1 0
   ;                  __/ \_/ ↑
   ;                HMM1   │  │
-  ;                       │  └── ENAM1 <-- Needs to be shifted to right
+  ;                       │  └── ENAM1
   ;                    NUSIZ1
   ;
   ;   X - Obstacle sprite graphics, to be written to GRP1.

@@ -281,66 +281,20 @@ DINO_MISSILE_0_OFFSETS_END = *
 ;                    ▯▯   ▯▯
 ;                    ▯
 ;                    ▯▯
-DINO_CROUCHING_SPRITE:
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00
-  ;.byte %10101000
-  ;.byte %11101110
-  ;.byte %11111100
-  ;.byte %11111111
-  ;.byte %11111111
-  ;.byte %11111111
-  .byte %11010111
-  .byte %00001111
-DINO_CROUCHING_SPRITE_END = *
+DINO_CROUCHING_REGION_3_SPRITE:
+  .byte #%11101110
+  .byte #%11111100
+  .byte #%11111111
+  .byte #%11111111
+DINO_CROUCHING_REGION_3_SPRITE_END = *
 
-DINO_CROUCHING_SPRITE_OFFSET:
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $F0
-  .byte $00
-DINO_CROUCHING_SPRITE_OFFSET_END = *
+DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF:
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+  .byte %00000000
+DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END = *
 
-DINO_CROUCHING_MISSILE_0_CONF:
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-DINO_CROUCHING_MISSILE_0_CONF_END = *
-
-DINO_CROUCHING_BALL_CONF_ODD_FRAMES:
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %11111111
-  .byte %00001111
-DINO_CROUCHING_BALL_CONF_ODD_FRAMES_END = *
-
-DINO_CROUCHING_BALL_CONF_EVEN_FRAMES:
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %00000000
-  .byte %11111111
-  .byte %01111111
-DINO_CROUCHING_BALL_CONF_EVEN_FRAMES_END = *
 
 PTERO_WINGS_OPEN_SPRITE:
   ; Sprite drawn as a combination of GRP1 and the missile 1:
