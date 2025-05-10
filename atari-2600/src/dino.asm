@@ -330,9 +330,7 @@ _on_joystick_down:
   bit GAME_FLAGS
   bne _reset_up_counter
 
-  ; At this point, the dino is neither crouching nor jumping.
-  ; reg A still holds #FLAG_DINO_CROUCHING (since the two flags are exclusive),
-  ; so it can be used to directly set the crouching bit in GAME_FLAGS.
+  lda #FLAG_DINO_CROUCHING
   ora GAME_FLAGS
   sta GAME_FLAGS
 
@@ -1085,11 +1083,11 @@ _region_4:
   sta WSYNC     ; 3 (49)
 
   ; 1st scanline ==============================================================
-                ; - (0)
-  sta HMOVE     ; 3 (3)
-  DRAW_OBSTACLE          ; 13 (16)
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
+  DRAW_OBSTACLE    ; 13 (16)
 
-  lda ($80,x)            ; 6 (22) - Wait/waste 6 CPU cycles (2 bytes)
+  lda ($80,x)      ; 6 (22) - Wait/waste 6 CPU cycles (2 bytes)
 
   sta HMCLR        ; 3 (25)
 
@@ -1136,6 +1134,12 @@ _region_4:
   ;
   ; This macro costs 27 (33)
   LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _region_4__end_of_2nd_scanline
+
+  lda #0
+  sta NUSIZ0
+  sta GRP0
+  sta ENAM0
+
 _region_4__end_of_2nd_scanline:
   sta WSYNC
 
