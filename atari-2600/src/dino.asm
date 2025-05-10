@@ -51,6 +51,7 @@ CROUCHING_REGION_TOP_Y = #PLAY_AREA_BOTTOM_Y + #CROUCHING_SCANLINES
    ECHO "PLAY_AREA_BOTTOM_Y =", #PLAY_AREA_BOTTOM_Y
    ECHO "CROUCHING_REGION_TOP_Y =", #CROUCHING_REGION_TOP_Y
    ECHO "CROUCHING_SCANLINES = ", #CROUCHING_SCANLINES
+   ECHO "DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END = ", #DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END
    ECHO "-------------------------------------------------"
 
 DINO_JUMP_INIT_VY_INT = #5
@@ -930,8 +931,8 @@ _region_1__end_of_2nd_scanline:
 
 _region_2:
   ;                 ▒▒▒▒▒▒▒▒
-  ;   █   ███████  ██ ███████ <-- this region will draw this scanline
-  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;   █   ███████  ██ ███████ \__ this region will draw these 2 scanlines
+  ;   ███████████████████████ /
   ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
   ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
   ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
@@ -1024,9 +1025,9 @@ _region_3:
 
   ;                 ▒▒▒▒▒▒▒▒
   ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
   ;   ███████████████████████ \
-  ;   ███████████████████████ |
-  ;    ██████████████████████  > This region will draw these scanlines
+  ;    ██████████████████████ | This region will draw these scanlines
   ;    █████████████████      |
   ;     ██████████  ███████   /
   ;      ▒▒▒ ▒▒  ▒▒
@@ -1051,8 +1052,11 @@ _region_3__end_of_1st_scanline:
 
   dey    ; 2 (35) - Update the 2x scanline counter here (1st scanline of this 
          ;          kernel) as the region started in the middle of a 2x scanline
-  cpy #PLAY_AREA_BOTTOM_Y ; 2 (37)
-  beq legs_and_floor_kernel ; 2/3 (39/40)
+
+  ; Last scanline of this region is one above the play area bottom Y, the
+  ; remaining scanline is for region 4
+  cpy #PLAY_AREA_BOTTOM_Y+#1 ; 2 (37)
+  beq _region_4 ; 2/3 (39/40)
 
   sta WSYNC                 ; 3 (42)
   ; 2nd scanline ==============================================================
@@ -1060,17 +1064,80 @@ _region_3__end_of_1st_scanline:
   sta HMOVE    ; 3 (3)
   DRAW_OBSTACLE ; 13 (16)
 
-  lda DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END-#CROUCHING_REGION_TOP_Y-#3,y ; 4 (20)
-  LAX DINO_CROUCHING_REGION_3_SPRITE_END-#CROUCHING_REGION_TOP_Y-#3,y ; 4 (24)
+; REGION_3_OFFSET = -(-#CROUCHING_REGION_TOP_Y + #3 - #1) =
+;                 = -(-#CROUCHING_REGION_TOP_Y + #2)
+; 3 from the already drawn scanlines, and 1 to move the *_END label back
+REGION_3_OFFSET = #CROUCHING_REGION_TOP_Y - #2
+  lda DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END - #REGION_3_OFFSET,y ; 4 (20)
+  ldx DINO_CROUCHING_REGION_3_SPRITE_END - #REGION_3_OFFSET,y ; 4 (24)
 
-  sta HMM0      ; 3 (27)
-  asl           ; 2 (29)
-  asl           ; 2 (31)
-  asl           ; 2 (33)
-  asl           ; 2 (35)
-  sta HMBL      ; 3 (38)
-  txa           ; 2 (40)
-  jmp _region_3 ; 3 (43)
+  sta HMCLR     ; 3 (27)
+  sta HMM0      ; 3 (30)
+  asl           ; 2 (32)
+  asl           ; 2 (34)
+  asl           ; 2 (36)
+  asl           ; 2 (38)
+  sta HMBL      ; 3 (41)
+  txa           ; 2 (43)
+  jmp _region_3 ; 3 (46)
+
+_region_4:
+  sta WSYNC     ; 3 (49)
+
+  ; 1st scanline ==============================================================
+                ; - (0)
+  sta HMOVE     ; 3 (3)
+  DRAW_OBSTACLE          ; 13 (16)
+
+  lda ($80,x)            ; 6 (22) - Wait/waste 6 CPU cycles (2 bytes)
+
+  sta HMCLR        ; 3 (25)
+
+  lda #$F0         ; 2 (28) - Move M0 1px to the right
+  sta HMM0         ; 3 (31)
+
+  ldx #%00010000   ; 2 (33) - Set M0 to 2px and make P0 back to 1px size
+
+  sec              ; 2 (35) - Set carry for next scanline and delay applying
+                   ;          changes to NUSIZ0 and ENABL until the dino 
+                   ;          finished drawing (around CPU cycle 42 for this
+                   ;          scanline)
+
+  lda #%10110011   ; 2 (37)
+
+  stx NUSIZ0       ; 3 (40) - Update the NUSIZ0 configuration stored in reg X
+                   ;          a few instructions ago
+  stx ENABL        ; 3 (43) - Bit 0 of reg X is 0, so it can be used to turn
+                   ;          the ball OFF
+
+  ;                 ▒▒▒▒▒▒▒▒
+  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;     ▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒
+  ;      ▒▒█ ██  ██
+  ;        10110011 <-- GRP0 sprite value
+  ;      ▯▯   ▯▯
+  ;      ▯
+  ;      ▯▯
+  sta WSYNC        ; 3 (46)
+
+  ; 2nd scanline ==============================================================
+                ; - (0)
+  sta HMOVE     ; 3 (3)
+  sta GRP0      ; 3 (6)
+
+  ; ⚠ IMPORTANT:
+  ; ------------
+  ; Registers A and X hold obstacle sprite data after this macro and must not
+  ; be modified until drawing is complete.
+  ;
+  ; This macro costs 27 (33)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _region_4__end_of_2nd_scanline
+_region_4__end_of_2nd_scanline:
+  sta WSYNC
 
 legs_and_floor_kernel:
 
