@@ -133,7 +133,7 @@ DINO_SPRITE_3_END = *
 ;  .byte %11111111   ;  █ ██████
 ;  .ds 1             ;
 
-DINO_SPRITE1_OFFSETS:
+DINO_SPRITE_OFFSETS:
 ;       LEFT  <---------------------------------------------------------> RIGHT
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
@@ -157,7 +157,7 @@ DINO_SPRITE1_OFFSETS:
   .byte $F0  ;   ███████
   .byte $00  ;  ████████
   .ds 1      ;
-DINO_SPRITE1_OFFSETS_END = *
+DINO_SPRITE_OFFSETS_END = *
 
 ; DINO MISSILE OFFSET
 ;
@@ -278,6 +278,7 @@ DINO_MISSILE_0_OFFSETS_END = *
 ;                  █████████████████       %#11111100
 ;                   ██████████  ███████    %111101110
 ;                    ███ ██  ██            %101010000
+;                      10110011
 ;                    ▯▯   ▯▯
 ;                    ▯
 ;                    ▯▯

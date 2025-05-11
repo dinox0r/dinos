@@ -201,9 +201,9 @@ game_init:
   lda #>[DINO_SPRITE_1 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-  lda #<[DINO_SPRITE1_OFFSETS - INIT_DINO_POS_Y]
+  lda #<[DINO_SPRITE_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_OFFSET
-  lda #>[DINO_SPRITE1_OFFSETS - INIT_DINO_POS_Y]
+  lda #>[DINO_SPRITE_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_OFFSET+1
 
   lda #<[DINO_MISSILE_0_OFFSETS - INIT_DINO_POS_Y]
@@ -252,6 +252,7 @@ vsync:
   lda #43
   sta TIM64T
 
+  ; TODO: Can this be removed?
   sta HMCLR             ; Clear horizontal motion registers
 
 ;==============================================================================
@@ -476,10 +477,10 @@ _update_jump_pos:
   sta PTR_DINO_SPRITE+1
 
   sec
-  lda #<DINO_SPRITE1_OFFSETS_END
+  lda #<DINO_SPRITE_OFFSETS_END
   sbc DINO_TOP_Y_INT
   sta PTR_DINO_OFFSET
-  lda #>DINO_SPRITE1_OFFSETS_END
+  lda #>DINO_SPRITE_OFFSETS_END
   sbc #0
   sta PTR_DINO_OFFSET+1
 
@@ -795,90 +796,34 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ; Draw the obstacle first then load dino's data for the next scanline
   DRAW_OBSTACLE  ; 13 (16)
 
-  CHECK_Y_WITHIN_DINO            ; 9 (25)
-  bcs _play_area__y_within_dino  ; 2/3 (27/28)
+  ; 46 (62)
+  LOAD_DINO_GRAPHICS_IF_IN_RANGE #SET_CARRY, _play_area__end_of_1st_scanline
 
-_play_area__y_not_within_dino:   ; - (27)
-  lda #0                         ; 2 (29)  Disable the missile for P0
-  tax                            ; 2 (31)  Good time to write to HMMx regs!!
-  ; Remove HMP1 and HMBL fine offsets so they don't keep shifting the ptero
-  ; in the second scanline. Doing HMCLR is fine because there won't be 
-  ; fine offsets for the dino (we are in y_no_within_dino)
-  sta HMCLR                      ; 3 (34)
-  jmp _play_area__end_of_1st_scanline  ; 3 (37)
-
-_play_area__y_within_dino:             ; - (28)
-  ; --- Dino Missile Setup ---
-  ; The data pointed to by PTR_DINO_MISSILE_0_CONF has the following bit layout:
-  ;
-  ; bit index: 7 6 5 4 3 2 1 0
-  ;            \_____/ \_/ ↑
-  ;             HMM0    │  │
-  ;                     │  └── ENAM0
-  ;                   NUSIZ0 (need to be shifted to the left twice)
-  ;
-  ; LAX (an undocumented/illegal opcode) loads the byte at (PTR_DINO_MISSILE_0_CONF),Y
-  ; into both A and X registers simultaneously. This gives us:
-  ; - A: to extract and store the shifted NUSIZ0 value
-  ; - X: a copy of the original byte for HMM0 and ENAM0 logic later
-  ;
-  LAX (PTR_DINO_MISSILE_0_CONF),y  ; 5 (33) - Load config byte into A and X
-  asl                            ; 2 (35)
-  asl                            ; 2 (37)
-  sta NUSIZ0                     ; 3 (40)
-
-  ; By now, 24+ CPU cycles have passed since the last HMOVE, meaning we can
-  ; safely modify HMMx registers without triggering unwanted shifts.
-  ; First, we use HMCLR to reset HMP1 and HMBL. It also clears all HMMx regs,
-  ; which is fine — HMM0 and HMP0 are about to be updated anyway.
-  sta HMCLR                    ; 3 (43) - Clear horizontal motion registers
-  stx HMM0                     ; 3 (46) - Restore HMM0 from original byte
-
-  ; X still holds the unmodified value loaded by LAX. This includes the ENAM0
-  ; bit, which will be used later in the second scanline. So X can't be written
-  ; to from this moment.
-
-  ; dino graphics offset
-  lda (PTR_DINO_OFFSET),y        ; 5 (51)
-  sta HMP0                       ; 3 (54)
-
-  ; dino graphics- leave them in reg A so they are ready to be used in the 2nd
-  ; scanline, this implies not touching reg A for the rest of this scan line
-  lda (PTR_DINO_SPRITE),y        ; 5 (59)
-
-_play_area__end_of_1st_scanline: ; - (41/59)
-  sec                      ; 2 (43/61) - Set the carry for the sbc instruction
-                           ; that will happen in the next scanline for the
-                           ; Y-bounds check of the ptero
-  sta WSYNC                ; 3 (46/64)
+_play_area__end_of_1st_scanline: ; - (62)
+  sta WSYNC                      ; 3 (65)
 
   ; 2nd scanline ==============================================================
                            ; - (0)
   sta HMOVE                ; 3 (3)
-  sta GRP0                 ; 3 (6) - Dino sprite
-  stx ENAM0                ; 3 (9) - Toggle missile for dino extra detail
-                           ; in this scanline (if needed)
- ; 27 ()
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _play_area__end_of_2nd_scanline
+  DRAW_DINO                ; 3 (6)
 
-_play_area__end_of_2nd_scanline:  ; - (42)
+  ; 29 (35)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _play_area__end_of_2nd_scanline
 
-  dey                      ; 2 (46)
-  cpy PLAY_AREA_MIN_Y      ; 3 (49)
-  bne play_area_kernel     ; 2/3 (49/50)
+_play_area__end_of_2nd_scanline:  ; - (35)
 
-  lda #0                   ; 2 (51)
-  tax                      ; 2 (53)
+  dey                      ; 2 (37)
+  cpy PLAY_AREA_MIN_Y      ; 3 (40)
+  bne play_area_kernel     ; 2/3 (42/43)
 
   ; At the final scanline of the play area, and just before the next scanline
   ; begins, jump to the next kernel. The destination depends on the dino's
   ; state—either the crouching kernel (if the dino is crouching) or the floor
   ; kernel (if it's not).
-  jmp (PTR_AFTER_PLAY_AREA_KERNEL)  ; 5 (58)
+  jmp (PTR_AFTER_PLAY_AREA_KERNEL)  ; 5 (47)
 
 dino_crouching_kernel: ;------------------>>> 31 2x scanlines <<<-----------------
 _region_1:
-  ;         0_0_0_0_1_1_1_1_ <-- GRP0
   ;                 ████████ <-- this will be drawn by this region
   ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
   ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
@@ -906,6 +851,18 @@ _region_1:
   lda #%00000101 ; 2 (18) - Set P0 2px size
   sta NUSIZ0     ; 3 (21)
 
+  ;         0 0 0 0 1 1 1 1  <-- GRP0 data, P0 is configured as double width
+  ;         ........████████
+  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;     ▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒
+  ;      ▒▒▒ ▒▒  ▒▒
+  ;      ▯▯   ▯▯
+  ;      ▯
+  ;      ▯▯
   lda #%00001111 ; 2 (25) - GRP0 sprite data
 
   sta WSYNC      ; 3 ()
@@ -960,11 +917,11 @@ _region_2:
   sta WSYNC     ; 3 (-)
 
   ; 2nd scanline ==============================================================
-                ; - (0)
-  sta HMOVE     ; 3 (3)
-  sta GRP0      ; 3 (6) - Draw the dino sprite
-  sta ENAM0     ; 3 (9) - GRP0 = (11010111)₂ so both bit 1 and 0 are set, these
-  sta ENABL     ; 3 (12)  bits enable missile 0 and the ball respectively
+                 ; - (0)
+  sta HMOVE      ; 3 (3)
+  sta GRP0       ; 3 (6) - Draw the dino sprite
+  sta ENAM0      ; 3 (9) - GRP0 = (11010111)₂ so both bit 1 and 0 are alreay
+  sta ENABL      ; 3 (12)  set. These bits enable M0 and the ball respectively
   lda #%10000000 ; 2 (14)
   sta PF1        ; 3 (17)
 
@@ -1145,63 +1102,34 @@ _region_4__end_of_2nd_scanline:
 
 legs_and_floor_kernel:
 
-  lda #47                              ; 2 (11)
-  sta COLUBK                            ; 3 (14)
 
-  sta WSYNC
-  sta HMOVE
-
-_scanline1_dino_is_not_crouching:
-  sta WSYNC                             ; 3
-
-  ;============================================================================
-  ; 1st DOUBLE SCANLINE
-  ;============================================================================
   ; 1st scanline (SETUP) ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
 
-  CHECK_Y_WITHIN_DINO         ; 9 (12)
+  DRAW_OBSTACLE               ; 13 (16)
 
-  bcs _scanline1__y_within_dino  ; 2/3 (14/15)
+  ; 46 (62)
+  LOAD_DINO_GRAPHICS_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_1st_scanline
+_legs_and_floor__end_of_1st_scanline:
+  sta WSYNC     ; 3 (65)
 
-_scanline1__y_not_within_dino:
-  lda #0                         ; 2 (16)
-  sta DINO_SPRITE                ; 3 (19)
-  sta DINO_SPRITE_OFFSET         ; 3 (21)
-  jmp _scanline1__end_of_setup   ; 3 (24)
+  ; 2nd scanline ========================================================
+                ; - (0)
+  sta HMOVE     ; 3 (3)
+  DRAW_DINO     ; 3 (6)
 
-_scanline1__y_within_dino:
-  lda (PTR_DINO_OFFSET),y        ; 5 (28)
-  sta DINO_SPRITE_OFFSET         ; 3 (31)
+  ; 29 (35)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_2nd_scanline
 
-_scanline1__end_of_setup:
-  sta WSYNC
-
-  ; 2nd scanline (DRAWING) ========================================================
-                              ; - (0)
-  lda #0
-  sta ENAM0
-
-  lda DINO_SPRITE                       ; 3
-  ;lda #0                               ; for debugging, hides GRP0
-  sta GRP0                              ; 3
-
-  INSERT_NOPS 12                        ; 24
-
-  lda DINO_SPRITE_OFFSET
-  sta HMP0
-
-  dey
-
+_legs_and_floor__end_of_2nd_scanline:  ; - (35)
+  dey          ; 2 (37)
 
   lda #77                              ; 2 (11)
   sta COLUBK                            ; 3 (14)
   sta WSYNC
-  ;============================================================================
-  ; 2nd DOUBLE SCANLINE
-  ;============================================================================
-  ; 1st scanline (SETUP) ========================================================
+
+  ; 3rd scanline ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
   CHECK_Y_WITHIN_DINO         ; 9 (12)
@@ -1228,7 +1156,7 @@ _scanline2__y_within_dino:
   sta WSYNC
 
 _scanline2__end_of_setup:
-  ; 2nd scanline (DRAWING) ========================================================
+  ; 4th scanline ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
 
@@ -1374,7 +1302,7 @@ _splash__dino_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<-------------
   asl                                  ; 2
   sta NUSIZ0                           ; 3
 
-  lda DINO_SPRITE1_OFFSETS-#1,y        ; 4
+  lda DINO_SPRITE_OFFSETS-#1,y        ; 4
   sta HMP0                             ; 3
 
   ;sta HMBL
