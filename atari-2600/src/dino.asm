@@ -135,7 +135,6 @@ RND_SEED                   .word   ; 2 bytes  (31)
 
 ; Candidates for removal (something to do later)
 DINO_SPRITE                .byte   ; 1 byte   (33)
-DINO_SPRITE_OFFSET         .byte   ; 1 byte   (34)
 MISSILE_P0                 .byte   ; 1 byte   (35)
 
 ; This section is to include variables that share the same memory but are 
@@ -215,7 +214,7 @@ game_init:
   lda #1
   sta OBSTACLE_TYPE
   ;lda #PLAY_AREA_BOTTOM_Y+#20
-  lda #PLAY_AREA_TOP_Y-#43
+  lda #PLAY_AREA_TOP_Y-#45
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -1141,7 +1140,7 @@ legs_and_floor_kernel:
   bit GAME_FLAGS            ; 3 (49)
   beq _legs_and_floor__end_of_1st_scanline            ; 2/3 (51)
   ; Override the P0 offset if dino was crouching to position it so it matches
-  ; the expected location
+  ; the expected location for the legs kernel
   lda #$20    ; 2 (53)
   sta HMP0    ; 3 (56)
   lda #0      ; 2 (58)
@@ -1157,73 +1156,50 @@ _legs_and_floor__end_of_1st_scanline:
 
   DRAW_DINO     ; 3 (6)
 
+  lda #77
+  sta COLUBK
+
   ; 29 (35)
   LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_2nd_scanline
-
 _legs_and_floor__end_of_2nd_scanline:  ; - (35)
   dey          ; 2 (37)
 
-  lda #77                              ; 2 (11)
-  sta COLUBK                            ; 3 (14)
   sta WSYNC
 
   ; 3rd scanline ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
-  CHECK_Y_WITHIN_DINO         ; 9 (12)
+  DRAW_OBSTACLE               ; 13 (16)
 
-  bcs _scanline2__y_within_dino   ; 2/3
+  ; 28 (44)
+  LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_3rd_scanline
+_legs_and_floor__end_of_3rd_scanline:
 
-_scanline2__y_not_within_dino:
-  lda #0                          ; 3   Disable the misSile for P0
-  sta DINO_SPRITE                 ; 3
-  sta DINO_SPRITE_OFFSET
-  jmp _scanline2__end_of_setup ; 3
-
-_scanline2__y_within_dino:
-  ; graphics
-  lda (PTR_DINO_SPRITE),y               ; 5+
-  sta DINO_SPRITE                       ; 3
-
-  lda (PTR_DINO_OFFSET),y
-  lda DINO_SPRITE_OFFSET
-
-  INSERT_NOPS 12                        ; 24
-  sta HMP0
+  lda BACKGROUND_COLOUR
+  sta COLUPF
+  lda FOREGROUND_COLOUR
 
   sta WSYNC
 
-_scanline2__end_of_setup:
   ; 4th scanline ========================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
 
-  lda FOREGROUND_COLOUR
-  sta COLUPF
-  lda #%01110000
+  sta COLUBK                  ; 3 (6)
+  lda #%10000000              ; 2 
   sta PF0
 
-  lda DINO_SPRITE                       ; 3
-  ;lda #0                               ; for debugging, hides GRP0
-  sta GRP0                              ; 3
-  ;sta GRP0                              ; 3
+  DRAW_DINO
 
-  lda #%00011111
+  lda #%11000000
   sta PF1
 
-  lda #255
-  sta PF2
-
-  ; Experimenting changing background color instead of playfield
-;lda FOREGROUND_COLOUR
-;  sta COLUBK
-;ldx BACKGROUND_COLOUR
-;  lda FOREGROUND_COLOUR
-;  stx COLUBK
-;  sta COLUBK
-
   INSERT_NOPS 12                        ; 24
+  lda #0
+  sta PF0
+  sta PF1
   sta HMCLR
+  sta GRP1
 
   dey
 
@@ -1232,52 +1208,25 @@ ground_area_kernel:
   ; 1st scanline ==============================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
-  nop
 
   lda BACKGROUND_COLOUR
   sta COLUBK
 
-  lda #0
-  sta PF0
-  sta PF1
-  sta PF2
-  sta ENAM0
-
-  CHECK_Y_WITHIN_DINO
-  bcs _ground__y_within_dino                   ; 2/3
-
-_ground__y_not_within_dino:
-  lda #0                                ; 3   Disable the misSile for P0
-  sta DINO_SPRITE                       ; 3
-  sta DINO_SPRITE_OFFSET
-  jmp _ground__end_of_1st_scanline     ; 3
-
-_ground__y_within_dino:
-  ; graphics
-  lda (PTR_DINO_SPRITE),y               ; 5+
-  sta DINO_SPRITE                       ; 3
-
-  ; graphics offset
-  lda (PTR_DINO_OFFSET),y               ; 5+
-  sta HMP0                              ; 3
-
-
+  LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _ground__end_of_1st_scanline
 _ground__end_of_1st_scanline:
+
   sta WSYNC                             ; 3
 
   ; 2nd scanline ==============================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
-  lda DINO_SPRITE                       ; 3
-  ;lda #0                               ; for debugging, hides GRP0
-  sta GRP0                              ; 3
+  DRAW_DINO
+
   INSERT_NOPS 10                        ; 20
   sta HMCLR
 
   dey                                   ; 2
-  cpy #GROUND_AREA_BOTTOM_Y+#1          ; Similarly that what we did in the sky
-                                        ; kernel, +1 turns Y ≥ C into Y > C
-  bcs ground_area_kernel           ; 2/3
+  bne ground_area_kernel
 
   sta WSYNC                             ; 3
   sta HMOVE
@@ -1327,10 +1276,13 @@ _splash__dino_kernel_setup: ;------------->>> 32 2x scanlines <<<---------------
 _splash__dino_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<----------------
 
   ; 1st scanline (setup) ======================================================
-  INSERT_NOPS 5                        ; 10 add some 'distance' between the last
+  sta HMOVE
+  INSERT_NOPS 10                       ; 20 add some 'distance' between the last
                                        ; sta HMOVE (has to be 24+ cycles)
-  lda DINO_SPRITE_1-#1,y               ; 4
-  sta DINO_SPRITE                      ; 3
+  lda DINO_SPRITE_OFFSETS-#1,y        ; 4
+  sta HMP0                             ; 3
+
+  ldx DINO_SPRITE_1-#1,y               ; 4
   lda DINO_MISSILE_0_OFFSETS-#1,y      ; 4
 
   ; missile
@@ -1340,18 +1292,15 @@ _splash__dino_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<-------------
   asl                                  ; 2
   sta NUSIZ0                           ; 3
 
-  lda DINO_SPRITE_OFFSETS-#1,y        ; 4
-  sta HMP0                             ; 3
-
   ;sta HMBL
 
   sta WSYNC                            ; 3
-  sta HMOVE                            ; 3
 
   ; 2nd scanline ==============================================================
+  sta HMOVE                            ; 3
   lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
-  sta GRP0                              ; 3
+  stx GRP0                              ; 3
   lda MISSILE_P0                         ; 3
   sta ENAM0                             ; 3
   and GAME_FLAGS               ; 3

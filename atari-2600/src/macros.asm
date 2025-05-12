@@ -193,8 +193,8 @@
     sbc DINO_TOP_Y_INT               ; 3 (7) - A = scanline - dino top Y
     adc #DINO_HEIGHT                 ; 2 (9) - A += dino height
 
-    bcs ._dino_y_within_range         ; 2/3 (11/12) - In range if carry set
-._dino_y_outside_range:              ; - (11 or 9 cycles total if SEC skipped)
+    bcs .dino_y_within_range         ; 2/3 (11/12) - In range if carry set
+.dino_y_outside_range:              ; - (11 or 9 cycles total if SEC skipped)
 
     inc $2D                          ; 5 (16) - Waste 5 cycles (2 bytes)
 
@@ -204,7 +204,7 @@
     sta ENAM0                        ; 3 (22)
     sta HMCLR                        ; 3 (25)
     jmp .TARGET_BRANCH_WHEN_FINISHED ; 3 (28)
-._dino_y_within_range:               ; - (12)
+.dino_y_within_range:               ; - (12)
 
     ; Safe to write to HMMx at this point in the scanline.
     sta HMCLR                        ; 3 (15) - Clear HMMx, HMP1, HMM1
