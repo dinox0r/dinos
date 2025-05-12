@@ -1037,6 +1037,17 @@ REGION_3_OFFSET = #CROUCHING_REGION_TOP_Y - #2
   jmp _region_3 ; 3 (46)
 
 _region_4:
+  ;                 ▒▒▒▒▒▒▒▒
+  ;   ▒   ▒▒▒▒▒▒▒  ▒▒ ▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;   ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+  ;     ▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒
+  ;      ███ ██  ██ <- this region draws this scanline
+  ;      ▯▯   ▯▯
+  ;      ▯
+  ;      ▯▯
   sta WSYNC     ; 3 (49)
 
   ; 1st scanline ==============================================================
@@ -1091,32 +1102,51 @@ _region_4:
   ;
   ; This macro costs 27 (33)
   LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _region_4__end_of_2nd_scanline
-
-  lda #0
-  sta NUSIZ0
-  sta GRP0
-  sta ENAM0
-
 _region_4__end_of_2nd_scanline:
-  sta WSYNC
+
+  ; Restore the dino's Y-position to standing after crouching is fully drawn.
+  ; This prevents the standing sprite from being drawn prematurely during the
+  ; crouch (which would result in overlapping graphics if both kernels render).
+  ; Using Y = 0 during crouch suppresses standing sprite rendering. Restoring
+  ; it here ensures normal leg drawing resumes, since both states share leg
+  ; data.
+  sta TEMP               ; 3 (36)
+  lda #INIT_DINO_TOP_Y   ; 2 (38)
+  sta DINO_TOP_Y_INT     ; 3 (41)
+  lda TEMP               ; 3 (44)
+
+  dey                    ; 2 (46)
 
 legs_and_floor_kernel:
+  sta WSYNC   ; 3 (--)
 
+  ; 1st scanline ========================================================
+                 ; - (0)
+  sta HMOVE      ; 3 (3)
 
-  ; 1st scanline (SETUP) ========================================================
-                              ; - (0)
-  sta HMOVE                   ; 3 (3)
+  DRAW_OBSTACLE  ; 13 (16)
 
-  DRAW_OBSTACLE               ; 13 (16)
+  ; 28 (44)
+  LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_1st_scanline
 
-  ; 46 (62)
-  LOAD_DINO_GRAPHICS_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_1st_scanline
+  ; In case the dino was crouching, then restore everything
+  lda #FLAG_DINO_CROUCHING  ; 2 (46)
+  bit GAME_FLAGS            ; 3 (49)
+  beq _legs_and_floor__end_of_1st_scanline            ; 2/3 (51)
+  ; override the P0 offset if dino was crouching
+  lda #$20    ; 2 (53)
+  sta HMP0    ; 3 (56)
+  lda #0      ; 2 (58)
+  sta NUSIZ0  ; 3 (61)
+  sta ENAM0   ; 3 (67)
+
 _legs_and_floor__end_of_1st_scanline:
-  sta WSYNC     ; 3 (65)
+  sta WSYNC     ; 3 (70)
 
   ; 2nd scanline ========================================================
                 ; - (0)
   sta HMOVE     ; 3 (3)
+
   DRAW_DINO     ; 3 (6)
 
   ; 29 (35)

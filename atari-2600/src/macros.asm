@@ -162,6 +162,62 @@
     sta NUSIZ0                       ; 3 (46)
   ENDM
 
+; ----------------------------------------------------------------------------
+; LOAD_DINO_P0_IF_IN_RANGE
+;
+; Checks if the current scanline (Y) is within the dino's vertical range.
+; If so, loads sprite and position data for Player 0 (P0) to draw the dino.
+; This version ignores the missile and focuses only on sprite setup.
+;
+; Parameters:
+;   {1} = Label to jump to if scanline is outside the dino's visible Y range.
+;   {2} = Set to 1 to insert 'SEC' before SBC (for safe subtraction);
+;         Set to 0 to skip it and save 2 cycles if carry is already set.
+;
+; Notes:
+; - Assumes 24+ cycles have passed since HMOVE when called (safe to write HMMx).
+; - Register X will hold the P0 graphics data afterward — must remain untouched
+;   for the rest of the scanline.
+;
+  MACRO LOAD_DINO_P0_IF_IN_RANGE ; (28 cycles, 26 if carry is ignored)
+.SET_CARRY_BEFORE_SUBTRACTION SET {1}
+.TARGET_BRANCH_WHEN_FINISHED SET {2}
+    ; Calculate: (Y - dino Y) + dino height
+    ; If carry is set after the addition, scanline is within range.
+    tya                              ; 2 (2) - A = current scanline
+
+    IF .SET_CARRY_BEFORE_SUBTRACTION
+      sec                            ; 2 (4) - Ensure proper SBC result
+    ENDIF
+
+    sbc DINO_TOP_Y_INT               ; 3 (7) - A = scanline - dino top Y
+    adc #DINO_HEIGHT                 ; 2 (9) - A += dino height
+
+    bcs ._dino_y_within_range         ; 2/3 (11/12) - In range if carry set
+._dino_y_outside_range:              ; - (11 or 9 cycles total if SEC skipped)
+
+    inc $2D                          ; 5 (16) - Waste 5 cycles (2 bytes)
+
+    lda #0                           ; 2 (18) - Clear A and X
+    tax                              ; 2 (20)
+
+    sta ENAM0                        ; 3 (22)
+    sta HMCLR                        ; 3 (25)
+    jmp .TARGET_BRANCH_WHEN_FINISHED ; 3 (28)
+._dino_y_within_range:               ; - (12)
+
+    ; Safe to write to HMMx at this point in the scanline.
+    sta HMCLR                        ; 3 (15) - Clear HMMx, HMP1, HMM1
+
+    ; Set horizontal motion for P0 (dino) from offset table
+    lda (PTR_DINO_OFFSET),y          ; 5 (20)
+    sta HMP0                         ; 3 (23)
+
+    ; Load sprite graphics for P0 into X using undocumented LAX opcode.
+    ; X must not be modified afterward (will be used in the next scanline).
+    LAX (PTR_DINO_SPRITE),y          ; 5 (28)
+  ENDM
+
   MACRO DRAW_DINO ; 3 cycles
     stx GRP0      ; 3 (3)
   ENDM
