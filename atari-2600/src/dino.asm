@@ -57,7 +57,7 @@ CROUCHING_REGION_TOP_Y = #PLAY_AREA_BOTTOM_Y + #CROUCHING_SCANLINES
 DINO_JUMP_INIT_VY_INT = #5
 DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
-DINO_JUMP_ACCEL_FRACT = #98
+DINO_JUMP_ACCEL_FRACT = #78
 
 PTERO_HEIGHT = #17
 ; To save a cycle per scanline, all the obstacles are to have the max obstacle
@@ -215,7 +215,7 @@ game_init:
   lda #1
   sta OBSTACLE_TYPE
   ;lda #PLAY_AREA_BOTTOM_Y+#20
-  lda #PLAY_AREA_TOP_Y-#20
+  lda #PLAY_AREA_TOP_Y-#43
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -385,7 +385,7 @@ _end_ptero_wing_anim:
 
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
   ; type and difficulty
-  lda #150 ; 
+  lda #250 ; 
   sta OBSTACLE_VX_FRACT
   lda #0
   sta OBSTACLE_VX_INT
@@ -865,6 +865,8 @@ _region_1:
   ;      ▯▯
   lda #%00001111 ; 2 (25) - GRP0 sprite data
 
+  sta HMCLR
+
   sta WSYNC      ; 3 ()
 
   ; 2nd scanline ==============================================================
@@ -905,16 +907,18 @@ _region_2:
   lda FOREGROUND_COLOUR ; 3 (19)
   sta COLUPF            ; 3 (22)
 
-  lda #$F0
-  sta HMP0
-  sta HMM0
-  lda #$10
-  sta HMBL
+  lda #$F0        ; 2 (24) - 24 CPU cycles has passed, it is safe to update the
+                  ;           HMMx registers
+  sta HMCLR       ; 3 (27) - First clear all obstacle's offsets
+  sta HMP0        ; 3 (30)
+  sta HMM0        ; 3 (33)
+  lda #$10        ; 2 (35)
+  sta HMBL        ; 3 (38)
 
-  lda #%11010111 ; 2 () - GRP0 sprite data
+  lda #%11010111  ; 2 (40) - GRP0 sprite data
 
-  sec           ; 2 ()
-  sta WSYNC     ; 3 (-)
+  sec             ; 2 (42)
+  sta WSYNC       ; 3 (45)
 
   ; 2nd scanline ==============================================================
                  ; - (0)
@@ -948,33 +952,36 @@ _region_2__end_of_2nd_scanline:
   sta WSYNC             ; 3 (61)
 
   ; 3rd scanline ==============================================================
-                         ; - (0)
-  sta HMOVE              ; 3 (3)
-  DRAW_OBSTACLE          ; 13 (16)
+                    ; - (0)
+  sta HMOVE         ; 3 (3)
+  DRAW_OBSTACLE     ; 13 (16)
 
-  lda #%10000000         ; 2 (18) - PF1 can be changed before CPU
-  sta PF1                ; 3 (21)   hits cycle 28, and should be cleared before
-                         ;          CPU cycle 54
+  lda #%10000000    ; 2 (18) - PF1 can be changed before CPU
+  sta PF1           ; 3 (21)   hits cycle 28, and should be cleared before
+                    ;          CPU cycle 54
 
-  lda #$10               ; 2 (23) - Positioning P0 1px to the left and the ball
-  sta HMP0               ; 3 (26)   6px to the right, this configuration allows
-  lda #$A0               ; 2 (28)   keeping P0 where is at for region 3, while
-  sta HMBL               ; 3 (31)   moving the missile 0 and ball to achieve
-                         ;          the sprite detail
+  ; Preload the HyMx register values
+  lda #$10          ; 2 (23) - Positioning P0 1px to the left and the ball
+                    ;          6px to the right.
+                    ;          P0 will remain static in this position for
+                    ;          the rest of the region
+  ldx #$A0          ; 2 (25)
 
-  lda #%00110101         ; 2 (33) - Set missile 0 size to 8px while 
-  sta NUSIZ0             ; 3 (36)   keeping P0 at 2x size
+  sta HMCLR         ; 3 (28)
 
-  sec                    ; 2 (38) - Delaying changing PF1 until is displayed
+  sta HMP0          ; 3 (31)
+  stx HMBL          ; 3 (34)
+                    ;          the sprite detail
 
-  lda #0                 ; 2 (40) - Reset PF1. PF1 rendering finishes by CPU
-  sta PF1                ; 3 (43)   cycle 39
+  lda #%00110101    ; 2 (36) - Set missile 0 size to 8px while 
+  sta NUSIZ0        ; 3 (39)   keeping P0 at 2x size
 
-  lda #%11111111         ; 2 (45) - GRP0 sprite data for next scanline
+  sec               ; 2 (41) - Delaying changing PF1 until is displayed
 
+  lda #0            ; 2 (42) - Reset PF1. PF1 rendering finishes by CPU
+  sta PF1           ; 3 (45)   cycle 39
 
-  ;lda DINO_CROUCHING_REGION_3_MISSILE_0_CONF_END-#CROUCHING_REGION_TOP_Y-#2,y ; 4 (33)
-  ;sta HMM0               ; 3 (36)
+  lda #$ff          ; 2 (47) - GRP0 sprite data for next scanline
 
 _region_3:
 
@@ -990,7 +997,7 @@ _region_3:
   ;      ▯
   ;      ▯▯
 
-  sta WSYNC              ; 3 (48, 43 if is coming from this kernel)
+  sta WSYNC              ; 3 (50, 43 if is coming from the branch below)
   ; 1st scanline ==============================================================
                 ; - (0)
   sta HMOVE     ; 3 (3)
@@ -1129,11 +1136,12 @@ legs_and_floor_kernel:
   ; 28 (44)
   LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_1st_scanline
 
-  ; In case the dino was crouching, then restore everything
+  ; In case the dino was crouching, then restore P0 and M0 to standing mode
   lda #FLAG_DINO_CROUCHING  ; 2 (46)
   bit GAME_FLAGS            ; 3 (49)
   beq _legs_and_floor__end_of_1st_scanline            ; 2/3 (51)
-  ; override the P0 offset if dino was crouching
+  ; Override the P0 offset if dino was crouching to position it so it matches
+  ; the expected location
   lda #$20    ; 2 (53)
   sta HMP0    ; 3 (56)
   lda #0      ; 2 (58)
