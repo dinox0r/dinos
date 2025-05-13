@@ -128,14 +128,15 @@ BACKGROUND_COLOUR          .byte   ; 1 byte   (25)
 
 PTR_AFTER_PLAY_AREA_KERNEL .word   ; 2 bytes  (26)
 
+; Ground area
+FLOOR_PF0                  .byte   ; 1 byte ()
+FLOOR_PF1                  .byte   ; 1 byte ()
+FLOOR_PF2                  .byte   ; 1 byte ()
+
 ; Gameplay variables
 GAME_FLAGS                 .byte   ; 1 byte   (28)
 FRAME_COUNT                .word   ; 2 bytes  (29)
 RND_SEED                   .word   ; 2 bytes  (31)
-
-; Candidates for removal (something to do later)
-DINO_SPRITE                .byte   ; 1 byte   (33)
-MISSILE_P0                 .byte   ; 1 byte   (35)
 
 ; This section is to include variables that share the same memory but are 
 ; referenced under different names, something like temporary variables that 
@@ -352,6 +353,36 @@ _end_check_joystick:
 ; -----------------------------------------------------------------------------
 in_grame_screen:
 
+_update_floor:
+  lda #0
+  sta FLOOR_PF2
+
+  ; 256 + (a - b)
+  lda DINO_TOP_Y_INT
+  cmp #INIT_DINO_TOP_Y+#20
+  bcs __dino_y_over_20
+  cmp #INIT_DINO_TOP_Y+#10
+  bcs __dino_y_over_10
+
+  lda #%10000000
+  sta FLOOR_PF0
+  lda #%11000000
+  sta FLOOR_PF1
+
+  jmp _update_obstacle
+
+__dino_y_over_10:
+  lda #%00000000
+  sta FLOOR_PF0
+  lda #%10000000
+  sta FLOOR_PF1
+  jmp _update_obstacle
+
+__dino_y_over_20:
+  lda #0
+  sta FLOOR_PF0
+  sta FLOOR_PF1
+
 _update_obstacle:
 _update_ptero_wing_anim:
   lda FRAME_COUNT
@@ -436,7 +467,7 @@ _jumping:
   adc DINO_VY_INT
   sta DINO_TOP_Y_INT
 
-  ; if DINO_TOP_Y_INT >= DINO_INIT_Y then turn off jumping
+  ; if DINO_TOP_Y_INT >= INIT_DINO_TOP_Y then turn off jumping
   cmp #INIT_DINO_TOP_Y
   bcs _update_jump
 
@@ -1186,13 +1217,13 @@ _legs_and_floor__end_of_3rd_scanline:
   sta HMOVE                   ; 3 (3)
 
   sta COLUBK                  ; 3 (6)
-  lda #%10000000              ; 2 
-  sta PF0
+  lda FLOOR_PF0               ; 3 (9)
+  sta PF0                     ; 3 (12)
 
-  DRAW_DINO
+  DRAW_DINO                   ; 3 (15)
 
-  lda #%11000000
-  sta PF1
+  lda FLOOR_PF1               ; 3 (18)
+  sta PF1                     ; 3 (21)
 
   INSERT_NOPS 12                        ; 24
   lda #0
@@ -1230,7 +1261,6 @@ _ground__end_of_1st_scanline:
 
   sta WSYNC                             ; 3
   sta HMOVE
-
 
 void_area_kernel:
   DEBUG_SUB_KERNEL #$FA,#14
@@ -1282,15 +1312,15 @@ _splash__dino_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<-------------
   lda DINO_SPRITE_OFFSETS-#1,y        ; 4
   sta HMP0                             ; 3
 
-  ldx DINO_SPRITE_1-#1,y               ; 4
-  lda DINO_MISSILE_0_OFFSETS-#1,y      ; 4
+  LAX DINO_MISSILE_0_OFFSETS-#1,y      ; 4
 
   ; missile
-  sta MISSILE_P0                       ; 3
   sta HMM0                             ; 3
   asl                                  ; 2
   asl                                  ; 2
   sta NUSIZ0                           ; 3
+
+  lda DINO_SPRITE_1-#1,y               ; 4
 
   ;sta HMBL
 
@@ -1298,11 +1328,9 @@ _splash__dino_kernel: ;----------->>> #DINO_HEIGHT 2x scanlines <<<-------------
 
   ; 2nd scanline ==============================================================
   sta HMOVE                            ; 3
-  lda DINO_SPRITE                       ; 3
   ;lda #0                               ; for debugging, hides GRP0
-  stx GRP0                              ; 3
-  lda MISSILE_P0                         ; 3
-  sta ENAM0                             ; 3
+  sta GRP0                              ; 3
+  stx ENAM0                             ; 3
   and GAME_FLAGS               ; 3
   rol
   rol
