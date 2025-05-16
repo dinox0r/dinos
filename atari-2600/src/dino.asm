@@ -215,7 +215,7 @@ game_init:
   lda #1
   sta OBSTACLE_TYPE
   ;lda #PLAY_AREA_BOTTOM_Y+#20
-  lda #PLAY_AREA_TOP_Y-#45
+  lda #PLAY_AREA_TOP_Y-#48
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -384,11 +384,36 @@ __dino_y_over_20:
   sta FLOOR_PF1
 
 _update_obstacle:
-_update_ptero_wing_anim:
+  lda OBSTACLE_TYPE
+  cmp #255
+  beq _update_ptero
+
+  asl ; multiply OBSTACLE_TYPE by 2, this will be the index for both 
+      ; OBSTACLES_SPRITES_TABLE and OBSTACLES_MISSILE_1_CONF_TABLE tables
+      ; multiplying by 2 because each entry is 2 bytes (one word) long
+  tax ; Use reg X as the index
+
+  stx TEMP
+
+  ldy OBSTACLES_SPRITES_TABLE+#1,x
+  lda OBSTACLES_SPRITES_TABLE,x
+  ldx #PTR_OBSTACLE_SPRITE
+  jsr set_obstacle_data
+
+  ldx TEMP
+  ldy OBSTACLES_MISSILE_1_CONF_TABLE+#1,x
+  lda OBSTACLES_MISSILE_1_CONF_TABLE,x
+  ldx #PTR_OBSTACLE_MISSILE_1_CONF
+  jsr set_obstacle_data
+
+  jmp _update_obstacle_pos
+
+_update_ptero:
+__update_wing_anim:
   lda FRAME_COUNT
   and #%00001111
   cmp #7
-  bcs _open_wings
+  bcs __open_wings
 
   lda #<PTERO_WINGS_CLOSED_SPRITE_END
   ldy #>PTERO_WINGS_CLOSED_SPRITE_END
@@ -400,8 +425,8 @@ _update_ptero_wing_anim:
   ldx #PTR_OBSTACLE_MISSILE_1_CONF
   jsr set_obstacle_data
 
-  jmp _end_ptero_wing_anim
-_open_wings:
+  jmp __end_wing_anim
+__open_wings:
   lda #<PTERO_WINGS_OPEN_SPRITE_END
   ldy #>PTERO_WINGS_OPEN_SPRITE_END
   ldx #PTR_OBSTACLE_SPRITE
@@ -411,8 +436,9 @@ _open_wings:
   ldy #>PTERO_WINGS_OPEN_MISSILE_1_CONF_END
   ldx #PTR_OBSTACLE_MISSILE_1_CONF
   jsr set_obstacle_data
-_end_ptero_wing_anim:
+__end_wing_anim:
 
+_update_obstacle_pos:
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
   ; type and difficulty
   lda #250 ; 
@@ -437,6 +463,8 @@ _reset_obstacle_position:
   sta OBSTACLE_X_INT
   lda #0
   sta OBSTACLE_X_FRACT
+
+_end_update_obstacle:
 
 _check_if_dino_is_jumping:
   lda #FLAG_DINO_JUMPING
@@ -877,7 +905,6 @@ _region_1:
   ; on the next scanline
   DRAW_OBSTACLE  ; 13 (16)
 
-
   lda #%00000101 ; 2 (18) - Set P0 2px size
   sta NUSIZ0     ; 3 (21)
 
@@ -1210,6 +1237,7 @@ _legs_and_floor__end_of_3rd_scanline:
   sta COLUPF
   lda FOREGROUND_COLOUR
 
+  sec
   sta WSYNC
 
   ; 4th scanline ========================================================
@@ -1225,45 +1253,103 @@ _legs_and_floor__end_of_3rd_scanline:
   lda FLOOR_PF1               ; 3 (18)
   sta PF1                     ; 3 (21)
 
-  INSERT_NOPS 12                        ; 24
-  lda #0
-  sta PF0
-  sta PF1
-  sta HMCLR
-  sta GRP1
+    ;--------------------------------------------------------------------------
+    ; <...>: INLINING
+    ;--------------------------------------------------------------------------
+    ; Inline the LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro here so the playfield
+    ; updates can happen in between at the right times 
+    ;--------------------------------------------------------------------------
+    CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY          ; 7 (28)
+    bcs _legs_3rd_scanline__obstacle_y_within_range ; 2/3 (30/31)
+                              ; ↓
+                              ; - (30)
+    lda #0                    ; 2 (32)
+    tax                       ; 2 (34)
 
-  dey
+  ; Update the playfield
+  sta PF0                     ; 3 (37)
+  sta PF1                     ; 3 (40)
+
+    ;--------------------------------------------------------------------------
+    ; [!] ROM space potential savings
+    ;--------------------------------------------------------------------------
+    ; In case ROM is needed, the padding instructions, that make this branch 
+    ; have the same CPU cycle count as the other branch, could be removed
+    ;--------------------------------------------------------------------------
+    pha                       ; 3 (43) - Wait/waste 9 CPU cycles so this
+    pla                       ; 4 (47)   branch has the same count as the
+    nop                       ; 2 (49)   other main branch
+    ;--------------------------------------------------------------------------
+
+    sta HMCLR                 ; 3 (52)
+    jmp _legs_and_floor__end_of_4th_scanline ; 3 (55)
+
+_legs_3rd_scanline__obstacle_y_within_range: ; - (31)
+
+  ; Update the playfield
+  lda #0                      ; 2 (33)
+  sta PF0                     ; 3 (36)
+  sta PF1                     ; 3 (39)
+
+    ;--------------------------------------------------------------------------
+    ; <...>: INLINING
+    ;--------------------------------------------------------------------------
+    ; ... continue the inlining of the macro
+    ;--------------------------------------------------------------------------
+    sta HMCLR                            ; 3 (42)
+    LAX (PTR_OBSTACLE_SPRITE),y          ; 5 (47)
+    lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (52)
+    sta HMM1                             ; 3 (55)
+
+_legs_and_floor__end_of_4th_scanline:
+  dey                         ; 2 (57)
+  sec                         ; 2 (59)
 
 ground_area_kernel:
-  sta WSYNC                             ; 3
+  sta TEMP                    ; 3 (62, 41 if coming from this kernel)
+  lda BACKGROUND_COLOUR       ; 3 (65, 44 if coming from this kernel)
+  sta WSYNC                   ; 3 (68, 47 if coming from this kernel)
+
   ; 1st scanline ==============================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
+  sta COLUBK                  ; 3 (6)
+  lda TEMP                    ; 3 (9)
+  DRAW_OBSTACLE               ; 13 (22)
 
-  lda BACKGROUND_COLOUR
-  sta COLUBK
-
-  LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _ground__end_of_1st_scanline
+  ; 28 (50)
+  LOAD_DINO_P0_IF_IN_RANGE #IGNORE_CARRY, _ground__end_of_1st_scanline
 _ground__end_of_1st_scanline:
-
-  sta WSYNC                             ; 3
+  sec                         ; 2 (52)
+  sta WSYNC                   ; 3 (55)
 
   ; 2nd scanline ==============================================================
                               ; - (0)
   sta HMOVE                   ; 3 (3)
-  DRAW_DINO
+  DRAW_DINO                   ; 3 (6)
 
-  INSERT_NOPS 10                        ; 20
-  sta HMCLR
+  ; 27 (33)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _ground__end_of_2nd_scanline
+_ground__end_of_2nd_scanline:
 
-  dey                                   ; 2
-  bne ground_area_kernel
+  dey                         ; 2 (35)
+  bne ground_area_kernel      ; 2/3 (37/38)
 
-  sta WSYNC                             ; 3
-  sta HMOVE
+  lda #0                      ; 2 (39)
+  sta GRP0                    ; 3 (42)
+  sta GRP1                    ; 3 (45)
+  sta ENAM0                   ; 3 (48)
+  sta ENAM1                   ; 3 (51)
+  sta ENABL                   ; 3 (54)
+
+  sta WSYNC                   ; 3 (57)
+  ;----------------------------------------------------------------------------
+                              ; - (0)
+  sta HMOVE                   ; 3 (3)
 
 void_area_kernel:
-  DEBUG_SUB_KERNEL #$FA,#14
+  ; Use this to handle collission detection
+  DEBUG_SUB_KERNEL #$AA,#14
   jmp end_of_frame
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

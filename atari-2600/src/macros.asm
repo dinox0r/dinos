@@ -37,16 +37,6 @@
 
   ; TODO
   ; --------------------------------------------------------------------
-  MACRO DECODE_MISSILE_PLAYER ; 13 cycles
-    sta MISSILE_P{1}      ; 3 (3)
-    sta HMM{1}            ; 3 (6)
-    asl                   ; 2 (8)
-    asl                   ; 2 (10)
-    sta NUSIZ{1}          ; 3 (13)
-  ENDM
-
-  ; TODO
-  ; --------------------------------------------------------------------
   MACRO CHECK_Y_WITHIN_DINO       ; 9 cycles
     tya                         ; 2 (2) - A = current scanline (Y)
     sec                         ; 2 (4)
@@ -54,16 +44,18 @@
     adc #DINO_HEIGHT            ; 2 (9)
   ENDM
 
+  ;----------------------------------------------------------------------------
   ; Same as CHECK_Y_WITHIN_DINO but assumes carry is set
-  ; --------------------------------------------------------------------
+  ;----------------------------------------------------------------------------
   MACRO CHECK_Y_WITHIN_DINO_IGNORING_CARRY  ; 7 cycles
     tya                         ; 2 (2) - A = current scanline (Y)
     sbc DINO_TOP_Y_INT          ; 3 (3) - A = X - DINO_TOP_Y_INT
     adc #DINO_HEIGHT            ; 2 (2)
   ENDM
 
+  ;----------------------------------------------------------------------------
   ; TODO
-  ; --------------------------------------------------------------------
+  ;----------------------------------------------------------------------------
   MACRO CHECK_Y_WITHIN_OBSTACLE  ; 9 cycles
     tya                     ; 2 (2) - A = current scanline (Y)
     sec                     ; 2 (4)
@@ -71,31 +63,32 @@
     adc #OBSTACLE_HEIGHT    ; 2 (9)
   ENDM
 
-; -------------------------------------------------------------------------
-; LOAD_DINO_GRAPHICS_IF_IN_RANGE
-;
-; Checks if the current Y position (scanline) falls within the dino's
-; vertical range. If so, loads the dino sprite P0 and missile 0
-; data for the next scanline.
-;
-; Behavior:
-; - If the scanline is within the dino's range:
-;     - Load obstacle sprite data into A (and X).
-;     - Load obstacle missile 0 configuration into A.
-;     - Setup fine motion for M0 (HMM0) and prepare graphics for drawing.
-; - If the scanline is outside the obstacle's range:
-;     - Clear A and X.
-;     - Jump to a user-provided label to continue execution.
-;
-; Missile data uses the following encoding:
-;     bit index: 7 6 5 4 3 2 1 0
-;                \_____/ \_/ ↑
-;                 HMM0    │  │
-;                         │  └─ ENAM0
-;                      NUSIZ0 (needs to be shifted left twice)
-;
-; Parameters:
-;   {1} = Label to jump to when scanline is outside obstacle range
+  ;----------------------------------------------------------------------------
+  ; Macro LOAD_DINO_GRAPHICS_IF_IN_RANGE (46 cycles, 44 if carry is ignored)
+  ;
+  ; Checks if the current Y position (scanline) falls within the dino's
+  ; vertical range. If so, loads the dino sprite P0 and missile 0
+  ; data for the next scanline.
+  ;
+  ; Behavior:
+  ; - If the scanline is within the dino's range:
+  ;     - Load obstacle sprite data into A (and X).
+  ;     - Load obstacle missile 0 configuration into A.
+  ;     - Setup fine motion for M0 (HMM0) and prepare graphics for drawing.
+  ; - If the scanline is outside the obstacle's range:
+  ;     - Clear A and X.
+  ;     - Jump to a user-provided label to continue execution.
+  ;
+  ; Missile data uses the following encoding:
+  ;     bit index: 7 6 5 4 3 2 1 0
+  ;                \_____/ \_/ ↑
+  ;                 HMM0    │  │
+  ;                         │  └─ ENAM0
+  ;                      NUSIZ0 (needs to be shifted left twice)
+  ;
+  ; Parameters:
+  ;   {1} = Label to jump to when scanline is outside obstacle range
+  ;----------------------------------------------------------------------------
   MACRO LOAD_DINO_GRAPHICS_IF_IN_RANGE ; (46 cycles, 44 if carry is ignored)
 .SET_CARRY_BEFORE_SUBTRACTION SET {1}
 .TARGET_BRANCH_WHEN_FINISHED SET {2}
@@ -114,6 +107,12 @@
 
 .dino_y_outside_range:        ; - (11) (9 if ignoring the carry)
 
+    ;--------------------------------------------------------------------------
+    ; [!] ROM space potential savings
+    ;--------------------------------------------------------------------------
+    ; In case ROM is needed, the padding instructions, that make this branch 
+    ; have the same CPU cycle count as the other branch, could be removed
+    ;--------------------------------------------------------------------------
     pha                       ; 3 (14) - Wait/waste 23 cycles (6 bytes)
     pla                       ; 4 (18)
     pha                       ; 3 (21)
@@ -121,6 +120,7 @@
     pha                       ; 3 (28)
     pla                       ; 4 (32)
     nop                       ; 2 (34)
+    ;--------------------------------------------------------------------------
 
     lda #0                    ; 2 (36) - Clear A and X
     tax                       ; 2 (38)
@@ -162,24 +162,26 @@
     sta NUSIZ0                       ; 3 (46)
   ENDM
 
-; ----------------------------------------------------------------------------
-; LOAD_DINO_P0_IF_IN_RANGE
-;
-; Checks if the current scanline (Y) is within the dino's vertical range.
-; If so, loads sprite and position data for Player 0 (P0) to draw the dino.
-; This version ignores the missile and focuses only on sprite setup.
-;
-; Parameters:
-;   {1} = Label to jump to if scanline is outside the dino's visible Y range.
-;   {2} = Set to 1 to insert 'SEC' before SBC (for safe subtraction);
-;         Set to 0 to skip it and save 2 cycles if carry is already set.
-;
-; Notes:
-; - Assumes 24+ cycles have passed since HMOVE when called (safe to write HMMx).
-; - Register X will hold the P0 graphics data afterward — must remain untouched
-;   for the rest of the scanline.
-;
-  MACRO LOAD_DINO_P0_IF_IN_RANGE ; (28 cycles, 26 if carry is ignored)
+  ;----------------------------------------------------------------------------
+  ; Macro LOAD_DINO_P0_IF_IN_RANGE (28 cycles, 26 if carry is ignored)
+  ;
+  ; Checks if the current scanline (Y) is within the dino's vertical range.
+  ; If so, loads sprite and position data for Player 0 (P0) to draw the dino.
+  ; This version ignores the missile and focuses only on sprite setup.
+  ;
+  ; Parameters:
+  ;   {1} = Label to jump to if scanline is outside the dino's visible Y range.
+  ;   {2} = Set to 1 to insert 'SEC' before SBC (for safe subtraction);
+  ;         Set to 0 to skip it and save 2 cycles if carry is already set.
+  ;
+  ; Notes:
+  ; - Assumes 24+ cycles have passed since HMOVE when called (safe to
+  ;   write HMMx).
+  ; - Register X will hold the P0 graphics data afterward — must remain
+  ;   untouched for the rest of the scanline.
+  ;
+  ;----------------------------------------------------------------------------
+  MACRO LOAD_DINO_P0_IF_IN_RANGE ; (28, 26 if carry is ignored)
 .SET_CARRY_BEFORE_SUBTRACTION SET {1}
 .TARGET_BRANCH_WHEN_FINISHED SET {2}
     ; Calculate: (Y - dino Y) + dino height
@@ -194,9 +196,16 @@
     adc #DINO_HEIGHT                 ; 2 (9) - A += dino height
 
     bcs .dino_y_within_range         ; 2/3 (11/12) - In range if carry set
-.dino_y_outside_range:              ; - (11 or 9 cycles total if SEC skipped)
+.dino_y_outside_range:               ; - (11 or 9 cycles total if SEC skipped)
 
+    ;--------------------------------------------------------------------------
+    ; [!] ROM space potential savings
+    ;--------------------------------------------------------------------------
+    ; In case ROM is needed, the padding instructions, that make this branch 
+    ; have the same CPU cycle count as the other branch, could be removed
+    ;--------------------------------------------------------------------------
     inc $2D                          ; 5 (16) - Waste 5 cycles (2 bytes)
+    ;--------------------------------------------------------------------------
 
     lda #0                           ; 2 (18) - Clear A and X
     tax                              ; 2 (20)
@@ -204,7 +213,7 @@
     sta ENAM0                        ; 3 (22)
     sta HMCLR                        ; 3 (25)
     jmp .TARGET_BRANCH_WHEN_FINISHED ; 3 (28)
-.dino_y_within_range:               ; - (12)
+.dino_y_within_range:                ; - (12)
 
     ; Safe to write to HMMx at this point in the scanline.
     sta HMCLR                        ; 3 (15) - Clear HMMx, HMP1, HMM1
@@ -218,12 +227,8 @@
     LAX (PTR_DINO_SPRITE),y          ; 5 (28)
   ENDM
 
-  MACRO DRAW_DINO ; 3 cycles
-    stx GRP0      ; 3 (3)
-  ENDM
-
 ; -------------------------------------------------------------------------
-; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE
+; Macro LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE (29 cycles, 27 if carry is ignored)
 ;
 ; Checks if the current Y position (scanline) falls within the obstacle's
 ; vertical range. If so, loads the corresponding obstacle sprite and missile 1
@@ -247,7 +252,7 @@
 ;
 ; Parameters:
 ;   {1} = Label to jump to when scanline is outside obstacle range
-  MACRO LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE ; (29 cycles, 27 if carry is ignored)
+  MACRO LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE ; (29, 27 if carry is ignored)
 .SET_CARRY_BEFORE_SUBTRACTION SET {1}
 .TARGET_BRANCH_WHEN_FINISHED SET {2}
     ; Calculate: (current Y - obstacle Y) + obstacle height
@@ -265,9 +270,16 @@
 
 .obstacle_y_outside_range:    ; - (11) (9 if ignoring the carry)
 
+    ;--------------------------------------------------------------------------
+    ; [!] ROM space potential savings
+    ;--------------------------------------------------------------------------
+    ; In case ROM is needed, the padding instructions, that make this branch 
+    ; have the same CPU cycle count as the other branch, could be removed
+    ;--------------------------------------------------------------------------
     pha                       ; 3 (14) - Wait/waste 9 cycles (3 bytes)
     pla                       ; 4 (18)
     nop                       ; 2 (20)
+    ;--------------------------------------------------------------------------
 
     lda #0                    ; 2 (22) - Clear A and X
     tax                       ; 2 (24)
@@ -305,6 +317,10 @@
     sta HMM1                             ; 3 (29)
   ENDM
 
+  ; -------------------------------------------------------------------------
+  ; Macro CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY (7 cycles)
+  ; -------------------------------------------------------------------------
+  ;
   ; Same as CHECK_Y_WITHIN_OBSTACLE but assumes carry is set
   ; --------------------------------------------------------------------
   MACRO CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY       ; 7 cycles
@@ -313,7 +329,16 @@
     adc #OBSTACLE_HEIGHT  ; 2 (7)
   ENDM
 
-  ; Description:
+  ; -------------------------------------------------------------------------
+  ; Macro DRAW_DIN (3 cycles)
+  ; -------------------------------------------------------------------------
+  MACRO DRAW_DINO ; 3 cycles
+    stx GRP0      ; 3 (3)
+  ENDM
+
+  ; -------------------------------------------------------------------------
+  ; Macro DRAW_OBSTACLE (13 cycles)
+  ;
   ; Draws a horizontal obstacle using the missile 1 object (ENAM1) and GRP1
   ; sprite graphics. The macro assumes that a copy of the obstacle
   ; configuration (HMM1 + NUSIZ1 + ENAM1) has already been shifted 2 bits to
@@ -342,11 +367,11 @@
   ;   X - Obstacle sprite graphics, to be written to GRP1.
   ;------------------------------------------------------------------------------
   MACRO DRAW_OBSTACLE ; 13 cycles
-    sta ENAM1         ; 3 (3) - Enable/disable M1 first. It is assumed this
+    stx GRP1          ; 3 (3)
+    sta ENAM1         ; 3 (6) - Enable/disable M1 first. It is assumed this
                       ;         macro will be invoked first thing in the scanline
-    asl               ; 2 (5)
-    asl               ; 2 (7)
-    sta NUSIZ1        ; 3 (10)
-    stx GRP1          ; 3 (13)
+    asl               ; 2 (8)
+    asl               ; 2 (10)
+    sta NUSIZ1        ; 3 (13)
   ENDM
 

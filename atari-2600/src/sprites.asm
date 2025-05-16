@@ -296,28 +296,26 @@ DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF:
   .byte %00000000
 DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END = *
 
-
 PTERO_WINGS_OPEN_SPRITE:
   ; Sprite drawn as a combination of GRP1 and the missile 1:
-  ;    "unpacked" GRP1 and M1
-  ;                                 "packed" GRP1
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |     █  ⏐        |             ⏐     █  ⏐
-  ;  |     ██ ⏐        |             ⏐     ██ ⏐
-  ;  |      ██⏐        |             ⏐      ██⏐
-  ;  |   ██ ██⏐▓       |             ⏐   ██ ██⏐
-  ;  |  ███ ██⏐▓▓      |             ⏐  ███ ██⏐
-  ;  | ██████X⏐▓▓▓     |             ⏐ ███████⏐
-  ;  |████████⏐▓▓▓▓    |             ⏐████████⏐
-  ;  |     ███⏐▓▓▓▓▓▓▓▓|             ⏐     ███⏐
-  ;  |      ▓▓|▓▓▓▓▓▓  |             ⏐        ⏐
-  ;  |       ▓⏐▓▓▓▓▓▓▓ |             ⏐        ⏐
-  ;  |        ⏐▓▓▓▓    |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
+  ;                                GRP1
+  ; |        ⏐        |         ⏐        ⏐
+  ; |     █  ⏐        |         ⏐     █  ⏐
+  ; |     ██ ⏐        |         ⏐     ██ ⏐
+  ; |      ██⏐        |         ⏐      ██⏐
+  ; |   ██ ██⏐▓       |         ⏐   ██ ██⏐
+  ; |  ███ ██⏐▓▓      |         ⏐  ███ ██⏐
+  ; | ██████X⏐▓▓▓     |         ⏐ ███████⏐
+  ; |████████⏐▓▓▓▓    |         ⏐████████⏐
+  ; |     ███⏐▓▓▓▓▓▓▓▓|         ⏐     ███⏐
+  ; |      ▓▓|▓▓▓▓▓▓  |         ⏐        ⏐
+  ; |       ▓⏐▓▓▓▓▓▓▓ |         ⏐        ⏐
+  ; |        ⏐▓▓▓▓    |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
   ;
   ; Legend:
   ;    █ GRP1 pixels
@@ -325,23 +323,24 @@ PTERO_WINGS_OPEN_SPRITE:
   ;    X overlapping pixels (between GRP1 and M1)
   ;
   ; Upside-down view:
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐        |             ⏐        ⏐
-  ;  |        ⏐▓▓▓▓    |             ⏐        ⏐
-  ;  |       ▓⏐▓▓▓▓▓▓▓ |             ⏐        ⏐
-  ;  |      ▓▓|▓▓▓▓▓▓  |             ⏐        ⏐
-  ;  |     ███⏐▓▓▓▓▓▓▓▓|             ⏐     ███⏐
-  ;  |████████⏐▓▓▓▓    |             ⏐████████⏐
-  ;  | ██████X⏐▓▓▓     |             ⏐ ███████⏐
-  ;  |  ███ ██⏐▓▓      |             ⏐  ███ ██⏐
-  ;  |   ██ ██⏐▓       |             ⏐   ██ ██⏐
-  ;  |      ██⏐        |             ⏐      ██⏐
-  ;  |     ██ ⏐        |             ⏐     ██ ⏐
-  ;  |     █  ⏐        |             ⏐     █  ⏐
-  ;  |        ⏐        |             ⏐        ⏐
+  ;                                GRP1
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐        |         ⏐        ⏐
+  ; |        ⏐▓▓▓▓    |         ⏐        ⏐
+  ; |       ▓⏐▓▓▓▓▓▓▓ |         ⏐        ⏐
+  ; |      ▓▓|▓▓▓▓▓▓  |         ⏐        ⏐
+  ; |     ███⏐▓▓▓▓▓▓▓▓|         ⏐     ███⏐
+  ; |████████⏐▓▓▓▓    |         ⏐████████⏐
+  ; | ██████X⏐▓▓▓     |         ⏐ ███████⏐
+  ; |  ███ ██⏐▓▓      |         ⏐  ███ ██⏐
+  ; |   ██ ██⏐▓       |         ⏐   ██ ██⏐
+  ; |      ██⏐        |         ⏐      ██⏐
+  ; |     ██ ⏐        |         ⏐     ██ ⏐
+  ; |     █  ⏐        |         ⏐     █  ⏐
+  ; |        ⏐        |         ⏐        ⏐
   ;
   .ds 1            ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
@@ -393,8 +392,7 @@ PTERO_WINGS_OPEN_MISSILE_1_CONF_END = *
 
 PTERO_WINGS_CLOSED_SPRITE:
   ; Sprite drawn as a combination of GRP1 and the missile 1:
-  ;    "unpacked" GRP1 and M1
-  ;                            "packed" GRP1
+  ;                                GRP1
   ; |        ⏐        |         ⏐        ⏐
   ; |        ⏐        |         ⏐        ⏐
   ; |        ⏐        |         ⏐        ⏐
@@ -419,6 +417,7 @@ PTERO_WINGS_CLOSED_SPRITE:
   ;    X overlapping pixels
   ;
   ; Upside-down view:
+  ;                                GRP1
   ; |        ⏐        |         ⏐        ⏐
   ; |      █ ⏐        |         ⏐      █ ⏐
   ; |      ██⏐        |         ⏐      ██⏐
@@ -486,20 +485,61 @@ PTERO_WINGS_CLOSED_MISSILE_1_CONF:
   ;                   initial M1 position (cycle 25)
 PTERO_WINGS_CLOSED_MISSILE_1_CONF_END = *
 
-  ; Legend:
-  ;    █ GRP0 pixels
-  ;    ▒ missile pixels
-  ;    ░ ball
-  ;    X overlapping pixels
-  ;    ▯ Non drawn by the current kernel
+EMPTY:
+  .ds 17
+EMPTY_END = *
 
+CACTUS_1_SPRITE:
+  .ds 1            ;⏐
+  .byte %00001001  ;⏐
+  .byte %01100000  ;⏐
+  .byte %00000100  ;⏐
+  .byte %00000100  ;⏐
+  .byte %00000100  ;⏐
+  .byte %00000100  ;⏐
+  .byte %00001110  ;⏐
+  .byte %00010101  ;⏐
+  .byte %00010101  ;⏐
+  .byte %00000101  ;⏐
+  .byte %00000101  ;⏐
+  .byte %00000100  ;⏐
+  .byte %00000100  ;⏐
+  .byte %00000000  ;⏐
+  .byte %00000000  ;⏐
+  .ds 1            ;⏐
+CACTUS_1_SPRITE_END = *
 
-;             -4               2
-;    ██       +8               4
-;    ██       +2               8
-;  ██████      0               8
-; █  █████     0               8
-; █  ██  █    +2               8
-;    ██  █    -5               8
-;    ██        0               0
+CACTUS_1_MISSILE_1_CONF:
+; Again, for reference:
+;       LEFT  <---------------------------------------------------------> RIGHT
+;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
+;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
+  ; Enable M1 bit
+  ;            ⏐
+  .ds 1 ;      ↓    |        ⏐        |
+  .byte %00110010 ; |    █  █⏐ ▓      |
+  .byte %11010010 ; | ██     ⏐     ▓▓ |
+  .byte %00000000 ; |     █  ⏐        |
+  .byte %00000000 ; |     █  ⏐        |
+  .byte %00000000 ; |     █  ⏐        |
+  .byte %00000000 ; |     █  ⏐        |
+  .byte %00000000 ; |    ███ ⏐        |
+  .byte %00000000 ; |   █ █ █⏐        |
+  .byte %00000000 ; |   █ █ █⏐        |
+  .byte %00000000 ; |     █ █⏐        |
+  .byte %00000000 ; |     █ █⏐        |
+  .byte %00000000 ; |     █  ⏐        |
+  .byte %00000000 ; |     █  ⏐        |
+  .byte %00000000 ; |        ⏐        |
+  .byte %00000000 ; |        ⏐        |
+  .ds 1           ;
+CACTUS_1_MISSILE_1_CONF_END = *
+
+OBSTACLES_SPRITES_TABLE:
+  .word EMPTY_END
+  .word CACTUS_1_SPRITE_END
+
+OBSTACLES_MISSILE_1_CONF_TABLE:
+  .word EMPTY_END
+  .word CACTUS_1_MISSILE_1_CONF_END
