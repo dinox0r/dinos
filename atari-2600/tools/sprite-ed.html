@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sprite Ed</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      background: #222;
+      font-family: sans-serif;
+    }
+
+    /* Container for editor + output panel */
+    .editor-container {
+      display: flex;
+      width: 100%;
+    }
+
+    /* Left: pixel editor (75%) */
+    .grid-panel {
+      flex: 3;
+      overflow: auto;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(80, 20px);
+      grid-template-rows: repeat(64, 20px);
+      gap: 1px;
+    }
+
+    /* Pixel placeholders */
+    .pixel {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .pixel.on svg rect {
+      fill: #3f3f3e;
+    }
+
+    .pixel.m1 {
+      outline: 1px solid #a77;
+    }
+
+    .pixel.grp0 {
+      outline: 1px solid #aa7;
+    }
+
+    /* Right: Code output (25%) */
+    .code-panel {
+      flex: 1;
+      padding: 10px;
+      background: #111;
+      color: #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .code-panel textarea {
+      flex: 1;
+      width: 100%;
+      resize: none;
+      background: #222;
+      color: #0f0;
+      border: none;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    /* SVG container */
+    .pixel svg {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="editor-container">
+    <div class="grid-panel">
+      <div class="grid" id="pixelGrid"></div>
+    </div>
+    <div class="code-panel">
+      <h3>Output</h3>
+      <textarea readonly id="codeBox">// Sprite code will appear here</textarea>
+    </div>
+  </div>
+
+  <script>
+    const grid = document.getElementById('pixelGrid');
+    const rows = 64;
+    const cols = 80;
+    const grp0 = 23;
+    const m1 = grp0 + 8;
+
+    const board = [ 
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "            ________                                                           ",
+      "           _O^OOOOOO_                          OO                              ",
+      "           OO_OOOOOOO                         OOO                              ",
+      "           OOOOOOOOOO                        OOOOO                             ",
+      "           OOOOOOOOOO                       OOOOOOOOOOO                        ",
+      "           OOOOO^^^^^                            OOOOOOOOOOO                   ",
+      "           OOOOO___                               OOOOOOOO                     ",
+      "    _     _OOOO^^^^                               OOOOOOOOO                    ",
+      "    O    _OOOOO                                   OOOOOO                       ",
+      "    O_  _OOOOOO__                                 OOO                          ",
+      "    OO__OOOOOOO^O                                 OO                           ",
+      "    OOOOOOOOOOO ^                                 OO                           ",
+      "    ^OOOOOOOOOO                                   O                            ",
+      "     ^OOOOOOOO^                                                                ",
+      "      ^OOO^OO^                                                                 ",
+      "       O^^ ^O                                                                  ",
+      "____   O_   O       ______________________________________________________     ",
+      "       ^^   O_                                                                 ",
+      "            ^^                                                                 ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               ",
+      "                                                                               "
+    ];
+
+    const createPixelSVG = (type) => {
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("viewBox", "0 0 1 1");
+
+      const top = document.createElementNS(svgNS, "rect");
+      top.setAttribute("x", 0);
+      top.setAttribute("y", 0);
+      top.setAttribute("width", 1);
+      top.setAttribute("height", 0.5);
+
+      const bottom = document.createElementNS(svgNS, "rect");
+      bottom.setAttribute("x", 0);
+      bottom.setAttribute("y", 0.5);
+      bottom.setAttribute("width", 1);
+      bottom.setAttribute("height", 0.5);
+
+      if (type === 'on') {
+        top.setAttribute("fill", "#3f3f3e");
+        bottom.setAttribute("fill", "#3f3f3e");
+      } else if (type === 'top') {
+        top.setAttribute("fill", "#3f3f3e");
+        bottom.setAttribute("fill", "#d2d2d1");
+      } else if (type === 'bottom') {
+        top.setAttribute("fill", "#d2d2d1");
+        bottom.setAttribute("fill", "#3f3f3e");
+      } else {
+        top.setAttribute("fill", "#d2d2d1");
+        bottom.setAttribute("fill", "#d2d2d1");
+      }
+
+      svg.appendChild(top);
+      svg.appendChild(bottom);
+      return svg;
+    };
+
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const pixel = document.createElement('div');
+        pixel.classList.add('pixel');
+
+        const bij = board[i][j];
+        let type = 'off';
+        switch (bij) {
+          case ' ': type = 'off'; break;
+          case '_': type = 'bottom'; break;
+          case '^': type = 'top'; break;
+          case 'O': type = 'on'; break;
+        }
+
+        if (grp0 <= j && j < grp0 + 8) {
+          pixel.classList.add('grp0');
+        } else if (m1 <= j && j < m1 + 8) {
+          pixel.classList.add('m1');
+        }
+
+        pixel.appendChild(createPixelSVG(type));
+
+pixel.addEventListener('mousedown', (e) => {
+  e.preventDefault(); // Prevents unwanted text selection
+  pixel.classList.add('on');
+});
+
+pixel.addEventListener('mouseover', () => {
+  if (isMouseDown) {
+    pixel.classList.add('on');
+  }
+});
+
+        grid.appendChild(pixel);
+      }
+    }
+
+let isMouseDown = false;
+
+document.body.addEventListener('mousedown', () => {
+  isMouseDown = true;
+});
+
+document.body.addEventListener('mouseup', () => {
+  isMouseDown = false;
+});
+
+    // You can write to the code box like this:
+    const codeBox = document.getElementById('codeBox');
+    codeBox.value = '// Loaded ' + (rows * cols) + ' pixels';
+  </script>
+</body>
+</html>
