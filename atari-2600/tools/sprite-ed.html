@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Sprite Ed</title>
+  <title>🌵 CacTus Ed 🌵</title>
   <style>
     body {
       margin: 0;
@@ -12,13 +12,11 @@
       font-family: sans-serif;
     }
 
-    /* Container for editor + output panel */
     .editor-container {
       display: flex;
       width: 100%;
     }
 
-    /* Left: pixel editor (75%) */
     .grid-panel {
       flex: 3;
       overflow: auto;
@@ -33,11 +31,9 @@
       gap: 1px;
     }
 
-    /* Pixel placeholders */
     .pixel {
       width: 20px;
       height: 20px;
-      cursor: pointer;
     }
 
     .pixel.on svg rect {
@@ -45,24 +41,33 @@
     }
 
     .pixel.m1 {
+      cursor: pointer;
       outline: 1px solid #a77;
+      background-color: #a77;
     }
 
-    .pixel.grp0 {
+    .pixel.grp1 {
       outline: 1px solid #aa7;
+      background-color: #aa7;
+      cursor: pointer;
     }
 
-    /* Right: Code output (25%) */
     .code-panel {
       flex: 1;
-      padding: 10px;
       background: #111;
       color: #ccc;
       display: flex;
       flex-direction: column;
     }
 
-    .code-panel textarea {
+    .code-output {
+      flex: 1;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .code-output textarea {
       flex: 1;
       width: 100%;
       resize: none;
@@ -74,7 +79,30 @@
       font-size: 14px;
     }
 
-    /* SVG container */
+    .mini-panel {
+      height: 200px;
+      padding: 5px;
+      border-top: 1px solid #333;
+      overflow: auto;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(80, 4px);
+      grid-template-rows: repeat(64, 4px);
+      gap: 0px;
+    }
+
+    .mini-pixel {
+      width: 4px;
+      height: 4px;
+      background: #222;
+    }
+
+    .mini-pixel.on {
+      background: #3f3f3e;
+    }
+
     .pixel svg {
       width: 100%;
       height: 100%;
@@ -87,84 +115,58 @@
       <div class="grid" id="pixelGrid"></div>
     </div>
     <div class="code-panel">
-      <h3>Output</h3>
-      <textarea readonly id="codeBox">// Sprite code will appear here</textarea>
+      <div class="code-output">
+        <h3>Output</h3>
+        <textarea readonly id="codeBox">// Sprite code will appear here</textarea>
+      </div>
+      <div class="mini-panel">
+        <h4>Preview</h4>
+        <div class="mini-grid" id="miniGrid"></div>
+      </div>
     </div>
   </div>
 
   <script>
-    const grid = document.getElementById('pixelGrid');
-    const rows = 64;
-    const cols = 80;
-    const grp0 = 23;
-    const m1 = grp0 + 8;
-
     const board = [ 
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "            ________                                                           ",
-      "           _O^OOOOOO_                          OO                              ",
-      "           OO_OOOOOOO                         OOO                              ",
-      "           OOOOOOOOOO                        OOOOO                             ",
-      "           OOOOOOOOOO                       OOOOOOOOOOO                        ",
-      "           OOOOO^^^^^                            OOOOOOOOOOO                   ",
-      "           OOOOO___                               OOOOOOOO                     ",
-      "    _     _OOOO^^^^                               OOOOOOOOO                    ",
-      "    O    _OOOOO                                   OOOOOO                       ",
-      "    O_  _OOOOOO__                                 OOO                          ",
-      "    OO__OOOOOOO^O                                 OO                           ",
-      "    OOOOOOOOOOO ^                                 OO                           ",
-      "    ^OOOOOOOOOO                                   O                            ",
-      "     ^OOOOOOOO^                                                                ",
-      "      ^OOO^OO^                                                                 ",
-      "       O^^ ^O                                                                  ",
-      "____   O_   O       ______________________________________________________     ",
-      "       ^^   O_                                                                 ",
-      "            ^^                                                                 ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               ",
-      "                                                                               "
+      "", "", "", "", "", "", "", "", "", "", "", "", "", //
+      "            ________                                                           ", //
+      "           _O^OOOOOO_                          OO                              ", //
+      "           OO_OOOOOOO                         OOO                              ", //
+      "           OOOOOOOOOO                        OOOOO                             ", //
+      "           OOOOOOOOOO                       OOOOOOOOOOO                        ", //
+      "           OOOOO^^^^^                            OOOOOOOOOOO                   ", //
+      "           OOOOO___                               OOOOOOOO                     ", //
+      "    _     _OOOO^^^^                               OOOOOOOOO                    ", //
+      "    O    _OOOOO                                   OOOOOO                       ", //
+      "    O_  _OOOOOO__                                 OOO                          ", //
+      "    OO__OOOOOOO^O                                 OO                           ", //
+      "    OOOOOOOOOOO ^                                 OO                           ", //
+      "    ^OOOOOOOOOO                                   O                            ", //
+      "     ^OOOOOOOO^                                                                ", //
+      "      ^OOO^OO^                                                                 ", //
+      "       O^^ ^O                                                                  ", //
+      "____   O_   O       ______________________________________________________     ", //
+      "       ^^   O_                                                                 ", //
+      "            ^^                                                                 ", //
+      "                                                                               ",  //
+      "", "", "", "", "", "", "", "", "", "", "", "", "" //
     ];
+    const grid = document.getElementById('pixelGrid');
+    const miniGrid = document.getElementById('miniGrid');
+    const rows = board.length;
+    const cols = 80;
+    const cactus_grp1_x = 23;
+    const cactus_grp1_y = 17;
+    const cactus_grp1_h = 17;
+    const cactus_grp1_w = 8;
+
+    const cactus_m1_x = cactus_grp1_x + 8;
+    const cactus_m1_y = cactus_grp1_y;
+    const cactus_m1_h = cactus_grp1_h;
+    const cactus_m1_w = 16;
+
+    let grp1 = [...Array(cactus_grp1_h)].map(() => Array(cactus_grp1_w).fill(0));
+    let m1 = [...Array(17)].map(() => Array(2).fill(0));
 
     const createPixelSVG = (type) => {
       const svgNS = "http://www.w3.org/2000/svg";
@@ -202,56 +204,146 @@
       return svg;
     };
 
+    let isMouseDown = false;
+    let mouse_down_processed_pixels = [...Array(cactus_grp1_h)].map(() => Array(cactus_grp1_w).fill(0));
+
+    document.body.addEventListener('mousedown', () => { isMouseDown = true; });
+    document.body.addEventListener('mouseup', () => {
+      isMouseDown = false;
+      for (let i = 0; i < mouse_down_processed_pixels.length; i++)
+        for (let j = 0; j < mouse_down_processed_pixels[0].length; j++)
+          mouse_down_processed_pixels[i][j] = 0;
+      update_sprite_code();
+    });
+
     for (let i = 0; i < rows; i++) {
       for (let j = 0; j < cols; j++) {
         const pixel = document.createElement('div');
+        pixel.id = 'p' + i + '_' + j;
         pixel.classList.add('pixel');
 
-        const bij = board[i][j];
+        const bij = board[i] ? board[i][j] : ' ';
         let type = 'off';
-        switch (bij) {
-          case ' ': type = 'off'; break;
-          case '_': type = 'bottom'; break;
-          case '^': type = 'top'; break;
-          case 'O': type = 'on'; break;
-        }
-
-        if (grp0 <= j && j < grp0 + 8) {
-          pixel.classList.add('grp0');
-        } else if (m1 <= j && j < m1 + 8) {
-          pixel.classList.add('m1');
-        }
+        if (bij === '_') type = 'bottom';
+        else if (bij === '^') type = 'top';
+        else if (bij === 'O') type = 'on';
 
         pixel.appendChild(createPixelSVG(type));
 
-pixel.addEventListener('mousedown', (e) => {
-  e.preventDefault(); // Prevents unwanted text selection
-  pixel.classList.add('on');
-});
+        if (cactus_grp1_x <= j && j < cactus_m1_x && cactus_grp1_y <= i && i < cactus_grp1_y + cactus_grp1_h) {
+          pixel.classList.add('grp1');
+          pixel.ii = i - cactus_grp1_y;
+          pixel.jj = j - cactus_grp1_x;
+          pixel.addEventListener('mousedown', e => {
+            e.preventDefault();
+            toggle_pixel(pixel);
+            update_sprite_code();
+          });
 
-pixel.addEventListener('mouseover', () => {
-  if (isMouseDown) {
-    pixel.classList.add('on');
-  }
-});
+          pixel.addEventListener('mouseover', () => {
+            if (pixel.ii == 0 || pixel.ii == 16) pixel.style = "cursor: not-allowed;";
+            if (isMouseDown && !mouse_down_processed_pixels[pixel.ii][pixel.jj]) {
+              toggle_pixel(pixel);
+              mouse_down_processed_pixels[pixel.ii][pixel.jj] = 1;
+            }
+          });
+        }
+
+        if (cactus_m1_x <= j && j < cactus_m1_x + cactus_m1_w && cactus_m1_y <= i && i < cactus_m1_y + cactus_m1_h) {
+          pixel.classList.add('m1');
+          pixel.ii = i - cactus_m1_y;
+          pixel.jj = j - cactus_m1_x;
+          pixel.addEventListener('mousedown', e => {
+            e.preventDefault();
+            toggle_missile_pixel(pixel);
+            update_sprite_code();
+          });
+          pixel.addEventListener('mouseover', () => {
+            if (pixel.ii == 0 || pixel.ii == 16) pixel.style = "cursor: not-allowed;";
+          });
+        }
 
         grid.appendChild(pixel);
+
+        const miniPixel = document.createElement('div');
+        miniPixel.classList.add('mini-pixel');
+        if (type === 'on') miniPixel.classList.add('on');
+        miniGrid.appendChild(miniPixel);
       }
     }
 
-let isMouseDown = false;
+    function update_sprite_code() {
+      const code_box = document.getElementById('codeBox');
+      code_box.textContent = gen_grp1_code() + '\n' + gen_m1_code();
+    }
 
-document.body.addEventListener('mousedown', () => {
-  isMouseDown = true;
-});
+    function gen_grp1_code() {
+      let code = 'CACTUS_SPRITE:\n';
+      code += '  .ds 1             ;⏐\n';
+      for (let i = cactus_grp1_h - 2; i >= 1; i--) {
+        code += '  .byte #%' + grp1[i].toString().replaceAll(',', '') + '  ;⏐ ';
+        for (let j = 0; j < cactus_grp1_w; j++) {
+          code += grp1[i][j] ? '█' : ' ';
+        }
+        code += '\n';
+      }
+      code += '  .ds 1             ;⏐\n';
+      code += 'CACTUS_SPRITE_END = *\n';
+      return code;
+    }
 
-document.body.addEventListener('mouseup', () => {
-  isMouseDown = false;
-});
+    function gen_m1_code() {
+      let code = 'CACTUS_MISSILE_1_CONF:\n'
+      code += '  .ds 1             ;⏐\n';
+      for (let i = cactus_m1_h - 2; i >= 1; i--) {
+        const missile_size = Math.max(0, m1[i][0] - 1).toString(2).padStart(2, '0');
+        const offset = ((16 - m1[i][1]) & 0xf).toString(2).padStart(4, '0');
+        code += '  .byte #%' + offset + missile_size + (m1[i][0] ? '10' : '00');
+        code += '  ;|\n';
+      }
+      code += '  .ds 1             ;⏐\n';
+      code += 'CACTUS_MISSILE_1_CONF_END = *\n';
+      return code;
+    }
 
-    // You can write to the code box like this:
-    const codeBox = document.getElementById('codeBox');
-    codeBox.value = '// Loaded ' + (rows * cols) + ' pixels';
+
+    function toggle_missile_pixel(pixel) {
+      const ii = pixel.ii;
+      const jj = pixel.jj;
+      if (ii == 0 || ii == 16) return;
+
+      const i = ii + cactus_m1_y;
+      const j = jj + cactus_m1_x;
+
+      // clear the current row of pixels
+      for (let x = 0; x < cactus_m1_w; x++) {
+        var p = document.getElementById('p' + i + '_' + (cactus_m1_x + x));
+        p.classList.remove('on');
+      }
+      if (m1[ii][0] == 4) {
+        m1[ii][0] = 0;
+      } else {
+        m1[ii][0]++;
+        m1[ii][1] = jj;
+        let missile_size = 1 << (m1[ii][0] - 1);
+        for (let x = 0; x < missile_size; x++) {
+          var p = document.getElementById('p' + i + '_' + (j + x));
+          p.classList.add('on');
+        }
+      }
+    }
+
+    function toggle_pixel(pixel) {
+      const ii = pixel.ii;
+      const jj = pixel.jj;
+      if (ii == 0 || ii == 16) return;
+      if (grp1[ii][jj]) {
+        pixel.classList.remove('on');
+      } else {
+        pixel.classList.add('on');
+      }
+      grp1[ii][jj] = !grp1[ii][jj] & 1;
+    }
   </script>
 </body>
 </html>
