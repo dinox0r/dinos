@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>🌵 CacTus Ed 🌵</title>
   <style>
     body {
@@ -96,11 +96,19 @@
     .mini-pixel {
       width: 4px;
       height: 4px;
-      background: #222;
+      background: #d2d2d1;
     }
 
     .mini-pixel.on {
       background: #3f3f3e;
+    }
+
+    .mini-pixel.top {
+      background: linear-gradient(to bottom, #3f3f3e 50%, #d2d2d1 50%);
+    }
+
+    .mini-pixel.bottom {
+      background: linear-gradient(to bottom, #d2d2d1 50%, #3f3f3e 50%);
     }
 
     .pixel svg {
@@ -127,7 +135,7 @@
   </div>
 
   <script>
-    const board = [ 
+    const board = [
       "", "", "", "", "", "", "", "", "", "", "", "", "", //
       "            ________                                                           ", //
       "           _O^OOOOOO_                          OO                              ", //
@@ -148,27 +156,37 @@
       "____   O_   O       ______________________________________________________     ", //
       "       ^^   O_                                                                 ", //
       "            ^^                                                                 ", //
-      "                                                                               ",  //
+      "                                                                               ", //
       "", "", "", "", "", "", "", "", "", "", "", "", "" //
     ];
     const grid = document.getElementById('pixelGrid');
-    const miniGrid = document.getElementById('miniGrid');
+    const mini_grid = document.getElementById('miniGrid');
     const rows = board.length;
     const cols = 80;
+
     const cactus_grp1_x = 23;
     const cactus_grp1_y = 17;
     const cactus_grp1_h = 17;
     const cactus_grp1_w = 8;
-
     const cactus_m1_x = cactus_grp1_x + 8;
     const cactus_m1_y = cactus_grp1_y;
     const cactus_m1_h = cactus_grp1_h;
     const cactus_m1_w = 16;
 
     let grp1 = [...Array(cactus_grp1_h)].map(() => Array(cactus_grp1_w).fill(0));
-    let m1 = [...Array(17)].map(() => Array(2).fill(0));
+    let m1 = [...Array(cactus_m1_h)].map(() => Array(2).fill(0));
+    let is_mouse_down = false;
+    let mouse_down_processed_pixels = [...Array(cactus_grp1_h)].map(() => Array(cactus_grp1_w).fill(0));
 
-    const createPixelSVG = (type) => {
+    document.body.addEventListener('mousedown', () => is_mouse_down = true);
+    document.body.addEventListener('mouseup', () => {
+      is_mouse_down = false;
+      mouse_down_processed_pixels.forEach(row => row.fill(0));
+      update_sprite_code();
+      update_mini_grid(); // Keep preview in sync
+    });
+
+    function create_pixel_svg(type) {
       const svgNS = "http://www.w3.org/2000/svg";
       const svg = document.createElementNS(svgNS, "svg");
       svg.setAttribute("viewBox", "0 0 1 1");
@@ -202,148 +220,196 @@
       svg.appendChild(top);
       svg.appendChild(bottom);
       return svg;
-    };
+    }
 
-    let isMouseDown = false;
-    let mouse_down_processed_pixels = [...Array(cactus_grp1_h)].map(() => Array(cactus_grp1_w).fill(0));
+    function update_mini_grid() {
+      mini_grid.innerHTML = '';
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          const miniPixel = document.createElement('div');
+          miniPixel.classList.add('mini-pixel');
 
-    document.body.addEventListener('mousedown', () => { isMouseDown = true; });
-    document.body.addEventListener('mouseup', () => {
-      isMouseDown = false;
-      for (let i = 0; i < mouse_down_processed_pixels.length; i++)
-        for (let j = 0; j < mouse_down_processed_pixels[0].length; j++)
-          mouse_down_processed_pixels[i][j] = 0;
-      update_sprite_code();
-    });
+          const bij = board[i] ? board[i][j] : ' ';
+          if (bij === '_') miniPixel.classList.add('bottom');
+          else if (bij === '^') miniPixel.classList.add('top');
+          else if (bij === 'O') miniPixel.classList.add('on');
 
-    for (let i = 0; i < rows; i++) {
-      for (let j = 0; j < cols; j++) {
-        const pixel = document.createElement('div');
-        pixel.id = 'p' + i + '_' + j;
-        pixel.classList.add('pixel');
+          const ii = i - cactus_grp1_y;
+          const jj = j - cactus_grp1_x;
+          if (0 <= ii && ii < cactus_grp1_h && 0 <= jj && jj < cactus_grp1_w) {
+            if (grp1[ii][jj]) miniPixel.classList.add('on');
+          }
 
-        const bij = board[i] ? board[i][j] : ' ';
-        let type = 'off';
-        if (bij === '_') type = 'bottom';
-        else if (bij === '^') type = 'top';
-        else if (bij === 'O') type = 'on';
-
-        pixel.appendChild(createPixelSVG(type));
-
-        if (cactus_grp1_x <= j && j < cactus_m1_x && cactus_grp1_y <= i && i < cactus_grp1_y + cactus_grp1_h) {
-          pixel.classList.add('grp1');
-          pixel.ii = i - cactus_grp1_y;
-          pixel.jj = j - cactus_grp1_x;
-          pixel.addEventListener('mousedown', e => {
-            e.preventDefault();
-            toggle_pixel(pixel);
-            update_sprite_code();
-          });
-
-          pixel.addEventListener('mouseover', () => {
-            if (pixel.ii == 0 || pixel.ii == 16) pixel.style = "cursor: not-allowed;";
-            if (isMouseDown && !mouse_down_processed_pixels[pixel.ii][pixel.jj]) {
-              toggle_pixel(pixel);
-              mouse_down_processed_pixels[pixel.ii][pixel.jj] = 1;
+          const mii = i - cactus_m1_y;
+          const mjj = j - cactus_m1_x;
+          if (0 <= mii && mii < cactus_m1_h && m1[mii][0]) {
+            const size = 1 << (m1[mii][0] - 1);
+            const offset = m1[mii][1];
+            if (mjj >= offset && mjj < offset + size) {
+              miniPixel.classList.add('on');
             }
-          });
-        }
+          }
 
-        if (cactus_m1_x <= j && j < cactus_m1_x + cactus_m1_w && cactus_m1_y <= i && i < cactus_m1_y + cactus_m1_h) {
-          pixel.classList.add('m1');
-          pixel.ii = i - cactus_m1_y;
-          pixel.jj = j - cactus_m1_x;
-          pixel.addEventListener('mousedown', e => {
-            e.preventDefault();
-            toggle_missile_pixel(pixel);
-            update_sprite_code();
-          });
-          pixel.addEventListener('mouseover', () => {
-            if (pixel.ii == 0 || pixel.ii == 16) pixel.style = "cursor: not-allowed;";
-          });
-        }
-
-        grid.appendChild(pixel);
-
-        const miniPixel = document.createElement('div');
-        miniPixel.classList.add('mini-pixel');
-        if (type === 'on') miniPixel.classList.add('on');
-        miniGrid.appendChild(miniPixel);
-      }
-    }
-
-    function update_sprite_code() {
-      const code_box = document.getElementById('codeBox');
-      code_box.textContent = gen_grp1_code() + '\n' + gen_m1_code();
-    }
-
-    function gen_grp1_code() {
-      let code = 'CACTUS_SPRITE:\n';
-      code += '  .ds 1             ;⏐\n';
-      for (let i = cactus_grp1_h - 2; i >= 1; i--) {
-        code += '  .byte #%' + grp1[i].toString().replaceAll(',', '') + '  ;⏐ ';
-        for (let j = 0; j < cactus_grp1_w; j++) {
-          code += grp1[i][j] ? '█' : ' ';
-        }
-        code += '\n';
-      }
-      code += '  .ds 1             ;⏐\n';
-      code += 'CACTUS_SPRITE_END = *\n';
-      return code;
-    }
-
-    function gen_m1_code() {
-      let code = 'CACTUS_MISSILE_1_CONF:\n'
-      code += '  .ds 1             ;⏐\n';
-      for (let i = cactus_m1_h - 2; i >= 1; i--) {
-        const missile_size = Math.max(0, m1[i][0] - 1).toString(2).padStart(2, '0');
-        const offset = ((16 - m1[i][1]) & 0xf).toString(2).padStart(4, '0');
-        code += '  .byte #%' + offset + missile_size + (m1[i][0] ? '10' : '00');
-        code += '  ;|\n';
-      }
-      code += '  .ds 1             ;⏐\n';
-      code += 'CACTUS_MISSILE_1_CONF_END = *\n';
-      return code;
-    }
-
-
-    function toggle_missile_pixel(pixel) {
-      const ii = pixel.ii;
-      const jj = pixel.jj;
-      if (ii == 0 || ii == 16) return;
-
-      const i = ii + cactus_m1_y;
-      const j = jj + cactus_m1_x;
-
-      // clear the current row of pixels
-      for (let x = 0; x < cactus_m1_w; x++) {
-        var p = document.getElementById('p' + i + '_' + (cactus_m1_x + x));
-        p.classList.remove('on');
-      }
-      if (m1[ii][0] == 4) {
-        m1[ii][0] = 0;
-      } else {
-        m1[ii][0]++;
-        m1[ii][1] = jj;
-        let missile_size = 1 << (m1[ii][0] - 1);
-        for (let x = 0; x < missile_size; x++) {
-          var p = document.getElementById('p' + i + '_' + (j + x));
-          p.classList.add('on');
+          mini_grid.appendChild(miniPixel);
         }
       }
     }
 
     function toggle_pixel(pixel) {
-      const ii = pixel.ii;
-      const jj = pixel.jj;
-      if (ii == 0 || ii == 16) return;
-      if (grp1[ii][jj]) {
-        pixel.classList.remove('on');
-      } else {
-        pixel.classList.add('on');
-      }
+      const ii = pixel.i;
+      const jj = pixel.j;
+      if (ii === 0 || ii === 16) return;
       grp1[ii][jj] = !grp1[ii][jj] & 1;
+      pixel.classList.toggle('on');
     }
+
+    function toggle_missile_pixel(pixel) {
+      const ii = pixel.i;
+      const jj = pixel.j;
+      if (ii === 0 || ii === 16) return;
+      const i = ii + cactus_m1_y;
+      const j = jj + cactus_m1_x;
+
+      for (let x = 0; x < cactus_m1_w; x++) {
+        const p = document.getElementById('p' + i + '_' + (cactus_m1_x + x));
+        p.classList.remove('on');
+      }
+
+      if (m1[ii][0] === 4) {
+        m1[ii][0] = 0;
+      } else {
+        m1[ii][0]++;
+        m1[ii][1] = jj;
+        const size = 1 << (m1[ii][0] - 1);
+        for (let x = 0; x < size; x++) {
+          const p = document.getElementById('p' + i + '_' + (j + x));
+          p.classList.add('on');
+        }
+      }
+    }
+
+    function update_sprite_code() {
+      const box = document.getElementById('codeBox');
+      box.textContent = gen_grp1_code() + '\n' + gen_m1_code();
+    }
+
+    function gen_grp1_code() {
+      let code = 'CACTUS_SPRITE:\n';
+      code += '.ds 1             ;⏐\n';
+      for (let i = cactus_grp1_h - 2; i >= 1; i--) {
+        code += '  .byte #%' + grp1[i].join('') + '  ;⏐ ';
+        code += grp1[i].map(x => x ? '█' : ' ').join('') + '\n';
+      }
+      code += '  .ds 1             ;⏐\n'
+      code += 'CACTUS_SPRITE_END = *\n';
+      return code;
+    }
+
+    function gen_m1_code() {
+      const label = 'CACTUS_MISSILE_1_CONF:\n';
+      const last_label = 'CACTUS_MISSILE_1_CONF_END = *\n';
+      let first_scanline = '  .ds 1             ;⏐\n';
+      let last_scanline = first_scanline;
+      let code = '';
+      for (let i = cactus_m1_h - 2; i >= 1; i--) {
+        const enam1 = m1[i][0] ? '10' : '00';
+        const nusiz1 = Math.max(0, m1[i][0] - 1).toString(2).padStart(2, '0');
+        const missile_j_prev_scanline = m1[i - 1][1];
+        const missile_j = m1[i][1];
+        if (i == cactus_m1_h - 2 && missile_j > 8) {
+          first_scanline = `  .byte #%1000${nusiz1}${enam1}  ;|\n`;
+
+          let offset = (missile_j - 8) & 0xf;
+          let hmm1 = offset.toString(2).padStart(4, '0');
+
+          code += `  .byte #%${hmm1}${nusiz1}${enam1}  ;|\n`;
+        } else if (missile_j_prev_scanline - 7 <= missile_j && missile_j <= missile_j_prev_scanline + 8) {
+          const offset = (missile_j - missile_j_prev_scanline) & 0xf;
+          const hmm1 = offset.toString(2).padStart(4, '0');
+
+          code += `  .byte #%${hmm1}${nusiz1}${enam1}  ;|\n`;
+        } else {
+          code += `  .byte #%xxxx${nusiz1}${enam1}  ;| <-- INVALID offset for HMM1!!!\n`;
+        }
+      }
+      return label + first_scanline + code + last_scanline + last_label;
+    }
+
+    // Initial render
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const pixel = document.createElement('div');
+        pixel.id = 'p' + i + '_' + j;
+        pixel.classList.add('pixel');
+        const bij = board[i] ? board[i][j] : ' ';
+        let type = 'off';
+        if (bij === '_') type = 'bottom';
+        else if (bij === '^') type = 'top';
+        else if (bij === 'O') type = 'on';
+        pixel.appendChild(create_pixel_svg(type));
+
+        const gi = i - cactus_grp1_y;
+        const gj = j - cactus_grp1_x;
+        if (0 <= gi && gi < cactus_grp1_h && 0 <= gj && gj < cactus_grp1_w) {
+          pixel.classList.add('grp1');
+          pixel.i = gi;
+          pixel.j = gj;
+          pixel.addEventListener('mousedown', e => {
+            e.preventDefault();
+            toggle_pixel(pixel);
+            update_sprite_code();
+            update_mini_grid();
+          });
+          pixel.addEventListener('mouseover', () => {
+            if (pixel.i === 0 || pixel.i === 16) pixel.style.cursor = 'not-allowed';
+            if (is_mouse_down && !mouse_down_processed_pixels[gi][gj]) {
+              toggle_pixel(pixel);
+              mouse_down_processed_pixels[gi][gj] = 1;
+              update_sprite_code();
+              update_mini_grid();
+            }
+          });
+        }
+
+        const mi = i - cactus_m1_y;
+        const mj = j - cactus_m1_x;
+        if (0 <= mi && mi < cactus_m1_h && 0 <= mj && mj < cactus_m1_w) {
+          pixel.classList.add('m1');
+          pixel.i = mi;
+          pixel.j = mj;
+
+          pixel.addEventListener('mousedown', e => {
+            e.preventDefault();
+            toggle_missile_pixel(pixel);
+            update_sprite_code();
+            update_mini_grid();
+          });
+
+          pixel.addEventListener('mouseover', () => {
+            // The first row (from bottom up) can only do a fine offset of 
+            // of 8 px to the right (HMM1)
+            if (1 < mi && mi <= cactus_m1_h - 3) {
+              // Check that mj is [-7, +8] from the position of the previous 
+              // missile
+              //
+              // Previous in this context means the next scanline, as they 
+              // will be drawn from bottom to top
+              const prev_missile_j = m1[mi + 1][1];
+              if (!(prev_missile_j - 7 <= mj && mj <= prev_missile_j + 8)) {
+                pixel.style.cursor = 'not-allowed';
+              } else {
+                pixel.style.cursor = 'pointer';
+              }
+            }
+          });
+        }
+
+        grid.appendChild(pixel);
+      }
+    }
+
+    update_sprite_code();
+    update_mini_grid();
   </script>
 </body>
 </html>
