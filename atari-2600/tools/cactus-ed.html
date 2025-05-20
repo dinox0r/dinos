@@ -365,6 +365,19 @@
       }
     }
 
+    function update_m1_grid_from_data() {
+      for (let i = 1; i < cactus_m1_h - 1; i++) {
+        if (!m1[i][0]) continue;
+        const size = 1 << (m1[i][0] - 1);
+        const y = i + cactus_m1_y;
+        const x = m1[i][1] + cactus_m1_x;
+        for (let j = 0; j < size; j++) {
+          const pixel = document.getElementById(gen_id(y, x + j));
+          pixel.classList.add('on');
+        }
+      }
+    }
+
     function gen_id(i, j) {
       return `p_${i}_${j}`;
     }
@@ -613,16 +626,19 @@
     // Main
     // ------------------------------------------------------------------------
     function main() {
-      draw_main_grid();
       document.body.addEventListener('mousedown', on_grid_mouse_down);
       document.body.addEventListener('mouseup', on_grid_mouse_up);
-      update_sprite_code();
-      update_mini_grid();
       document.getElementById('leftBtn').onclick = on_arrow_left_click;
       document.getElementById('rightBtn').onclick = on_arrow_right_click;
       document.getElementById('upBtn').onclick = on_arrow_up_click;
       document.getElementById('downBtn').onclick = on_arrow_down_click;
       document.getElementById('resetBtn').addEventListener('click', reset_to_default);
+
+      draw_main_grid();
+      update_grp1_grid_from_data();
+      update_m1_grid_from_data();
+      update_sprite_code();
+      update_mini_grid();
     }
 
     main();
