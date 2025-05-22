@@ -18,7 +18,7 @@
     }
 
     .grid-panel {
-      flex: 2.3;
+      flex: 2.6;
       overflow: auto;
       padding: 10px;
       box-sizing: border-box;
@@ -379,10 +379,16 @@
 
     function update_m1_grid_from_data() {
       for (let i = 1; i < cactus_m1_h - 1; i++) {
-        if (!m1[i][0]) continue;
-        const size = 1 << (m1[i][0] - 1);
         const y = i + cactus_m1_y;
-        const x = m1[i][1] + cactus_m1_x;
+        for (let j = 0; j < cactus_m1_w - 1; j++) {
+          const pixel = document.getElementById(gen_id(y, cactus_m1_x + j));
+          pixel.classList.remove('on');
+        }
+
+        if (!m1[i][0]) continue;
+
+        const x = cactus_m1_x + m1[i][1];
+        const size = 1 << (m1[i][0] - 1);
         for (let j = 0; j < size; j++) {
           const pixel = document.getElementById(gen_id(y, x + j));
           pixel.classList.add('on');
@@ -535,7 +541,7 @@ ${cactus_name}_MISSILE_1_CONF:
           lines.push(encode_missile(target_pos_j, prev_pos_j, m1[i][0]));
         } else {
           lines.push('  ERROR');
-          lines.push(`  ECHO "INVALID offset for HMM1!!! prev=${prev_pos_j} and target=${target_pos_j}, diff ${target_pos_j - previous_pos_j}"`);
+          lines.push(`  ECHO "INVALID offset for HMM1!!! prev scanline pos (next byte)=${prev_pos_j} and target=${target_pos_j}, diff ${target_pos_j - prev_pos_j}"`);
           break;
         }
         prev_pos_j = target_pos_j;
@@ -644,33 +650,44 @@ ${cactus_name}_MISSILE_1_CONF:
     }
 
     function on_arrow_up_click() {
-      const n = grp1.length;
-      let first_row = grp1[0];
-      for (let i = 0; i < n - 1; i++) {
+      const n = grp1.length - 1;
+      let first_grp1_row = grp1[1];
+      let first_m1_row = m1[1];
+      for (let i = 1; i < n - 1; i++) {
         grp1[i] = grp1[i + 1];
+        m1[i] = m1[i + 1];
       }
-      grp1[n - 1] = first_row;
+      grp1[n - 1] = first_grp1_row;
+      m1[n - 1] = first_m1_row;
       update_grp1_grid_from_data();
+      update_m1_grid_from_data();
       update_sprite_code();
       update_mini_grid();
+      save_to_local_storage();
     }
 
     function on_arrow_down_click() { 
-      const n = grp1.length;
-      let last_row = grp1[n - 1];
-      for (let i = n - 1; i > 0; i--) {
+      const n = grp1.length - 1;
+      let last_grp1_row = grp1[n - 1];
+      let last_m1_row = m1[n - 1];
+      for (let i = n - 1; i > 1; i--) {
         grp1[i] = grp1[i - 1];
+        m1[i] = m1[i - 1];
       }
-      grp1[0] = last_row;
+      grp1[1] = last_grp1_row;
+      m1[1] = last_m1_row;
       update_grp1_grid_from_data();
+      update_m1_grid_from_data();
       update_sprite_code();
       update_mini_grid();
+      save_to_local_storage();
     }
 
     function on_arrow_right_click() { 
       const n = grp1.length;
       const m = grp1[0].length;
       for (let i = 0; i < n; i++) {
+        if (m1[i][0]) m1[i][1] = Math.min(cactus_m1_w - 1, m1[i][1] + 1);
         const last_row_element = grp1[i][m - 1];
         for (let j = m - 1; j > 0; j--) {
           grp1[i][j] = grp1[i][j - 1];
@@ -678,8 +695,10 @@ ${cactus_name}_MISSILE_1_CONF:
         grp1[i][0] = last_row_element;
       }
       update_grp1_grid_from_data();
+      update_m1_grid_from_data();
       update_sprite_code();
       update_mini_grid();
+      save_to_local_storage();
     }
 
     function on_arrow_left_click() {
@@ -687,14 +706,17 @@ ${cactus_name}_MISSILE_1_CONF:
       const m = grp1[0].length;
       for (let i = 0; i < n; i++) {
         const first_row_element = grp1[i][0];
+        if (m1[i][0]) m1[i][1] = Math.max(0, m1[i][1] - 1);
         for (let j = 0; j < m - 1; j++) {
           grp1[i][j] = grp1[i][j + 1];
         }
         grp1[i][m - 1] = first_row_element;
       }
       update_grp1_grid_from_data();
+      update_m1_grid_from_data();
       update_sprite_code();
       update_mini_grid();
+      save_to_local_storage();
     }
 
     function on_input_change() {
