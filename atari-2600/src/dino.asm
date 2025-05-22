@@ -215,7 +215,7 @@ game_init:
   lda #1
   sta OBSTACLE_TYPE
   ;lda #PLAY_AREA_BOTTOM_Y+#20
-  lda #PLAY_AREA_TOP_Y-#46
+  lda #PLAY_AREA_TOP_Y-#47
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -1214,8 +1214,8 @@ _legs_and_floor__end_of_1st_scanline:
 
   DRAW_DINO     ; 3 (6)
 
-  lda #77
-  sta COLUBK
+  ;lda #77
+  ;sta COLUBK
 
   ; 29 (35)
   LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_2nd_scanline
