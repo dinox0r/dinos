@@ -175,6 +175,7 @@
       <div class="code-output">
         <h3>Output</h3>
         <textarea readonly id="codeBox">// Sprite code will appear here</textarea>
+        <button class="copy-button" onclick="on_copy_code_click()">Copy to Clipboard</button>
       </div>
       <div class="mini-panel">
         <h4>Preview</h4>
@@ -722,6 +723,13 @@ ${cactus_name}_MISSILE_1_CONF:
     function on_input_change() {
       document.getElementById('labelInput').value.toUpperCase().replace(/[^A-Z0-9_]/g, '');
       update_sprite_code();
+    }
+
+    function on_copy_code_click() {
+      const code_box = document.getElementById('codeBox');
+      navigator.clipboard.writeText(code_box.value)
+        .then(() => console.log('Code copied to clipboard'))
+        .catch(err => console.error('Copy failed', err));
     }
 
     // ------------------------------------------------------------------------

@@ -215,7 +215,7 @@ game_init:
   lda #1
   sta OBSTACLE_TYPE
   ;lda #PLAY_AREA_BOTTOM_Y+#20
-  lda #PLAY_AREA_TOP_Y-#48
+  lda #PLAY_AREA_TOP_Y-#46
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
