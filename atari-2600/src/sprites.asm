@@ -358,6 +358,7 @@ PTERO_WINGS_OPEN_SPRITE:
   .byte %00000011  ;⏐      ██⏐
   .byte %00000110  ;⏐     ██ ⏐
   .byte %00000100  ;⏐     █  ⏐
+  .byte %00000000  ;⏐        ⏐
   .ds 1            ;⏐        ⏐
 PTERO_WINGS_OPEN_SPRITE_END = *
 
@@ -385,6 +386,7 @@ PTERO_WINGS_OPEN_MISSILE_1_CONF:
   .byte %00000000 ; |      ██⏐        |         0              0
   .byte %00000000 ; |     ██ ⏐        |         0              0
   .byte %00000000 ; |     █  ⏐        |         0              0
+  .byte %00000000 ; |        ⏐        |         0              0
   .ds 1           ; |        ⏐        |
   ;                          ↑↑
   ;                 end GRP1/  \-- M1 position
@@ -452,6 +454,7 @@ PTERO_WINGS_CLOSED_SPRITE:
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
+  .byte %00000000  ;⏐        ⏐
   .ds 1            ;⏐        ⏐
 PTERO_WINGS_CLOSED_SPRITE_END = *
 
@@ -480,66 +483,70 @@ PTERO_WINGS_CLOSED_MISSILE_1_CONF:
   .byte %00000000 ; ⏐        ⏐        |         0              0
   .byte %00000000 ; ⏐        ⏐        |         0              0
   .byte %00000000 ; ⏐        ⏐        |         0              0
+  .byte %00000000 ; ⏐        ⏐        |         0              0
   .ds 1           ; ⏐        ⏐        |
   ;                           ↑
   ;                   initial M1 position (cycle 25)
 PTERO_WINGS_CLOSED_MISSILE_1_CONF_END = *
 
 EMPTY:
-  .ds 17
+  .ds 18
 EMPTY_END = *
 
-CACTUS_1_SPRITE:
-  .ds 1            ;⏐
-  .byte %00001001  ;⏐
-  .byte %01100000  ;⏐
-  .byte %00000100  ;⏐
-  .byte %00000100  ;⏐
-  .byte %00000100  ;⏐
-  .byte %00000100  ;⏐
-  .byte %00001110  ;⏐
-  .byte %00010101  ;⏐
-  .byte %00010101  ;⏐
-  .byte %00000101  ;⏐
-  .byte %00000101  ;⏐
-  .byte %00000100  ;⏐
-  .byte %00000100  ;⏐
-  .byte %00000000  ;⏐
-  .byte %00000000  ;⏐
-  .ds 1            ;⏐
-CACTUS_1_SPRITE_END = *
+CACTUS_SPRITE:
+  .ds 1             ;⏐
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000100  ;⏐      █  
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .byte #%00000000  ;⏐         
+  .ds 1             ;⏐
+CACTUS_SPRITE_END = *
 
-CACTUS_1_MISSILE_1_CONF:
-; Again, for reference:
+
+; HMxy reference:
 ;       LEFT  <---------------------------------------------------------> RIGHT
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-
-  ; Enable M1 bit
-  ;            ⏐
-  .ds 1 ;      ↓    |        ⏐        |
-  .byte %00110010 ; |    █  █⏐ ▓      |
-  .byte %11010010 ; | ██     ⏐     ▓▓ |
-  .byte %00000000 ; |     █  ⏐        |
-  .byte %00000000 ; |     █  ⏐        |
-  .byte %00000000 ; |     █  ⏐        |
-  .byte %00000000 ; |     █  ⏐        |
-  .byte %00000000 ; |    ███ ⏐        |
-  .byte %00000000 ; |   █ █ █⏐        |
-  .byte %00000000 ; |   █ █ █⏐        |
-  .byte %00000000 ; |     █ █⏐        |
-  .byte %00000000 ; |     █ █⏐        |
-  .byte %00000000 ; |     █  ⏐        |
-  .byte %00000000 ; |     █  ⏐        |
-  .byte %00000000 ; |        ⏐        |
-  .byte %00000000 ; |        ⏐        |
-  .ds 1           ;
-CACTUS_1_MISSILE_1_CONF_END = *
+;
+CACTUS_MISSILE_1_CONF:
+;    Enable M1 bit
+;               ↓ 
+  .ds 1              ;⏐
+  .byte #%00010010  ;|
+  .byte #%00010010  ;|
+  .byte #%00010010  ;|
+  .byte #%11010010  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .ds 1              ;⏐
+CACTUS_MISSILE_1_CONF_END = *
 
 OBSTACLES_SPRITES_TABLE:
   .word EMPTY_END
-  .word CACTUS_1_SPRITE_END
+  .word CACTUS_SPRITE_END
 
 OBSTACLES_MISSILE_1_CONF_TABLE:
   .word EMPTY_END
-  .word CACTUS_1_MISSILE_1_CONF_END
+  .word CACTUS_MISSILE_1_CONF_END

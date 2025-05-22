@@ -59,7 +59,7 @@ DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #78
 
-PTERO_HEIGHT = #17
+PTERO_HEIGHT = #18
 ; To save a cycle per scanline, all the obstacles are to have the max obstacle
 ; height, it wastes some rom though
 OBSTACLE_HEIGHT = #PTERO_HEIGHT
