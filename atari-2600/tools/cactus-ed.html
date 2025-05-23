@@ -642,7 +642,11 @@ ${cactus_name}_MISSILE_1_CONF:
       let grp1_end_label_index = 0;
       let m1_end_label_index = 0;
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].endsWith('SPRITE:')) {
+        if (lines[i].endsWith('_SPRITE:')) {
+          const index = lines[i].indexOf('_SPRITE:');
+          const sprite_name = lines[i].substring(0, index);
+          document.getElementById('labelInput').value = sprite_name;
+
           grp1_label_index = i;
           break;
         }
@@ -677,7 +681,7 @@ ${cactus_name}_MISSILE_1_CONF:
       let m1_index = 0;
       let prev_pos_j = 0;
 
-      const hmove = Map();
+      const hmove = new Map();
       hmove.set('0111', -7);
       hmove.set('0110', -6);
       hmove.set('0101', -5);
