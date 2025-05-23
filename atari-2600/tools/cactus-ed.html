@@ -90,16 +90,15 @@
     }
 
     .mini-grid {
-      flex: 1;
       display: grid;
-      grid-template-columns: repeat(80, 4px);
-      grid-template-rows: repeat(64, 4px);
-      gap: 0px;
+      grid-template-columns: repeat(80, var(--pixel-size, 4px));
+      grid-template-rows: repeat(64, var(--pixel-size, 4px));
+      gap: 0;
     }
 
     .mini-pixel {
-      width: 4px;
-      height: 4px;
+      width: var(--pixel-size, 4px);
+      height: var(--pixel-size, 4px);
       background: #d2d2d1;
     }
 
@@ -162,6 +161,17 @@
       font-size: 14px;
       text-transform: uppercase;
     }
+
+    .zoom-slider {
+      width: 100%;
+    }
+
+    .mini-grid-container {
+      overflow: auto;
+      border: 1px solid #333;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -176,10 +186,14 @@
         <h3>Output</h3>
         <textarea readonly id="codeBox">// Sprite code will appear here</textarea>
         <button class="copy-button" onclick="on_copy_code_click()">Copy to Clipboard</button>
+        <button id="loadFromCodeBtn">Load from Code</button>
       </div>
       <div class="mini-panel">
         <h4>Preview</h4>
-        <div class="mini-grid" id="miniGrid"></div>
+        <input class="zoom-slider" type="range" min="1" max="4" step="0.1" value="1" id="zoomSlider" />
+        <div class="mini-grid-container">
+          <div class="mini-grid" id="miniGrid"></div>
+        </div>
         <div class="arrow-buttons">
           <button id="leftBtn">&#x3C;</button>
           <button id="upBtn">&#x5E;</button>
@@ -190,6 +204,18 @@
       </div>
     </div>
   </div>
+
+  <!-- Load from Code Modal -->
+  <dialog id="loadCodeDialog">
+    <form method="dialog" style="display: flex; flex-direction: column; gap: 10px; width: 400px; max-width: 90%;">
+      <h3>Load Code</h3>
+      <textarea id="loadCodeInput" placeholder="Paste your code here" style="width: 100%; height: 150px; background: #111; color: #0f0; border: none; font-family: monospace; font-size: 12px; resize: none;"></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="submit" id="loadCodeOkBtn">Ok</button>
+        <button type="button" id="loadCodeCancelBtn">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <script>
     const board = [
@@ -442,6 +468,40 @@
     }
 
     // ------------------------------------------------------------------------
+    // UI load from code dialog
+    // ------------------------------------------------------------------------
+    function configure_load_from_code_dialog() {
+      const load_from_code_btn = document.getElementById('loadFromCodeBtn');
+      const load_code_dialog = document.getElementById('loadCodeDialog');
+      const load_code_input = document.getElementById('loadCodeInput');
+      const load_code_ok_btn = document.getElementById('loadCodeOkBtn');
+      const load_code_cancel_btn = document.getElementById('loadCodeCancelBtn');
+
+      load_code_ok_btn.addEventListener('click', function() {
+        load_code_dialog.close('ok');
+      });
+
+      load_from_code_btn.addEventListener('click', function() {
+        load_code_input.value = ''; // Clear textarea on open
+        load_code_dialog.showModal();
+        load_code_input.focus();
+      });
+
+      load_code_cancel_btn.addEventListener('click', function() {
+        load_code_dialog.close();
+      });
+
+      load_code_dialog.addEventListener('close', function() {
+        if (load_code_dialog.returnValue === 'cancel' || load_code_dialog.returnValue === '') {
+          // dialog was cancelled or closed without submitting
+          return;
+        }
+        const code_text = load_code_input.value;
+        load_from_code(code_text);
+      });
+    }
+
+    // ------------------------------------------------------------------------
     // Local storage persistence
     // ------------------------------------------------------------------------
     function save_to_local_storage() {
@@ -564,12 +624,93 @@ ${cactus_name}_MISSILE_1_CONF:
       return `  .byte #%${hmm1}${nusiz1}${enam1}  ;|`;
     }
 
-    function calc_m1_pos_for(i) {
-      if (i == cactus_m1_h - 1) return m[i][1];
-      const pos = m[cactus_m1_h][1];
-      for (let mi = cactus_m1_h - 2; mi > i; mi--) 
-        pos += m[mi][1];
-      return pos;
+    function isNotEmpty(str) {
+      return str.trim().length > 0;
+    }
+
+    function isNotCommentLine(line) {
+      return !line.trimLeft().startsWith(';');
+    }
+
+    function load_from_code(code) {
+      console.log('Code to parse:', code);
+      const lines = code.split('\n')
+        .filter(l => isNotEmpty(l) && isNotCommentLine(l))
+        .map(l => l.trim());
+
+      let grp1_label_index = 0;
+      let grp1_end_label_index = 0;
+      let m1_end_label_index = 0;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].endsWith('SPRITE:')) {
+          grp1_label_index = i;
+          break;
+        }
+      }
+      for (let i = grp1_label_index + 1; i < lines.length; i++) {
+        if (lines[i].endsWith('_END = *')) {
+          grp1_end_label_index = i;
+          break;
+        }
+      }
+      for (let i = grp1_end_label_index + 1; i < lines.length; i++) {
+        if (lines[i].endsWith('MISSILE_1_CONF_END = *')) {
+          m1_end_label_index = i;
+          break;
+        }
+      }
+
+      let grp1_index = 0;
+      for (let i = grp1_label_index + 1; i < grp1_end_label_index; i++) {
+        const l = lines[i];
+        if (l.startsWith('.byte #%')) {
+          let binary_byte_str = l.split(' ')[1].substr(2, 8);
+          for (let j = 0; j < 8; j++) {
+            grp1[grp1_index][j] = binary_byte_str[j] === '0' ? 0 : 1;
+          }
+        }
+        grp1_index++;
+      }
+      grp1.reverse();
+      update_grp1_grid_from_data();
+
+      let m1_index = 0;
+      let prev_pos_j = 0;
+
+      const hmove = Map();
+      hmove.set('0111', -7);
+      hmove.set('0110', -6);
+      hmove.set('0101', -5);
+      hmove.set('0100', -4);
+      hmove.set('0011', -3);
+      hmove.set('0010', -2);
+      hmove.set('0001', -1);
+      hmove.set('0000', 0);
+      hmove.set('1111', 1);
+      hmove.set('1110', 2);
+      hmove.set('1101', 3);
+      hmove.set('1100', 4);
+      hmove.set('1011', 5);
+      hmove.set('1010', 6);
+      hmove.set('1001', 7);
+      hmove.set('1000', 8);
+
+      for (let i = m1_end_label_index - 1; i > grp1_end_label_index; i--) {
+        const l = lines[i];
+        if (l.startsWith('.byte #%')) {
+          let binary_byte_str = l.split(' ')[1].substr(2, 8);
+          const hmm1 = binary_byte_str.substr(0, 4);
+          const nusiz1 = binary_byte_str.substr(4, 2);
+          const enam1 = binary_byte_str.substr(6, 2);
+
+          m1[m1_index][0] = enam1 === '00' ? 0 : parseInt(nusiz1, 2) + 1;
+          m1[m1_index][1] = hmove.get(hmm1) + prev_pos_j;
+
+          prev_pos_j = m1[m1_index][1];
+        }
+        m1_index++;
+      }
+      update_m1_grid_from_data();
     }
 
     // ------------------------------------------------------------------------
@@ -723,6 +864,7 @@ ${cactus_name}_MISSILE_1_CONF:
     function on_input_change() {
       document.getElementById('labelInput').value.toUpperCase().replace(/[^A-Z0-9_]/g, '');
       update_sprite_code();
+      localStorage.setItem('label', document.getElementById('labelInput').value);
     }
 
     function on_copy_code_click() {
@@ -730,6 +872,14 @@ ${cactus_name}_MISSILE_1_CONF:
       navigator.clipboard.writeText(code_box.value)
         .then(() => console.log('Code copied to clipboard'))
         .catch(err => console.error('Copy failed', err));
+    }
+
+    function on_zoom_slider_input() {
+      const zoom_slider = document.getElementById('zoomSlider');
+      const mini_grid = document.querySelector('.mini-grid');
+      const mini_grid_container = document.querySelector('.mini-grid-container');
+      const size = 4 * parseFloat(zoom_slider.value); // Base size is 4px
+      mini_grid.style.setProperty('--pixel-size', `${size}px`);
     }
 
     // ------------------------------------------------------------------------
@@ -743,6 +893,7 @@ ${cactus_name}_MISSILE_1_CONF:
       document.getElementById('upBtn').onclick = on_arrow_up_click;
       document.getElementById('downBtn').onclick = on_arrow_down_click;
       document.getElementById('resetBtn').addEventListener('click', reset_to_default);
+      document.getElementById('zoomSlider').addEventListener('input', on_zoom_slider_input);
 
       const label = document.getElementById('labelInput');
       label.addEventListener('input', on_input_change);
@@ -753,6 +904,8 @@ ${cactus_name}_MISSILE_1_CONF:
         console.warn('Failed to load label', e);
         label.value = 'CACTUS';
       }
+
+      configure_load_from_code_dialog();
 
       draw_main_grid();
       update_grp1_grid_from_data();

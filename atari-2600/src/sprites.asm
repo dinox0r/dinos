@@ -514,6 +514,28 @@ CACTUS_SPRITE:
   .ds 1             ;⏐
 CACTUS_SPRITE_END = *
 
+CACTUS_MISSILE_1_CONF:
+;    Enable M1 bit
+;               ↓
+  .ds 1             ;⏐
+  .byte #%00000000  ;|
+  .byte #%00010010  ;|
+  .byte #%11110010  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .byte #%00000000  ;|
+  .ds 1             ;⏐
+CACTUS_MISSILE_1_CONF_END = *
 
 ; HMxy offset reference (rows: pixels, hex and binary):
 ;
