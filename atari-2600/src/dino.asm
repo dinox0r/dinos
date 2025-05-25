@@ -59,12 +59,11 @@ DINO_JUMP_INIT_VY_FRACT = #40
 DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #78
 
-PTERO_HEIGHT = #18
+PTERO_HEIGHT = #20
 ; To save a cycle per scanline, all the obstacles are to have the max obstacle
 ; height, it wastes some rom though
 OBSTACLE_HEIGHT = #PTERO_HEIGHT
 
-DEBUG_OBSTACLE_X_POS = #149
 
 ;=============================================================================
 ; GAME_FLAGS
@@ -211,14 +210,17 @@ game_init:
   lda #>[DINO_MISSILE_0_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_MISSILE_0_CONF+1
 
+_init_obstacle_conf:
+DEBUG_OBSTACLE_X_POS = #155
   ; TODO: Remove/Update after testing obstacle positioning
   lda #1
   sta OBSTACLE_TYPE
-  ;lda #PLAY_AREA_BOTTOM_Y+#20
-  lda #PLAY_AREA_TOP_Y-#47
+  lda #PLAY_AREA_TOP_Y
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
+  lda #0
+  sta OBSTACLE_X_FRACT
 
 ;=============================================================================
 ; FRAME
@@ -353,7 +355,7 @@ _end_check_joystick:
 ; -----------------------------------------------------------------------------
 in_grame_screen:
 
-_update_floor:
+update_floor:
   lda #0
   sta FLOOR_PF2
 
@@ -369,21 +371,21 @@ _update_floor:
   lda #%11000000
   sta FLOOR_PF1
 
-  jmp _update_obstacle
+  jmp update_obstacle
 
 __dino_y_over_10:
   lda #%00000000
   sta FLOOR_PF0
   lda #%10000000
   sta FLOOR_PF1
-  jmp _update_obstacle
+  jmp update_obstacle
 
 __dino_y_over_20:
   lda #0
   sta FLOOR_PF0
   sta FLOOR_PF1
 
-_update_obstacle:
+update_obstacle:
   lda OBSTACLE_TYPE
   cmp #255
   beq _update_ptero
@@ -393,13 +395,22 @@ _update_obstacle:
       ; multiplying by 2 because each entry is 2 bytes (one word) long
   tax ; Use reg X as the index
 
-  stx TEMP
+  stx TEMP ; Store a copy of reg X for later when loading the missile conf
 
   ldy OBSTACLES_SPRITES_TABLE+#1,x
   lda OBSTACLES_SPRITES_TABLE,x
   ldx #PTR_OBSTACLE_SPRITE
   jsr set_obstacle_data
 
+  ; Check the obstacle x position and use empty data if it's offscreen
+  lda OBSTACLE_X_INT
+  cmp #147
+  bcc __load_obstacle_missile_conf
+
+  ldx #0    ; override the stored x value, so it lands of the first entry of
+  stx TEMP  ; the OBSTACLES_MISSILE_1_CONF table, which points to zero data
+
+__load_obstacle_missile_conf:
   ldx TEMP
   ldy OBSTACLES_MISSILE_1_CONF_TABLE+#1,x
   lda OBSTACLES_MISSILE_1_CONF_TABLE,x
@@ -441,7 +452,8 @@ __end_wing_anim:
 _update_obstacle_pos:
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
   ; type and difficulty
-  lda #250 ; 
+  ;lda #100 ; 
+  lda #0 ; 
   sta OBSTACLE_VX_FRACT
   lda #0
   sta OBSTACLE_VX_INT
@@ -454,7 +466,7 @@ _update_obstacle_pos:
   lda OBSTACLE_X_INT
   sbc OBSTACLE_VX_INT
   sta OBSTACLE_X_INT
-  cmp #1 ; -3
+  cmp #0 ; -3
   beq _reset_obstacle_position
   jmp _check_if_dino_is_jumping
 
