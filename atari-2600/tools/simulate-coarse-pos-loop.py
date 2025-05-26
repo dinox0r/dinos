@@ -61,9 +61,9 @@ if tia_offset < 0:
 tia_cycles = x_pos + tia_offset
 reg_a = tia_cycles
 
-debug(f"\nTarget TIA: {x_pos + 68} (X cc + 68 cc of HBLANK). TIA cycles to spend in the 'divide by 15' loop: {tia_cycles}")
+debug(f"\nTarget TIA: {x_pos + 68} (X cc + 68 cc of HBLANK). TIA cycles to spend in the 'divide by 15' loop: {tia_cycles}. Max possible TIA=228")
 
-debug(f"\nlda #{reg_a}     ; A will be loaded with {tia_cycles} in the prev scanline")
+debug(f"\nlda #{reg_a}     ; A= {x_pos} (x_pos) + {tia_offset} (TIA offset) = {tia_cycles} before the loop")
 debug(   "sta WSYNC    ; start of new scanline - 0 cpu / 0 tia cycles")
 
 cpu = 3
@@ -83,13 +83,10 @@ while reg_a - 15 >= 0:
   tia_cycles -= 9
   loop_counter += 1
 
-debug(f"""
-;-----------
-;num iterations = {loop_counter}
-;-----------
-;
+debug("""
+;----------------------
 ; LAST ITERATION:
-;
+;----------------------
 """)
 
 reg_a -= 15
@@ -98,6 +95,12 @@ debug(f"sbc #15   ; A = {reg_a} >> CARRY SET! <<  2 ({cpu} cpu / {3 * cpu} tia) 
 tia_cycles -= 6
 cpu += 2
 debug(f"bcs       ; >> BRANCH NOT TAKEN <<   2 ({cpu} cpu / {3 * cpu} tia)\n")
+
+debug(f"""
+;------------------------------------------------------------------------------
+;num iterations = {loop_counter}x5 CPU cycles iterations + 1x4 CPU cycles iteration
+;------------------------------------------------------------------------------
+""")
 
 if cpu < 23:
   print(f"\033[33mWARNING: RESPx will be strobed before CPU reaches 23 cycles (cpu = {cpu})\033[0m")
@@ -108,9 +111,11 @@ debug(f"sta RESPx ; 3 ({cpu} cpu / {3 * cpu} tia)\n")
 
 current_tia = cpu * 3
 
+fine_offset = x_pos + 68 - current_tia
+
 print(f"Coarse position:")
 print(f"RESPx was strobed when cpu/tia was at: {cpu - 3}/{(cpu - 3) * 3}. Remember input x-pos was {x_pos}")
-print(f"\033[36mCurrent TIA: {current_tia}\033[0m. Target TIA: {x_pos + 68}")
+print(f"\033[36mCurrent TIA: {current_tia}\033[0m. \033[32mTarget TIA: {x_pos + 68}\033[0m. \033[33mDiff: {fine_offset}\033[0m")
 
 print(f"")
 print(f"Offset adjustment (fine positioning):")
@@ -120,12 +125,13 @@ fine_offset_table_entry_index = reg_a + 15
 fine_offsets_table = [ 0x70, 0x60, 0x50, 0x40, 0x30, 0x20, 0x10, 0x00, 0xF0, 0xE0, 0xD0, 0xC0, 0xB0, 0xA0, 0x90, 0x80]
 fine_offset_entry = fine_offsets_table[fine_offset_table_entry_index]
 
-fine_offset = x_pos + 68 - current_tia
 hex_offset = ((~fine_offset + 1) << 4) & 0xf0
 
-print(f"Fine offset adjustment needed after setting coarse position (target TIA - current TIA) = {fine_offset}")
+print(f"\nFine offset adjustment needed after setting coarse position (target TIA - current TIA) = {fine_offset}\n")
 print(f"Fine offset entry index = {fine_offset_table_entry_index}")
-print(f"Fine entry = {fine_offset_entry} ({fine_offset_entry:X})")
+print(f"Fine offset value = 0x{fine_offset_entry:X} (dec: {fine_offset_entry})")
+
+debug('offsets table: ' + str(list(map(hex, fine_offsets_table))))
 
 decoded_fine_offset_entry = ~(((fine_offset_entry >> 4) & 0x0f) - 1)
 if decoded_fine_offset_entry != fine_offset:
@@ -135,7 +141,7 @@ if not (-7 <= fine_offset <= 8):
   print("\033[31mERROR: fine offset outside range [-7, 8]\033[0m\n")
 
 debug("""
-       For reference (HM__ values):
+       For reference (HMxx values):
        LEFT  <---------------------------------------------------------> RIGHT
 offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
 value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
