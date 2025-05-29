@@ -682,9 +682,9 @@ DEBUG_ARROW_SPRITE:
   .byte #%00000111  ;⏐      ███
   .byte #%00000011  ;⏐       ██
   .byte #%00000001  ;⏐        █
-  .byte #%00000001  ;⏐         
-  .byte #%00000001  ;⏐         
-  .byte #%00000001  ;⏐         
+  .byte #%00000001  ;⏐        █
+  .byte #%00000001  ;⏐        █
+  .byte #%00000001  ;⏐        █
   .ds 1             ;⏐
 DEBUG_ARROW_SPRITE_END = *
 

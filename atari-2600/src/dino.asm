@@ -211,7 +211,7 @@ game_init:
   sta PTR_DINO_MISSILE_0_CONF+1
 
 _init_obstacle_conf:
-DEBUG_OBSTACLE_X_POS = #1
+DEBUG_OBSTACLE_X_POS = #0
   ; TODO: Remove/Update after testing obstacle positioning
   lda #1
   sta OBSTACLE_TYPE
@@ -347,13 +347,13 @@ _end_check_joystick:
 
   lda #FLAG_SPLASH_SCREEN
   bit GAME_FLAGS
-  beq in_grame_screen
+  beq in_game_screen
   jmp in_splash_screen
 
 ; -----------------------------------------------------------------------------
 ; GAME SCREEN SETUP
 ; -----------------------------------------------------------------------------
-in_grame_screen:
+in_game_screen:
 
 update_floor:
   lda #0
@@ -737,11 +737,11 @@ _end_grp0_coarse_position:
   ; right in this section
   sbeq _dino_is_not_crouching_2 ; 2/3 (17/18)
 _dino_is_crouching_2:  ; - (17)
-  inc $2D              ; 5 (25) - Wait 5 cycles (2 bytes)
+  inc $2D              ; 5 (22) - Wait/waste 5 cycles (2 bytes)
 
-  sta RESM0            ; 3 (31)
-  sta $2D
-  sta RESBL            ; 3 (28)
+  sta RESM0            ; 3 (25)
+  sta $2D              ; 3 (28) - Wait/waste 3 cycles (2 bytes)
+  sta RESBL            ; 3 (31)
 
   jmp _end_m0_coarse_position  ; 3 (34)
 
@@ -755,40 +755,141 @@ _end_m0_coarse_position: ; (25/34)
   ; Do the obstacle's coarse positioning preparations on the remaining of
   ; M0's positioning scanline
 
-_set_obstacle_position:
-  sta HMCLR        ; 3 (35/41) Clear any previous HMMx
+_set_obstacle_x_position:
+  sta HMCLR        ; 3 (Worst case scenario CPU count at this point is 37)
 
-  clc                ; 2 (27/33) Clear the carry for the addition below
-  lda OBSTACLE_X_INT ; 3 (30/36)
+  ; The code below translates to:
+  ; if (obstacle_x >= 156)
+  ;   scenario_A_obstacle_x_greater_than_155()
+  ; else if (obstacle_x < 6)
+  ;   scenario_B_obstacle_x_less_than_6()
+  ; else {
+  ;   /* prepare for scenario C */
+  ;   scenario_C_obstacle_between_6_and_155()
+  ; }
+  lda OBSTACLE_X_INT                             ; 3 (40)
+  cmp #156                                       ; 2 (42)
+  bcs _scenario_A__obstacle_x_greater_than_155   ; 2/3 (44/45)
+  cmp #6                                         ; 2 (46)
+  bcc _scenario_B__obstacle_x_less_than_6        ; 2/3 (48/49)
 
-  clc              ; 2 (32/38)
-  ; TODO: Explain the #45
-  adc #45          ; 2 (34/40) 
+  clc      ; 2 (50)
+  ; TODO: Explain the #39
+  ; Hint, it came from observations while running the 
+  ; tools/simulate-coarse-pos-loop.py script, 45 was the only value that did
+  ; what was needed, but because of the 6 pixels offset, it becomes 39
+  adc #39  ; 2 (52) 
 
-  sec              ; 2 (39/45) - Set carry to do subtraction. Remember SBC is
-                   ;             actually an ADC with A2 complement
-                   ;             A - B = A + ~B + 1
-                   ;                              ^this is the carry set by sec
+  sec      ; 2 (54) - Set carry to do subtraction. Remember SBC is
+           ;          actually an ADC with A2 complement
+           ;          A - B = A + ~B + 1
+           ;                           ^this is the carry set by sec
 
+  jmp _scenario_C__obstacle_x_between_6_and_155 ; 3 (57)
+
+_scenario_A__obstacle_x_greater_than_155:
+  sta WSYNC        ; 3 (48)
+  ; 3rd scanline (scenario B: obstacle x > 155) ==========================
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
+  ; For scenario A, RESP1 needs to be strobed at CPU cycle 71 (74 after the
+  ; the strobe is complete), leaving room only for a 'nop' instruction in the 
+  ; current scanline.
+  ;
+  ; After strobing RESP1 at CPU cycle 71/74, the coarse position TIA cycle will be 222
+  ;
+  ; The fine offset will be configured first, then some CPU cycles will be 
+  ; wasted until the CPU is at the required strobing position. The fine offset 
+  ; will range from:
+  ; For x = 156, TIA target is 156 + 68 = 224
+  ; TIA target - RESP1 position = 224 - 222 = +2 (E0 - entry index 9 
+  ; in the offsets table)
+  ;
+  ; x = 157, TIA target = 157 + 68 = 225. 225 - 222 = +3 (D0 - entry index 10)
+  ; ...
+  ; x = 160, TIA target = 160 + 68 = 228, 228 - 222 = +6 (A0 - entry index 13)
+  sec             ; 2 (5)
+  ; reg A has a value between [156, 160], and has to be translated to [9, 13]
+  ; (the indexes for the corresponding offsets in the offsets table)
+  ; This will translate into x - 147, but in the 4th scanline, reg A will be 
+  ; subtracted 15 (because is reusing the code that aligns the remainder of the 
+  ; 'divide by 15' in the scenario C), thus x - 147 becomes x - (147 + 15)
+  sbc #162        ; 2 (7)
+
+  ; reg A now has the index for the offset, which will be applied on the 4th
+  ; scanline. The CPU is at cycle 7, and needs to be reach CPU cycle 71, so 
+  ; at this point there are 64 cycles to wait/spare
+  ldx #12         ; 2 (9)
+__wait_until_cpu_is_at_cycle_71:
+  dex                                   ; 2   \ will use 11 * 5 + 4 = 59 cycles
+  bne __wait_until_cpu_is_at_cycle_71   ; 2/3 /
+
+  ; The loop above will leave the CPU at cycle 68
+  sta $2D
+
+  ; Because the CPU is now at cycle 74, there is not enought room to invoke 
+  ; 'sta WSYNC', notice no 'sta WSYNC' the 3rd scaline but an 2 cycles 
+  ; instruction to fill the scanline
+  nop       ; 2 (76)
+  ; 4th scanline =======================================
+  sta HMOVE
+  jmp _end_scenario_A
+
+_scenario_B__obstacle_x_less_than_6:
   sta WSYNC        ; 3 (42/48)
-  ; 3rd scanline ==============================================================
+  ; 3rd scanline (scenario B: obstacle x < 6) ================================
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
+  sta RESP1        ; 3 (6)
+
+  ; x will be in the range [0, 5], 
+  ; x = 0 needs to be mapped to offset -4 (entry table index 3)
+  ; x = 1 needs to be mapped to offset -3 (entry table index 2)
+  ; ...
+  ; That translates into x + 3, but in the 4th scanline, reg A will be
+  ; subtracted 15 (because is reusing the code that aligns the remainder of the
+  ; 'divide by 15' in the scenario C), thus x + 3 becomes x - 12
+  sec      ; 2 (8)
+  sbc #12  ; 2 (10)
+
+  pha      ; 12 (22) wait/waste 12 CPU cycles (in 4 bytes) until the CPU is at
+  pla      ;         cycle 22 so strobing RESM1 leaves it 8px from where GRP1
+  inc $2D  ;         was strobed
+
+  sta RESM1                  ; 3 (25)
+
+  ; After strobing M1 at cycle 22->25, M1 only appears 7px to the right of 
+  ; GRP1 far right side, that is GRP1 pos + 7px instead of GRP1 pos + 8px
+  ; here, a tiny 1px nudge is applied so it behaves the same as when setting
+  ; the position on scenario C
+  lda #$F0         ; 2 (27)
+  sta HMM1         ; 3 (30)
+
+  jmp _end_scenarios_B_and_C ; 3 (33)
+
+_scenario_C__obstacle_x_between_6_and_155:
+  sta WSYNC        ; 3 (42/48)
+  ; 3rd scanline (scenario B: obstacle 6 ≤ x ≤ 155) ==========================
                    ; - (0)
 
   sta HMOVE        ; 3 (3)
-_div_by_15_loop:
-  sbc #15             ; 2 (5) - Divide by 15 (sucessive subtractions)
-  bcs _div_by_15_loop ; 2/3 (obstacle-x / 5 + 5)
+__div_by_15_loop:
+  sbc #15              ; 2 (5) - Divide by 15 (sucessive subtractions)
+  bcs __div_by_15_loop ; 2/3     (obstacle-x / 5 + 5)
 
   sta RESP1
   sta RESM1
 
-  ; the fine adjustment offset will range between -7 to 7
-  ; try the accompanying simulation.py script to confirm this
-  sta WSYNC
+_end_scenarios_B_and_C:
+  sta WSYNC        ; if coming from scenario B, CPU count after this will be 33
+                   ; if coming from scenario C, max CPU count will be 76
+                   ; scenario A will jump past this 'sta WSYNC' and below's
+                   ; 'sta HMOVE' (scenario A will take care of the HMOVE)
   ; 4th scanline ==============================================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
+_end_scenario_A:
   ; Clear reg X to make sure no graphics are drawn in the first scanline of
   ; the sky_kernel
   ldx #0           ; 2 (5); do the fine offset in the next scanline, I'm avoiding doing it in the
@@ -796,10 +897,12 @@ _div_by_15_loop:
   ; same scanline as the coarse positioning because for x > 150 the strobing
   ; will occur near the end of the scanline leaving barely room for strobing
   ; wsync
-  INSERT_NOPS 9              ; 18 (23)
+  INSERT_NOPS 8              ; 18 (23)
   ; Offsets the remainder from [-14, 0] to [0, 14]
   ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
+  clc
   adc #15
+
   tay                         ; 2 (25)
   lda FINE_POSITION_OFFSET,y  ; 4 (29) - y should range between [-7, 7]
   ; Apply the fine offset to both the GRP1 and the BALL, these won't shift the
