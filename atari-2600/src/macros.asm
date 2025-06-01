@@ -393,7 +393,7 @@
 .TARGET_BRANCH_IF_OFFSCREEN SET {1}
     lda OBSTACLE_X_INT
     cmp #OBSTACLE_M1_MAX_SCREEN_X
-    bcc .TARGET_BRANCH_IF_OFFSCREEN
+    bcs .TARGET_BRANCH_IF_OFFSCREEN
     ; make sure that obstacle_x is a non-negative value (in which case
     ; obstacle_x > #OBSTACLE_M1_MAX_SCREEN_X would be evaluated as true
     cmp #OBSTACLE_MIN_X
