@@ -375,3 +375,27 @@
     sta NUSIZ1        ; 3 (13)
   ENDM
 
+  MACRO CHECK_IF_OBSTACLE_SPRITE_IS_OFFSCREEN
+.TARGET_BRANCH_IF_OFFSCREEN SET {1}
+    ; First, check if the obstacle sprite data is off-screen in which case
+    ; it doesn't matter the data for the sprite will be zeroed
+    lda OBSTACLE_X_INT
+    ; If obstacle_x > 0, then some part of it is still onscreen (not covered) by
+    ; the HMOVE black area
+    cmp #OBSTACLE_GRP1_MIN_SCREEN_X
+    bcc .TARGET_BRANCH_IF_OFFSCREEN
+    ; If obstacle_x < 0, then definitely the obstacle is offscreen
+    cmp #OBSTACLE_MIN_X
+    bcs .TARGET_BRANCH_IF_OFFSCREEN
+  ENDM
+
+  MACRO CHECK_IF_OBSTACLE_MISSILE_IS_OFFSCREEN
+.TARGET_BRANCH_IF_OFFSCREEN SET {1}
+    lda OBSTACLE_X_INT
+    cmp #OBSTACLE_M1_MAX_SCREEN_X
+    bcc .TARGET_BRANCH_IF_OFFSCREEN
+    ; make sure that obstacle_x is a non-negative value (in which case
+    ; obstacle_x > #OBSTACLE_M1_MAX_SCREEN_X would be evaluated as true
+    cmp #OBSTACLE_MIN_X
+    bcs .TARGET_BRANCH_IF_OFFSCREEN
+  ENDM

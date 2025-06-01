@@ -29,6 +29,17 @@ DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y + #DINO_HEIGHT
 
+OBSTACLE_M1_MAX_SCREEN_X = #152   ; if obstacle_x >= 152, m1 = 0
+OBSTACLE_GRP1_MIN_SCREEN_X = #1   ; if obstacle_x < 1, grp1 = 0
+
+OBSTACLE_MIN_X = #-3
+OBSTACLE_MAX_X = #160
+
+OBSTACLE_TYPE_PTERODACTILE = #255
+
+PTERO_OPEN_WINGS_TABLE_ENTRY_INDEX = #1
+PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
+
 
 PLAY_AREA_SCANLINES = #61    ; All of these are measured as 2x scanlines
 FLOOR_SCANLINES = #2
@@ -211,7 +222,7 @@ game_init:
   sta PTR_DINO_MISSILE_0_CONF+1
 
 _init_obstacle_conf:
-DEBUG_OBSTACLE_X_POS = #154
+DEBUG_OBSTACLE_X_POS = #127
   ; TODO: Remove/Update after testing obstacle positioning
   lda #1
   sta OBSTACLE_TYPE
@@ -386,16 +397,47 @@ __dino_y_over_20:
   sta FLOOR_PF1
 
 update_obstacle:
+  ; If it reaches here, then the obstacle is on-screen
   lda OBSTACLE_TYPE
-  cmp #255
-  beq _update_ptero
+  ; obstacle_type == 0 is the empty obstacle
+  beq __no_ptero
 
-  asl ; multiply OBSTACLE_TYPE by 2, this will be the index for both 
-      ; OBSTACLES_SPRITES_TABLE and OBSTACLES_MISSILE_1_CONF_TABLE tables
-      ; multiplying by 2 because each entry is 2 bytes (one word) long
+  ; pterodactile is obstacle_type 1 (ptero with open wings) and 2 (ptero with
+  ; closed wings)
+  cmp #3      ; if obstacle_type ≥ 3 then is no 
+  bcs __no_ptero
+
+  ; Handle the pterodactile obstacle differently, as it has a wing animation
+  ; that needs updating, whereas the cacti are all static sprites
+  lda FRAME_COUNT
+  and #%00001111
+  cmp #15
+  bne __end_update_ptero
+
+  ; Alternate wings
+  lda OBSTACLE_TYPE
+  eor #3
+  sta OBSTACLE_TYPE
+
+__end_update_ptero:
+  lda OBSTACLE_TYPE
+__no_ptero:
+  ; multiply the OBSTACLE_TYPE stored in reg A by 2, this will be the index for
+  ; both OBSTACLES_SPRITES_TABLE and OBSTACLES_MISSILE_1_CONF_TABLE tables
+  ; multiplying by 2 because each entry is 2 bytes (one word) long
+  asl
   tax ; Use reg X as the index
 
   stx TEMP ; Store a copy of reg X for later when loading the missile conf
+
+  ; Check the obstacle x position and use empty data if it's offscreen
+  CHECK_IF_OBSTACLE_SPRITE_IS_OFFSCREEN __use_zero_for_obstacle_sprite
+
+  ; The next '.byte $2C' will turn the following 'ldx #0' (opcodes A2 00) into
+  ; 'bit $A200' (opcodes 2C A2 00), effectively cancelling it
+  .byte $2C
+__use_zero_for_obstacle_sprite:
+  ldx #0
 
   ldy OBSTACLES_SPRITES_TABLE+#1,x
   lda OBSTACLES_SPRITES_TABLE,x
@@ -403,51 +445,21 @@ update_obstacle:
   jsr set_obstacle_data
 
   ; Check the obstacle x position and use empty data if it's offscreen
-  lda OBSTACLE_X_INT
-  cmp #152
-  bcc __load_obstacle_missile_conf
+  CHECK_IF_OBSTACLE_MISSILE_IS_OFFSCREEN __use_zero_for_obstacle_missile
 
-  ldx #0    ; override the stored x value, so it lands of the first entry of
-  stx TEMP  ; the OBSTACLES_MISSILE_1_CONF table, which points to zero data
-
-__load_obstacle_missile_conf:
   ldx TEMP
+
+  ; The next '.byte $2C' will turn the following 'ldx #0' (opcodes A2 00) into
+  ; 'bit $A200' (opcodes 2C A2 00), effectively cancelling it
+  .byte $2C
+__use_zero_for_obstacle_missile:
+  ldx #0    ; override the stored x value, so it lands of the first entry of
+            ; the OBSTACLES_MISSILE_1_CONF table, which points to zero data
+
   ldy OBSTACLES_MISSILE_1_CONF_TABLE+#1,x
   lda OBSTACLES_MISSILE_1_CONF_TABLE,x
   ldx #PTR_OBSTACLE_MISSILE_1_CONF
   jsr set_obstacle_data
-
-  jmp _update_obstacle_pos
-
-_update_ptero:
-__update_wing_anim:
-  lda FRAME_COUNT
-  and #%00001111
-  cmp #7
-  bcs __open_wings
-
-  lda #<PTERO_WINGS_CLOSED_SPRITE_END
-  ldy #>PTERO_WINGS_CLOSED_SPRITE_END
-  ldx #PTR_OBSTACLE_SPRITE
-  jsr set_obstacle_data
-
-  lda #<PTERO_WINGS_CLOSED_MISSILE_1_CONF_END
-  ldy #>PTERO_WINGS_CLOSED_MISSILE_1_CONF_END
-  ldx #PTR_OBSTACLE_MISSILE_1_CONF
-  jsr set_obstacle_data
-
-  jmp __end_wing_anim
-__open_wings:
-  lda #<PTERO_WINGS_OPEN_SPRITE_END
-  ldy #>PTERO_WINGS_OPEN_SPRITE_END
-  ldx #PTR_OBSTACLE_SPRITE
-  jsr set_obstacle_data
-
-  lda #<PTERO_WINGS_OPEN_MISSILE_1_CONF_END
-  ldy #>PTERO_WINGS_OPEN_MISSILE_1_CONF_END
-  ldx #PTR_OBSTACLE_MISSILE_1_CONF
-  jsr set_obstacle_data
-__end_wing_anim:
 
 _update_obstacle_pos:
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
@@ -759,25 +771,28 @@ _set_obstacle_x_position:
   sta HMCLR        ; 3 (Worst case scenario CPU count at this point is 37)
 
   ; The code below translates to:
-  ; if (obstacle_x >= 156)
-  ;   scenario_A_obstacle_x_greater_than_155()
-  ; else if (obstacle_x < 6)
-  ;   scenario_B_obstacle_x_less_than_6()
+  ; if (-4 < obstacle_x < 6)
+  ;   _scenario_A__obstacle_x_less_than_6()
+  ; else if (obstacle_x ≥ 155)
+  ;   _scenario_C__obstacle_x_greater_or_equal_to_155()
   ; else {
-  ;   /* prepare for scenario C */
-  ;   scenario_C_obstacle_between_6_and_155()
+  ;   /* prepare for scenario B */
+  ;   _scenario_B__obstacle_x_between_6_and_155()
   ; }
   lda OBSTACLE_X_INT                                   ; 3 (40)
-  cmp #155                                             ; 2 (42)
-  bcs _scenario_C__obstacle_x_greater_or_equal_to_155  ; 2/3 (44/45)
+  ; if (-4 < x < 6) 
   cmp #6                                               ; 2 (46)
   bcc _scenario_A__obstacle_x_less_than_6              ; 2/3 (48/49)
+  cmp #OBSTACLE_MIN_X                                  ; 2 (46)
+  bcs _scenario_A__obstacle_x_less_than_6              ; 2/3 (48/49)
+  cmp #155                                             ; 2 (42)
+  bcs _scenario_C__obstacle_x_greater_or_equal_to_155  ; 2/3 (44/45)
 
   clc      ; 2 (50)
-  ; TODO: Explain the #39
+  ; TODO: Explain the #40
   ; Hint, it came from observations while running the 
   ; tools/simulate-coarse-pos-loop.py script, 45 was the only value that did
-  ; what was needed, but because of the 6 pixels offset, it becomes 39
+  ; what was needed, but because of the 5 pixels offset, it becomes 40
   adc #40  ; 2 (52) 
 
   sec      ; 2 (54) - Set carry to do subtraction. Remember SBC is
@@ -786,6 +801,46 @@ _set_obstacle_x_position:
            ;                           ^this is the carry set by sec
 
   jmp _scenario_B__obstacle_x_between_6_and_155 ; 3 (57)
+
+_scenario_A__obstacle_x_less_than_6:
+  sta WSYNC        ; 3 (42/48)
+  ; 3rd scanline (scenario B: obstacle x < 6) ================================
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
+  sta RESP1        ; 3 (6)
+
+  ; x will be in the range [-3, 5], where 
+  ; pixel -3 is the offscreen pixel to the left of the screen, this in order to partially
+  ; hide the attached missile graphics to the obstacle after GRP1 has been 
+  ; totally hidden by the HMOVE blank (black) area. All these means that for x
+  ; the following offsets are applied:
+  ; x = -3 needs to be mapped to offset -7 (offset table index 0)
+  ; x = -2 -> -6 (index 1)
+  ; x = -1 -> -5 (index 2)
+  ; x = 0 -> -4 (index 3)
+  ; x = 1 -> -3 (index 4)
+  ; x = 2 -> -2 (index 5)
+  ; ...
+  ; This maps to x - 3, but reg A will be also be subtracted 15 in the shared code that aligns the 
+  ; remainder of the 'divide by 15' for scenario C (see branch _end_scenarios_A_and_B), thus the reason for 
+  ; the x - (3 + 15) = x - 12 below:
+  sec      ; 2 (8)
+  sbc #12  ; 2 (10)
+
+  pha      ; 12 (22) wait/waste 12 CPU cycles (in 4 bytes) until the CPU is at
+  pla      ;         cycle 22 so strobing RESM1 leaves it 8px from where GRP1
+  inc $2D  ;         was strobed
+
+  sta RESM1                  ; 3 (25)
+
+  ; After strobing M1 at cycle 22->25, M1 only appears 7px to the right of 
+  ; GRP1 far right side, that is GRP1 pos + 7px instead of GRP1 pos + 8px
+  ; here, a tiny 1px nudge is applied so it behaves the same as when setting
+  ; the position on scenario C
+  ldx #$F0         ; 2 (27)
+  stx HMM1         ; 3 (30)
+
+  jmp _end_scenarios_A_and_B ; 3 (33)
 
 _scenario_C__obstacle_x_greater_or_equal_to_155:
   sta WSYNC        ; 3 (48)
@@ -833,38 +888,6 @@ __wait_until_cpu_is_at_cycle_71:
   ; 4th scanline =======================================
   sta HMOVE
   jmp _end_scenario_C
-
-_scenario_A__obstacle_x_less_than_6:
-  sta WSYNC        ; 3 (42/48)
-  ; 3rd scanline (scenario B: obstacle x < 6) ================================
-                   ; - (0)
-  sta HMOVE        ; 3 (3)
-  sta RESP1        ; 3 (6)
-
-  ; x will be in the range [0, 5], 
-  ; x = 0 needs to be mapped to offset -4 (entry table index 3)
-  ; x = 1 needs to be mapped to offset -3 (entry table index 2)
-  ; ...
-  ; That translates into x + 3, but in the 4th scanline, reg A will be
-  ; subtracted 15 (because is reusing the code that aligns the remainder of the
-  ; 'divide by 15' in the scenario C), thus x + 3 becomes x - 12
-  sec      ; 2 (8)
-  sbc #12  ; 2 (10)
-
-  pha      ; 12 (22) wait/waste 12 CPU cycles (in 4 bytes) until the CPU is at
-  pla      ;         cycle 22 so strobing RESM1 leaves it 8px from where GRP1
-  inc $2D  ;         was strobed
-
-  sta RESM1                  ; 3 (25)
-
-  ; After strobing M1 at cycle 22->25, M1 only appears 7px to the right of 
-  ; GRP1 far right side, that is GRP1 pos + 7px instead of GRP1 pos + 8px
-  ; here, a tiny 1px nudge is applied so it behaves the same as when setting
-  ; the position on scenario C
-  ldx #$F0         ; 2 (27)
-  stx HMM1         ; 3 (30)
-
-  jmp _end_scenarios_A_and_B ; 3 (33)
 
 _scenario_B__obstacle_x_between_6_and_155:
   sta WSYNC        ; 3 (42/48)
