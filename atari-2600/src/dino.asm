@@ -29,12 +29,13 @@ DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y + #DINO_HEIGHT
 
-OBSTACLE_M1_MAX_SCREEN_X = #155   ; if obstacle_x >= 155, m1 = 0
+OBSTACLE_M1_MAX_SCREEN_X = #156   ; if obstacle_x >= 155, m1 = 0
 OBSTACLE_GRP1_MIN_SCREEN_X = #4   ; if obstacle_x < 4, grp1 = 0
 
 OBSTACLE_MIN_X = #0
 OBSTACLE_MAX_X = #163
 
+CACTUS_Y = #27
 
 PTERO_OPEN_WINGS_TABLE_ENTRY_INDEX = #1
 PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
@@ -221,11 +222,12 @@ game_init:
   sta PTR_DINO_MISSILE_0_CONF+1
 
 _init_obstacle_conf:
-DEBUG_OBSTACLE_X_POS = #158
+DEBUG_OBSTACLE_X_POS = #163
   ; TODO: Remove/Update after testing obstacle positioning
-  lda #1
+  lda #7
   sta OBSTACLE_TYPE
-  lda #PLAY_AREA_TOP_Y
+  ;lda #PLAY_AREA_TOP_Y
+  lda #CACTUS_Y
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -463,8 +465,8 @@ __use_zero_for_obstacle_missile:
 _update_obstacle_pos:
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
   ; type and difficulty
-  ;lda #100 ;
-  lda #0    ;
+  lda #250 ;
+  ;lda #0    ;
   sta OBSTACLE_VX_FRACT
   lda #0
   sta OBSTACLE_VX_INT
@@ -683,7 +685,7 @@ sky_setup_kernel:;-->>> 2 scanlines <<<-----
   DEBUG_SUB_KERNEL #$30,#2
 
 sky_kernel:;-------->>> 15 scanlines <<<----
-  DEBUG_SUB_KERNEL #$4C,#15
+  DEBUG_SUB_KERNEL #$4C,#24
 
 play_area_setup_kernel:;----->>> 5 scanlines <<<-----
   ; From the DEBUG_SUB_KERNEL macro:
@@ -908,9 +910,9 @@ _scenario_C__obstacle_x_greater_or_equal_to_158:
   ;   - 11 iterations × 5 cycles (DEX + BNE) = 55 cycles
   ;   - Final iteration (DEX + BNE fails) = 4 cycles
   ldx #12         ; 2 (9)
-__wait_until_cpu_is_at_cycle_71:
-  dex                                   ; 2   \ total: 59 cycles
-  bne __wait_until_cpu_is_at_cycle_71   ; 2/3 /
+__wait_until_cpu_is_at_cycle_71:        ; - (9) \
+  dex                                   ; 2      > total: 59 cycles
+  bne __wait_until_cpu_is_at_cycle_71   ; 2/3   /
 
   ; The CPU is now at cycle 68. A dummy instruction fills the gap to cycle 71.
   sta $2D       ; 3 (71)
@@ -921,13 +923,13 @@ __wait_until_cpu_is_at_cycle_71:
   ; A 2-cycle instruction is used instead to complete the scanline.
   nop           ; 2 (76)
 
-  ; 4th scanline ==========================================================
+  ; 4th scanline ==============================================================
   sta HMOVE
   jmp _end_scenario_C
 
 _scenario_B__obstacle_x_between_9_and_157:
   sta WSYNC        ; 3 (42/48)
-  ; 3rd scanline (scenario B: obstacle 6 ≤ x ≤ 155) ==========================
+  ; 3rd scanline (scenario B: obstacle 9 ≤ x ≤ 157) ===========================
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
@@ -940,7 +942,7 @@ __div_by_15_loop:      ; - (3)
 
 _end_scenarios_A_and_B:
   sta WSYNC        ; if coming from scenario A, CPU count after this will be 33
-                   ; if coming from scenario B, max CPU count will be 76
+                   ; if coming from scenario B, MAX CPU count will be 76
                    ; scenario A will jump past this 'sta WSYNC' and below's
                    ; 'sta HMOVE' (scenario A will take care of the HMOVE)
   ; 4th scanline ==============================================================
@@ -950,7 +952,8 @@ _end_scenarios_A_and_B:
 _end_scenario_C:
   ; Clear reg X to make sure no graphics are drawn in the first scanline of
   ; the sky_kernel
-  ldx #0           ; 2 (5); do the fine offset in the next scanline, I'm avoiding doing it in the
+  ldx #0           ; 2 (5) - Do the fine offset in the next scanline, I'm
+                   ;         avoiding doing it in the
 
   ; same scanline as the coarse positioning because for x > 150 the strobing
   ; will occur near the end of the scanline leaving barely room for strobing
@@ -1520,9 +1523,9 @@ _ground__end_of_2nd_scanline:
                               ; - (0)
   sta HMOVE                   ; 3 (3)
 
-void_area_kernel:
+gravel_area_kernel:
   ; Use this to handle collission detection
-  DEBUG_SUB_KERNEL #$AA,#14
+  DEBUG_SUB_KERNEL #$AA,#5
   jmp end_of_frame
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1537,9 +1540,9 @@ void_area_kernel:
 splash_screen_kernel:
   DEBUG_SUB_KERNEL #$7A,#35
 
-_splash__dino_kernel_setup: ;------------->>> 32 2x scanlines <<<------------------G
-  lda BACKGROUND_COLOUR    ; 3
-  sta COLUBK       ; 3
+_splash__dino_kernel_setup: ;------------->>> 32 2x scanlines <<<--------------
+  lda BACKGROUND_COLOUR     ; 3
+  sta COLUBK                ; 3
 
   INSERT_NOPS 7    ; 14 Fix the dino_x position for the rest of the kernel
                    ;    (notice I'm not starving for ROM atm of writing this)
