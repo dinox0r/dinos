@@ -30,7 +30,7 @@ INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y + #DINO_HEIGHT
 
 OBSTACLE_M1_MAX_SCREEN_X = #156   ; if obstacle_x >= 155, m1 = 0
-OBSTACLE_GRP1_MIN_SCREEN_X = #4   ; if obstacle_x < 4, grp1 = 0
+OBSTACLE_GRP1_MIN_SCREEN_X = #8  ; if obstacle_x < 17, grp1 = 0
 
 OBSTACLE_MIN_X = #0
 OBSTACLE_MAX_X = #163
@@ -222,12 +222,13 @@ game_init:
   sta PTR_DINO_MISSILE_0_CONF+1
 
 _init_obstacle_conf:
-DEBUG_OBSTACLE_X_POS = #163
+DEBUG_OBSTACLE_X_POS = #16
   ; TODO: Remove/Update after testing obstacle positioning
-  lda #7
+  lda #3 ; Debug arrow
+  ;lda #7
   sta OBSTACLE_TYPE
-  ;lda #PLAY_AREA_TOP_Y
-  lda #CACTUS_Y
+  lda #PLAY_AREA_TOP_Y  ; DEBUG
+  ;lda #CACTUS_Y
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -465,8 +466,8 @@ __use_zero_for_obstacle_missile:
 _update_obstacle_pos:
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
   ; type and difficulty
-  lda #250 ;
-  ;lda #0    ;
+  ;lda #250 ;
+  lda #0    ; DEBUG
   sta OBSTACLE_VX_FRACT
   lda #0
   sta OBSTACLE_VX_INT
@@ -766,8 +767,8 @@ _dino_is_not_crouching_2: ; - (18)
 _end_m0_coarse_position: ; (25/34)
 
 ; Coarse positioning setup for the obstacle. The obstacle graphics are stored in
-; GRP1, with optional detail added using M1. Positioning is handled by three 
-; routines (or scenarios). Two of these handle cases where the obstacle is 
+; GRP1, with optional detail added using M1. Positioning is handled by four 
+; routines (or scenarios). Three of these handle cases where the obstacle is 
 ; partially or completely hidden by the far left or right edges of the screen. 
 ; The third routine (scenario B) handles most on-screen cases but cannot handle 
 ; these edge cases:
@@ -787,33 +788,37 @@ _end_m0_coarse_position: ; (25/34)
 ;
 ; ┌ obstacle pos
 ; │ ┌ screen pixel
-; │ │                                        obstacle_x = screen_x + 3
-; │ │                                                   |
-; │ └─→ -3 -2 -1 0     ...     8           ...          |  █       160 161 ...
-; └────→ 0  1  2 3     ...    11           ...          ↓  █       163 164 ...
-;                ↓             ↓                         █ █ █      ↓
-;                │▓▓▓ HMOVE ▓▓▓|                          ███       │
-;      offscreen │▓▓▓ black ▓▓▓| <-------  visible area  --█------> │ offscreen
-;                │▓▓▓ area  ▓▓▓|                           █        │
-;                ↑                                                  ↑
-;      left edge of the screen                         right edge of the screen
+; │ │                                         obstacle_x = screen_x + 3
+; │ │                                                    |
+; │ └─→ -8 -7 ... 0     ...     8           ...          |  █      160 161 ...
+; └────→ 0  1 ... 8     ...    16           ...          ↓  █ █    168 169 ...
+;                 ↓             ↓                         █ █ █     ↓
+;                 │▓▓▓ HMOVE ▓▓▓|                          ███      │
+;       offscreen │▓▓▓ black ▓▓▓| <-------  visible area  --█-----> │ offscreen
+;                 │▓▓▓ area  ▓▓▓|                           █       │
+;                 ↑                                                 ↑
+;       left edge of the screen                        right edge of the screen
 ;
 _set_obstacle_x_position:
   sta HMCLR        ; 3 (Worst case scenario CPU count at this point is 37)
 
   ; Logic summary:
-  ; if (obstacle_x < 9) {
-  ;   scenario A: obstacle is partially or fully offscreen to the left
+  ; if (obstacle_x < 8) {
+  ;   case 1: obstacle GRP1 is fully hidden, but M1 is partially on-screen
+  ; } else if (obstacle_x < 17) {
+  ;   case 2: obstacle GRP1 is partially on-screen
   ; } else if (obstacle_x ≥ 158) {
   ;   scenario C: obstacle is partially or fully offscreen to the right
   ; } else {
   ;   scenario B: obstacle is fully onscreen
   ; }
   lda OBSTACLE_X_INT                                   ; 3 (40)
-  cmp #9                                               ; 2 (46)
-  bcc _scenario_A__obstacle_x_less_than_9              ; 2/3 (48/49)
+  cmp #8
+  bcc _case_1_grp1_fully_hidden_m1_partially_visible
+  cmp #17                                               ; 2 (46)
+  bcc _case_2_grp1_partially_visible_m1_fully_visible              ; 2/3 (48/49)
   cmp #158                                             ; 2 (42)
-  bcs _scenario_C__obstacle_x_greater_or_equal_to_158  ; 2/3 (44/45)
+  bcs _case_3_grp1_partially_visible_m1_fully_hidden  ; 2/3 (44/45)
 
   clc      ; 2 (50)
   ; TODO: Explain the #37
@@ -827,31 +832,56 @@ _set_obstacle_x_position:
            ;          A - B = A + ~B + 1
            ;                           ^this is the carry set by sec
 
-  jmp _scenario_B__obstacle_x_between_9_and_157 ; 3 (57)
+  jmp _case_4_grp1_and_m1_fully_visible ; 3 (57)
 
-_scenario_A__obstacle_x_less_than_9:
+_case_1_grp1_fully_hidden_m1_partially_visible:
   sta WSYNC        ; 3 (42/48)
-  ; 3rd scanline (scenario B: obstacle x < 9) ================================
+  ; 3rd scanline ================================
+                   ; - (0)
+  sta HMOVE        ; 3 (3)
+  ; Strobing M1 after HMOVE set the missile coarse position on screen pixel 
+  ; 3 (the fourth pixel starting from pixel 0). This was found after testing
+  ; taking screenshots in Stella. The offset needs to be adjusted for those
+  ; 4 pixels by doing a -4 fine adjustment with HMM1. GRP1 position doesn't 
+  ; matter as it will be zero (as it's offscreen)
+  sta RESM1        ; 3 (6)
+  ; This doesn't matter, as it will be 0
+  sta RESP1
+  ; offset calculation
+  sec
+  sbc #15-#4
+  jmp _end_cases_1_2_and_4
+
+_case_2_grp1_partially_visible_m1_fully_visible:
+  sta WSYNC        ; 3 (42/48)
+  ; 3rd scanline ================================
                    ; - (0)
   sta HMOVE        ; 3 (3)
   sta RESP1        ; 3 (6)
 
-  ; Coarse position is fixed at pixel 5.
-  ; The obstacle's X value (x) will be in the range [0, 8], where:
-  ;   x = 0 maps to screen pixel -3 (just off the left edge).
+  ; Strobing P1 at this location, places its coarse position at pixel 4 (fifth pixel on the screen starting from 0).
+  ; Found this empirically after taking screenshots with Stella.
+  ; The obstacle's X value (x) will be in the range [8, 16], where:
+  ;   x = 8 maps to screen pixel 0 (just off the left edge) and x = 16
+  ; maps to screen pixel 8 (last pixel of the HMOVE black area)
   ;
   ; For these values of x, the following fine offsets are applied:
-  ;   x = 0 → offset -7 (index 0 in the offset table)
-  ;   x = 1 → offset -6 (index 1)
-  ;   ...
-  ;   x = 5 → offset -2 (index 5)
-  ;   ...
+  ;   x = 8 → offset -4 (index 3 in the offset table)
+  ;   x = 9 → offset -3 (index 4)
+  ;   x = 10 → offset -2 (index 5)
+  ;   x = 11 → offset -1 (index 6)
+  ;   x = 12 → offset 0 (index 7)
+  ;   x = 13 → offset 1 (index 8)
+  ;   x = 14 → offset 2 (index 9)
+  ;   x = 15 → offset 3 (index 10)
+  ;   x = 16 → offset 4 (index 11)
+  ; These means that the offset is computed as x - 6
   ;
   ; Note: accumulator A will later be shared with scenario B code, which
-  ; subtracts 15 from obstacle_x. This subtraction happens here to align
-  ; with the shared logic at `_end_scenarios_A_and_B`.
+  ; subtracts 15 from obstacle_x. This subtraction also happens here to align
+  ; with the shared logic at `_end_cases_1_2_and_4`.
   sec      ; 2 (8)
-  sbc #15  ; 2 (10)
+  sbc #5+#15  ; 2 (10)
 
   pha      ; 12 (22) wait/waste 12 CPU cycles (in 4 bytes) until the CPU is at
   pla      ;         cycle 22 so strobing RESM1 leaves it 8px from where GRP1
@@ -865,9 +895,9 @@ _scenario_A__obstacle_x_less_than_9:
   ldx #$F0         ; 2 (27)
   stx HMM1         ; 3 (30)
 
-  jmp _end_scenarios_A_and_B ; 3 (33)
+  jmp _end_cases_1_2_and_4 ; 3 (33)
 
-_scenario_C__obstacle_x_greater_or_equal_to_158:
+_case_3_grp1_partially_visible_m1_fully_hidden:
   sta WSYNC        ; 3 (48)
   ; 3rd scanline (scenario C: obstacle_x ≥ 158) ==========================
                    ; - (0)
@@ -879,7 +909,7 @@ _scenario_C__obstacle_x_greater_or_equal_to_158:
   ;
   ; Theoretically, strobing RESP1 at CPU cycle 74 corresponds to TIA cycle 222
   ; (74 * 3), which should map to screen pixel 154 (222 - 68 cycles of HBLANK),
-  ; but in practice, GRP1 appears at screen pixel 159—go figure ¯\_(ツ)_/¯
+  ; but in practice, GRP1 appears at screen pixel 159... Go figure ¯\_(ツ)_/¯
   ;
   ; First, configure the fine offset. Then, delay until cycle 71 for RESP1.
   ;
@@ -925,9 +955,9 @@ __wait_until_cpu_is_at_cycle_71:        ; - (9) \
 
   ; 4th scanline ==============================================================
   sta HMOVE
-  jmp _end_scenario_C
+  jmp _end_case_3
 
-_scenario_B__obstacle_x_between_9_and_157:
+_case_4_grp1_and_m1_fully_visible:
   sta WSYNC        ; 3 (42/48)
   ; 3rd scanline (scenario B: obstacle 9 ≤ x ≤ 157) ===========================
                    ; - (0)
@@ -940,7 +970,7 @@ __div_by_15_loop:      ; - (3)
   sta RESP1
   sta RESM1
 
-_end_scenarios_A_and_B:
+_end_cases_1_2_and_4:
   sta WSYNC        ; if coming from scenario A, CPU count after this will be 33
                    ; if coming from scenario B, MAX CPU count will be 76
                    ; scenario A will jump past this 'sta WSYNC' and below's
@@ -949,7 +979,7 @@ _end_scenarios_A_and_B:
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
-_end_scenario_C:
+_end_case_3:
   ; Clear reg X to make sure no graphics are drawn in the first scanline of
   ; the sky_kernel
   ldx #0           ; 2 (5) - Do the fine offset in the next scanline, I'm
@@ -963,6 +993,7 @@ _end_scenario_C:
   ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
   clc
   adc #15
+  ;lda #7 ; DEBUG
 
   tay                         ; 2 (25)
   lda FINE_POSITION_OFFSET,y  ; 4 (29) - y should range between [-7, 7]
