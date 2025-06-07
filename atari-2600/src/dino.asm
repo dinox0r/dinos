@@ -222,7 +222,7 @@ game_init:
   sta PTR_DINO_MISSILE_0_CONF+1
 
 _init_obstacle_conf:
-DEBUG_OBSTACLE_X_POS = #16
+DEBUG_OBSTACLE_X_POS = #17
   ; TODO: Remove/Update after testing obstacle positioning
   lda #3 ; Debug arrow
   ;lda #7
@@ -787,13 +787,13 @@ _end_m0_coarse_position: ; (25/34)
 ; blacked out due to HMOVE blanking.
 ;
 ; ┌ obstacle pos
-; │ ┌ screen pixel
-; │ │                                         obstacle_x = screen_x + 3
-; │ │                                                    |
-; │ └─→ -8 -7 ... 0     ...     8           ...          |  █      160 161 ...
-; └────→ 0  1 ... 8     ...    16           ...          ↓  █ █    168 169 ...
-;                 ↓             ↓                         █ █ █     ↓
-;                 │▓▓▓ HMOVE ▓▓▓|                          ███      │
+; │┌ screen pixel
+; ││                                         obstacle_x = screen_x + 3
+; ││                                                    |
+; │└→ -8 -7 ... -1 0     ...     8           ...          |  █    160 161 ...
+; └──→ 0  1 ...  7 8     ...    16           ...          ↓  █ █  168 169 ...
+;                ↓ ↓             ↓                         █ █ █   ↓
+;                _│▓▓▓ HMOVE ▓▓▓|_                         ███     _│
 ;       offscreen │▓▓▓ black ▓▓▓| <-------  visible area  --█-----> │ offscreen
 ;                 │▓▓▓ area  ▓▓▓|                           █       │
 ;                 ↑                                                 ↑
@@ -813,28 +813,43 @@ _set_obstacle_x_position:
   ;   scenario B: obstacle is fully onscreen
   ; }
   lda OBSTACLE_X_INT                                   ; 3 (40)
-  cmp #8
-  bcc _case_1_grp1_fully_hidden_m1_partially_visible
-  cmp #17                                               ; 2 (46)
-  bcc _case_2_grp1_partially_visible_m1_fully_visible              ; 2/3 (48/49)
-  cmp #158                                             ; 2 (42)
-  bcs _case_3_grp1_partially_visible_m1_fully_hidden  ; 2/3 (44/45)
+  jmp __debug__
+  cmp #8                                               ; 2 (42)
+  bcc _case_1__p1_fully_hidden_m1_partially_visible    ; 2/3 (44/45)
+  cmp #16                                              ; 2 (46)
+  bcc _case_2__p1_partially_visible_m1_fully_visible   ; 2/3 (48/49)
+  cmp #158                                             ; 2 (50)
+  bcs _case_3__p1_partially_visible_m1_fully_hidden    ; 2/3 (52/53)
 
-  clc      ; 2 (50)
-  ; TODO: Explain the #37
-  ; Hint, it came from observations while running the 
-  ; tools/simulate-coarse-pos-loop.py script, 45 was the only value that did
-  ; what was needed, but because of the 8 pixels offset, it becomes 37
-  adc #37  ; 2 (52) 
+__debug__:
+  clc          ; 2 (52)
 
-  sec      ; 2 (54) - Set carry to do subtraction. Remember SBC is
+  ; Based on observations using the tools/simulate-coarse-pos-loop.py script,
+  ; starting with an input value of #45, the coarse positioning algorithm sets
+  ; the coarse position and leaves the remainder in register A within the range
+  ; [-7, 7] for the fine adjustment.
+  ;
+  ; The earliest physical screen pixel set by this routine is pixel 5 (the 6th 
+  ; pixel, zero-indexed). Pixels before this are handled by:
+  ;   - Case 1: pixels 0 to 8, corresponding to screen pixels -8 to 0 (offscreen, left)
+  ;   - Case 2: pixels 1 to 16 , corresponding to screen pixels 1 to 8 (HMOVE blanking zone)
+  ;
+  ; Therefore, this case (Case 3) handles obstacle_x values starting at 16,
+  ; which maps to physical screen pixel 8 (the 9th pixel).
+  ;
+  ; To align with the algorithm’s expected input range, obstacle_x = 16 must be
+  ; translated to x = 3 (the input that would result in placement at pixel 8).
+  ; Hence, 13 is subtracted from #45 to compensate.
+  adc #45-#13   ; 2 (54)
+
+  sec      ; 2 (56) - Set carry to do subtraction. Remember SBC is
            ;          actually an ADC with A2 complement
            ;          A - B = A + ~B + 1
            ;                           ^this is the carry set by sec
 
-  jmp _case_4_grp1_and_m1_fully_visible ; 3 (57)
+  jmp _case_4__p1_and_m1_fully_visible ; 3 (59)
 
-_case_1_grp1_fully_hidden_m1_partially_visible:
+_case_1__p1_fully_hidden_m1_partially_visible:
   sta WSYNC        ; 3 (42/48)
   ; 3rd scanline ================================
                    ; - (0)
@@ -850,9 +865,9 @@ _case_1_grp1_fully_hidden_m1_partially_visible:
   ; offset calculation
   sec
   sbc #15-#4
-  jmp _end_cases_1_2_and_4
+  jmp _end_of_cases_1_2_and_4
 
-_case_2_grp1_partially_visible_m1_fully_visible:
+_case_2__p1_partially_visible_m1_fully_visible:
   sta WSYNC        ; 3 (42/48)
   ; 3rd scanline ================================
                    ; - (0)
@@ -895,9 +910,9 @@ _case_2_grp1_partially_visible_m1_fully_visible:
   ldx #$F0         ; 2 (27)
   stx HMM1         ; 3 (30)
 
-  jmp _end_cases_1_2_and_4 ; 3 (33)
+  jmp _end_of_cases_1_2_and_4 ; 3 (33)
 
-_case_3_grp1_partially_visible_m1_fully_hidden:
+_case_3__p1_partially_visible_m1_fully_hidden:
   sta WSYNC        ; 3 (48)
   ; 3rd scanline (scenario C: obstacle_x ≥ 158) ==========================
                    ; - (0)
@@ -957,7 +972,7 @@ __wait_until_cpu_is_at_cycle_71:        ; - (9) \
   sta HMOVE
   jmp _end_case_3
 
-_case_4_grp1_and_m1_fully_visible:
+_case_4__p1_and_m1_fully_visible:
   sta WSYNC        ; 3 (42/48)
   ; 3rd scanline (scenario B: obstacle 9 ≤ x ≤ 157) ===========================
                    ; - (0)
@@ -970,7 +985,7 @@ __div_by_15_loop:      ; - (3)
   sta RESP1
   sta RESM1
 
-_end_cases_1_2_and_4:
+_end_of_cases_1_2_and_4:
   sta WSYNC        ; if coming from scenario A, CPU count after this will be 33
                    ; if coming from scenario B, MAX CPU count will be 76
                    ; scenario A will jump past this 'sta WSYNC' and below's

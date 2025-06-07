@@ -380,7 +380,8 @@
     ; First, check if the obstacle sprite data is off-screen in which case
     ; it doesn't matter the data for the sprite will be zeroed
     lda OBSTACLE_X_INT
-    cmp #OBSTACLE_GRP1_MIN_SCREEN_X
+    ;cmp #OBSTACLE_GRP1_MIN_SCREEN_X
+    cmp #0
     bcc .TARGET_BRANCH_IF_OFFSCREEN
   ENDM
 
