@@ -29,8 +29,8 @@ DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y + #DINO_HEIGHT
 
-OBSTACLE_M1_MAX_SCREEN_X = #156   ; if obstacle_x >= 155, m1 = 0
-OBSTACLE_GRP1_MIN_SCREEN_X = #8  ; if obstacle_x < 17, grp1 = 0
+OBSTACLE_M1_MAX_SCREEN_X = #160   ; if obstacle_x >= 160, m1 = 0
+OBSTACLE_GRP1_MIN_SCREEN_X = #9  ; if obstacle_x < 8, grp1 = 0
 
 OBSTACLE_MIN_X = #0
 OBSTACLE_MAX_X = #163
@@ -222,13 +222,14 @@ game_init:
   sta PTR_DINO_MISSILE_0_CONF+1
 
 _init_obstacle_conf:
-DEBUG_OBSTACLE_X_POS = #17
+; min 0, max 168
+DEBUG_OBSTACLE_X_POS = #168 
   ; TODO: Remove/Update after testing obstacle positioning
-  lda #3 ; Debug arrow
-  ;lda #7
+  ;lda #3 ; Debug arrow
+  lda #7
   sta OBSTACLE_TYPE
   lda #PLAY_AREA_TOP_Y  ; DEBUG
-  ;lda #CACTUS_Y
+  lda #CACTUS_Y
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -399,7 +400,34 @@ __dino_y_over_20:
   sta FLOOR_PF1
 
 update_obstacle:
-  ; If it reaches here, then the obstacle is on-screen
+_update_obstacle_pos:
+  ; TODO update the obstacle speed to adjust dynamically based on obstacle
+  ; type and difficulty
+  lda #250 ;
+  ;lda #0    ; DEBUG
+  sta OBSTACLE_VX_FRACT
+  lda #0
+  sta OBSTACLE_VX_INT
+
+  ; update obstacle x
+  sec
+  lda OBSTACLE_X_FRACT
+  sbc OBSTACLE_VX_FRACT
+  sta OBSTACLE_X_FRACT
+  lda OBSTACLE_X_INT
+  sbc OBSTACLE_VX_INT
+  sta OBSTACLE_X_INT
+  cmp #0 ; -3
+  beq _reset_obstacle_position
+  jmp _update_obstacle_sprite
+
+_reset_obstacle_position:
+  lda #DEBUG_OBSTACLE_X_POS
+  sta OBSTACLE_X_INT
+  lda #0
+  sta OBSTACLE_X_FRACT
+
+_update_obstacle_sprite:
   lda OBSTACLE_TYPE
   ; obstacle_type == 0 is the empty obstacle
   beq __no_ptero
@@ -462,33 +490,6 @@ __use_zero_for_obstacle_missile:
   lda OBSTACLES_MISSILE_1_CONF_TABLE,x
   ldx #PTR_OBSTACLE_MISSILE_1_CONF
   jsr set_obstacle_data
-
-_update_obstacle_pos:
-  ; TODO update the obstacle speed to adjust dynamically based on obstacle
-  ; type and difficulty
-  ;lda #250 ;
-  lda #0    ; DEBUG
-  sta OBSTACLE_VX_FRACT
-  lda #0
-  sta OBSTACLE_VX_INT
-
-  ; update obstacle x
-  sec
-  lda OBSTACLE_X_FRACT
-  sbc OBSTACLE_VX_FRACT
-  sta OBSTACLE_X_FRACT
-  lda OBSTACLE_X_INT
-  sbc OBSTACLE_VX_INT
-  sta OBSTACLE_X_INT
-  cmp #0 ; -3
-  beq _reset_obstacle_position
-  jmp _check_if_dino_is_jumping
-
-_reset_obstacle_position:
-  lda #DEBUG_OBSTACLE_X_POS
-  sta OBSTACLE_X_INT
-  lda #0
-  sta OBSTACLE_X_FRACT
 
 _end_update_obstacle:
 
@@ -768,86 +769,85 @@ _end_m0_coarse_position: ; (25/34)
 
 ; Coarse positioning setup for the obstacle. The obstacle graphics are stored in
 ; GRP1, with optional detail added using M1. Positioning is handled by four 
-; routines (or scenarios). Three of these handle cases where the obstacle is 
-; partially or completely hidden by the far left or right edges of the screen. 
-; The third routine (scenario B) handles most on-screen cases but cannot handle 
-; these edge cases:
+; routines (or cases). Three of these cover situations where the obstacle is 
+; partially or fully obscured by the left or right edges of the screen. 
+; The third routine (case 3) handles most visible, on-screen placements but 
+; cannot accommodate those edge cases.
 ;
-; - On the *left edge*, scenario B cannot place the obstacle earlier than the 
-;   9th pixel, even when strobing RESP1 during HBLANK. To position it at pixel 5,
-;   RESP1 must be strobed *after* HMOVE.
+; To simplify positioning logic and avoid signed arithmetic, obstacle_x values 
+; are treated as unsigned integers in the range 0–168. The visible Atari 2600 
+; screen is 160 pixels wide, with the first 8 pixels of each scanline obscured 
+; by the HMOVE blanking interval.
 ;
-; - On the *right edge*, scenario B ends up strobing RESP1 around CPU cycles 
-;   72–75, which causes M1 to be strobed on the following scanline. This results 
-;   in an unwanted additional scanline (a waste, as M1 isn't visible anyway).
-;
-; To simplify positioning logic (and avoid signed arithmetic), obstacle X 
-; positions are treated as unsigned values in the range 0–163. The visible Atari 
-; 2600 screen is 160 pixels wide, with the first 8 pixels of each scanline 
-; blacked out due to HMOVE blanking.
-;
-; ┌ obstacle pos
+; ┌ obstacle pos (obstacle_x)
 ; │┌ screen pixel
-; ││                                         obstacle_x = screen_x + 3
-; ││                                                    |
+; ││                                           obstacle_x = screen_x + 8
+; ││                                                      |
 ; │└→ -8 -7 ... -1 0     ...     8           ...          |  █    160 161 ...
 ; └──→ 0  1 ...  7 8     ...    16           ...          ↓  █ █  168 169 ...
-;                ↓ ↓             ↓                         █ █ █   ↓
-;                _│▓▓▓ HMOVE ▓▓▓|_                         ███     _│
-;       offscreen │▓▓▓ black ▓▓▓| <-------  visible area  --█-----> │ offscreen
-;                 │▓▓▓ area  ▓▓▓|                           █       │
+;                ↓ ↓             ↓                         █ █ █   ↓ ↓
+;      ____ ... __│▓▓▓ HMOVE ▓▓▓|_____       ...            ███_____│______
+;                 │▓▓▓ black ▓▓▓|                            █      │
+;                 │▓▓▓ area  ▓▓▓|                            █      │
 ;                 ↑                                                 ↑
 ;       left edge of the screen                        right edge of the screen
 ;
+;  ┌→ │ 0 ≤ x ≤ 8 │  8 < x ≤ 16 │        16 < x ≤ 162        │ x > 162 │
+;  │  ├───────────┼─────────────┼────────────────────────────┼─────────┤
+;  │  │   case 1  │    case 2   │          case 3            │  case 4 │
+;  │  └───────────┴─────────────┴────────────────────────────┴─────────┘
+;  └─── "x" refers to obstacle position (obstacle_x)
 _set_obstacle_x_position:
   sta HMCLR        ; 3 (Worst case scenario CPU count at this point is 37)
 
   ; Logic summary:
-  ; if (obstacle_x < 8) {
-  ;   case 1: obstacle GRP1 is fully hidden, but M1 is partially on-screen
-  ; } else if (obstacle_x < 17) {
-  ;   case 2: obstacle GRP1 is partially on-screen
-  ; } else if (obstacle_x ≥ 158) {
-  ;   scenario C: obstacle is partially or fully offscreen to the right
+  ; if (obstacle_x ≤ 8) {
+  ;   case 1: GRP1 is fully offscreen (to the left), M1 is partially visible
+  ; } else if (obstacle_x ≤ 16) {
+  ;   case 2: GRP1 is partially visible, M1 is fully visible
+  ; } else if (obstacle_x > 162) {
+  ;   case 4: GRP1 is partially offscreen (to the right), M1 is fully hidden
   ; } else {
-  ;   scenario B: obstacle is fully onscreen
+  ;   setup logic before invoking case 3
+  ;   case 3: both GRP1 and M1 are fully visible
   ; }
   lda OBSTACLE_X_INT                                   ; 3 (40)
-  jmp __debug__
-  cmp #8                                               ; 2 (42)
+  cmp #9                                               ; 2 (42)
   bcc _case_1__p1_fully_hidden_m1_partially_visible    ; 2/3 (44/45)
-  cmp #16                                              ; 2 (46)
+  cmp #17                                              ; 2 (46)
   bcc _case_2__p1_partially_visible_m1_fully_visible   ; 2/3 (48/49)
-  cmp #158                                             ; 2 (50)
-  bcs _case_3__p1_partially_visible_m1_fully_hidden    ; 2/3 (52/53)
+  cmp #163                                             ; 2 (50)
+  bcs _case_4__p1_partially_visible_m1_fully_hidden    ; 2/3 (52/53)
 
-__debug__:
+_prepare_before_invoking_case_3:
+  ; Based on results from tools/simulate-coarse-pos-loop.py:
+  ; Starting with an input value of #45, the coarse positioning algorithm sets
+  ; the object's coarse location and leaves a remainder in register A within 
+  ; the range [-7, 7], suitable for HMOVE fine adjustment.
+  ;
+  ; The earliest screen position set by this routine is physical pixel 5 
+  ; (the 6th pixel, zero-indexed). Earlier positions are handled by:
+  ;   - Case 1: input x = 0 to 8 → offscreen (pixels -8 to 0)
+  ;   - Case 2: input x = 9 to 16 → HMOVE blanking area (pixels 1 to 8)
+  ;
+  ; The latest valid position before requiring another scanline is pixel 154 
+  ; (indexed as 153), which corresponds to input x = 162.
+  ;
+  ; Thus, Case 3 handles obstacle_x values from 16 (maps to screen pixel 8) 
+  ; up to 162 (maps to pixel 153).
+  ;
+  ; To align with the algorithm's expected input range, obstacle_x = 16 must be
+  ; translated to x = 3 (the value that places at pixel 8), so 13 is subtracted
+  ; from the base input (#45).
   clc          ; 2 (52)
-
-  ; Based on observations using the tools/simulate-coarse-pos-loop.py script,
-  ; starting with an input value of #45, the coarse positioning algorithm sets
-  ; the coarse position and leaves the remainder in register A within the range
-  ; [-7, 7] for the fine adjustment.
-  ;
-  ; The earliest physical screen pixel set by this routine is pixel 5 (the 6th 
-  ; pixel, zero-indexed). Pixels before this are handled by:
-  ;   - Case 1: pixels 0 to 8, corresponding to screen pixels -8 to 0 (offscreen, left)
-  ;   - Case 2: pixels 1 to 16 , corresponding to screen pixels 1 to 8 (HMOVE blanking zone)
-  ;
-  ; Therefore, this case (Case 3) handles obstacle_x values starting at 16,
-  ; which maps to physical screen pixel 8 (the 9th pixel).
-  ;
-  ; To align with the algorithm’s expected input range, obstacle_x = 16 must be
-  ; translated to x = 3 (the input that would result in placement at pixel 8).
-  ; Hence, 13 is subtracted from #45 to compensate.
-  adc #45-#13   ; 2 (54)
+  adc #45-#13  ; 2 (54)
 
   sec      ; 2 (56) - Set carry to do subtraction. Remember SBC is
            ;          actually an ADC with A2 complement
            ;          A - B = A + ~B + 1
            ;                           ^this is the carry set by sec
 
-  jmp _case_4__p1_and_m1_fully_visible ; 3 (59)
+  jmp _case_3__p1_and_m1_fully_visible ; 3 (59)
 
 _case_1__p1_fully_hidden_m1_partially_visible:
   sta WSYNC        ; 3 (42/48)
@@ -861,11 +861,11 @@ _case_1__p1_fully_hidden_m1_partially_visible:
   ; matter as it will be zero (as it's offscreen)
   sta RESM1        ; 3 (6)
   ; This doesn't matter, as it will be 0
-  sta RESP1
+  ;sta RESP1
   ; offset calculation
   sec
   sbc #15-#4
-  jmp _end_of_cases_1_2_and_4
+  jmp _end_of_cases_1_2_and_3
 
 _case_2__p1_partially_visible_m1_fully_visible:
   sta WSYNC        ; 3 (42/48)
@@ -874,28 +874,28 @@ _case_2__p1_partially_visible_m1_fully_visible:
   sta HMOVE        ; 3 (3)
   sta RESP1        ; 3 (6)
 
-  ; Strobing P1 at this location, places its coarse position at pixel 4 (fifth pixel on the screen starting from 0).
-  ; Found this empirically after taking screenshots with Stella.
-  ; The obstacle's X value (x) will be in the range [8, 16], where:
-  ;   x = 8 maps to screen pixel 0 (just off the left edge) and x = 16
-  ; maps to screen pixel 8 (last pixel of the HMOVE black area)
+  ; Strobing RESP1 at this point places the GRP1 coarse position at screen
+  ; pixel 4 (the fifth pixel, zero-indexed). This was determined empirically
+  ; using Stella screenshots.
   ;
-  ; For these values of x, the following fine offsets are applied:
-  ;   x = 8 → offset -4 (index 3 in the offset table)
-  ;   x = 9 → offset -3 (index 4)
-  ;   x = 10 → offset -2 (index 5)
-  ;   x = 11 → offset -1 (index 6)
-  ;   x = 12 → offset 0 (index 7)
-  ;   x = 13 → offset 1 (index 8)
-  ;   x = 14 → offset 2 (index 9)
-  ;   x = 15 → offset 3 (index 10)
-  ;   x = 16 → offset 4 (index 11)
-  ; These means that the offset is computed as x - 6
+  ; The obstacle_x input will be in the range [8, 16], where:
+  ;   - x = 8  → maps to screen pixel 0 (just off the left edge)
+  ;   - x = 16 → maps to screen pixel 8 (last pixel of the HMOVE blanking
+  ;              region)
   ;
-  ; Note: accumulator A will later be shared with scenario B code, which
-  ; subtracts 15 from obstacle_x. This subtraction also happens here to align
-  ; with the shared logic at `_end_cases_1_2_and_4`.
-  sec      ; 2 (8)
+  ; For these values, the following fine offsets are applied:
+  ;   x =  8 → offset -4 (index  3 in the offset table)
+  ;   x =  9 → offset -3 (index  4)
+  ;   ...
+  ;   x = 15 → offset  3 (index 10)
+  ;   x = 16 → offset  4 (index 11)
+  ;
+  ; This offset is computed as: offset = x - 6
+  ;
+  ; Note: the accumulator is later shared with case 3 logic, which expects the
+  ; value (obstacle_x - 15). To align with that shared code path, the
+  ; subtraction is done here.
+  sec         ; 2 (8)
   sbc #5+#15  ; 2 (10)
 
   pha      ; 12 (22) wait/waste 12 CPU cycles (in 4 bytes) until the CPU is at
@@ -910,17 +910,17 @@ _case_2__p1_partially_visible_m1_fully_visible:
   ldx #$F0         ; 2 (27)
   stx HMM1         ; 3 (30)
 
-  jmp _end_of_cases_1_2_and_4 ; 3 (33)
+  jmp _end_of_cases_1_2_and_3 ; 3 (33)
 
-_case_3__p1_partially_visible_m1_fully_hidden:
+_case_4__p1_partially_visible_m1_fully_hidden:
   sta WSYNC        ; 3 (48)
   ; 3rd scanline (scenario C: obstacle_x ≥ 158) ==========================
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
-  ; For scenario C, RESP1 must be strobed at CPU cycle 71. The strobe completes
+  ; For case 4, RESP1 must be strobed at CPU cycle 71. The strobe completes
   ; at cycle 74, leaving just enough space for a 2-cycle instruction (like
-  ; 'nop') before the scanline ends—no room for a 'sta WSYNC'.
+  ; 'nop') before the scanline ends. There is no room for a 'sta WSYNC'.
   ;
   ; Theoretically, strobing RESP1 at CPU cycle 74 corresponds to TIA cycle 222
   ; (74 * 3), which should map to screen pixel 154 (222 - 68 cycles of HBLANK),
@@ -928,24 +928,26 @@ _case_3__p1_partially_visible_m1_fully_hidden:
   ;
   ; First, configure the fine offset. Then, delay until cycle 71 for RESP1.
   ;
-  ; For obstacle_x = 158, the obstacle should appear at screen pixel 155.
+  ; The rightmost position case 3 can handle without resorting to an extra 
+  ; scanline is x=162 which maps to screen pixel 154, case 4 should continue
+  ; from here, meaning the input x will be 163 onwards.
+  ;
+  ; For obstacle_x = 163, the obstacle should appear at screen pixel 155.
   ; However, the coarse position after strobing RESP1 at cycle 74 results in
   ; GRP1 being placed at screen pixel 159. This requires an offset of -4 pixels
   ; to correct the position. Similarly:
-  ;   x = 158 → offset -4
-  ;   x = 159 → offset -3
-  ;   x = 160 → offset -2
+  ;   x = 163 → offset -4
+  ;   x = 164 → offset -3
+  ;   x = 165 → offset -2
   ;   ...
-  ;   x = 163 → offset +1
+  ;   x = 171 → offset +1
 
   sec             ; 2 (5)
-  ; reg A contains x ∈ [158, 163]
+  ; reg A contains x ∈ [163, 171]
   ; x needs to be mapped to index ∈ [3, 8] (offsets from -4 to +1)
-  ; This is computed as: x - 155
-  ; But A will later be shared with scenario B logic, which subtracts 15.
-  ; So instead is pre-adjusted here: x - 155 - 15 = x - 170
-  ;
-  sbc #170        ; 2 (7)
+  ; This is computed as: x - 160
+  ; But A will later be shared with case 1, 2 and 3 logic, which subtract 15.
+  sbc #160+#15        ; 2 (7)
 
   ; reg A now holds the correct offset index to be used later during
   ; the 4th scanline. The CPU is currently at cycle 7 and must reach cycle 71,
@@ -970,9 +972,9 @@ __wait_until_cpu_is_at_cycle_71:        ; - (9) \
 
   ; 4th scanline ==============================================================
   sta HMOVE
-  jmp _end_case_3
+  jmp _end_case_4
 
-_case_4__p1_and_m1_fully_visible:
+_case_3__p1_and_m1_fully_visible:
   sta WSYNC        ; 3 (42/48)
   ; 3rd scanline (scenario B: obstacle 9 ≤ x ≤ 157) ===========================
                    ; - (0)
@@ -985,7 +987,7 @@ __div_by_15_loop:      ; - (3)
   sta RESP1
   sta RESM1
 
-_end_of_cases_1_2_and_4:
+_end_of_cases_1_2_and_3:
   sta WSYNC        ; if coming from scenario A, CPU count after this will be 33
                    ; if coming from scenario B, MAX CPU count will be 76
                    ; scenario A will jump past this 'sta WSYNC' and below's
@@ -994,7 +996,7 @@ _end_of_cases_1_2_and_4:
                    ; - (0)
   sta HMOVE        ; 3 (3)
 
-_end_case_3:
+_end_case_4:
   ; Clear reg X to make sure no graphics are drawn in the first scanline of
   ; the sky_kernel
   ldx #0           ; 2 (5) - Do the fine offset in the next scanline, I'm
