@@ -122,6 +122,7 @@ KEY_UP_PRESSED_FRAMES      .byte   ; 1 byte   (10)
 ; Obstacle Variables
 OBSTACLE_TYPE              .byte   ; 1 byte   (11)
 OBSTACLE_Y                 .byte   ; 1 byte   (12)
+OBSTACLE_X_INT_COPY             .byte   ; 1 byte   (13)
 OBSTACLE_X_INT             .byte   ; 1 byte   (13)
 OBSTACLE_X_FRACT           .byte   ; 1 byte   (14)
 OBSTACLE_VX_INT            .byte   ; 1 byte   (15)
@@ -225,8 +226,7 @@ _init_obstacle_conf:
 ; min 0, max 168
 DEBUG_OBSTACLE_X_POS = #168 
   ; TODO: Remove/Update after testing obstacle positioning
-  ;lda #3 ; Debug arrow
-  lda #7
+  lda #3
   sta OBSTACLE_TYPE
   lda #PLAY_AREA_TOP_Y  ; DEBUG
   lda #CACTUS_Y
@@ -417,6 +417,19 @@ _update_obstacle_pos:
   lda OBSTACLE_X_INT
   sbc OBSTACLE_VX_INT
   sta OBSTACLE_X_INT
+
+  sta OBSTACLE_X_INT_COPY
+
+  ;lda FRAME_COUNT
+  ;and #1
+  ;beq _check_obstacle_pos
+  ;clc
+  ;lda #8
+  ;adc OBSTACLE_X_INT_COPY
+  ;sta OBSTACLE_X_INT_COPY
+
+_check_obstacle_pos:
+  lda OBSTACLE_X_INT
   cmp #0 ; -3
   beq _reset_obstacle_position
   jmp _update_obstacle_sprite
@@ -428,6 +441,8 @@ _reset_obstacle_position:
   sta OBSTACLE_X_FRACT
 
 _update_obstacle_sprite:
+
+
   lda OBSTACLE_TYPE
   ; obstacle_type == 0 is the empty obstacle
   beq __no_ptero
@@ -811,7 +826,7 @@ _set_obstacle_x_position:
   ;   setup logic before invoking case 3
   ;   case 3: both GRP1 and M1 are fully visible
   ; }
-  lda OBSTACLE_X_INT                                   ; 3 (40)
+  lda OBSTACLE_X_INT_COPY                                   ; 3 (40)
   cmp #9                                               ; 2 (42)
   bcc _case_1__p1_fully_hidden_m1_partially_visible    ; 2/3 (44/45)
   cmp #17                                              ; 2 (46)

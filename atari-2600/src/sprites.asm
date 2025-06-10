@@ -283,10 +283,10 @@ DINO_MISSILE_0_OFFSETS_END = *
 ;                    ▯
 ;                    ▯▯
 DINO_CROUCHING_REGION_3_SPRITE:
-  .byte #%11101110
-  .byte #%11111100
-  .byte #%11111111
-  .byte #%11111111
+  .byte %11101110
+  .byte %11111100
+  .byte %11111111
+  .byte %11111111
 DINO_CROUCHING_REGION_3_SPRITE_END = *
 
 DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF:
@@ -342,6 +342,12 @@ PTERO_WINGS_OPEN_SPRITE:
   ; |     █  ⏐        |         ⏐     █  ⏐
   ; |        ⏐        |         ⏐        ⏐
   ;
+;--------------------------------------------------------------------------
+; [!] ROM space potential savings
+;--------------------------------------------------------------------------
+; In case ROM is needed, the ptero sprites could be merged together 
+; to reuse the duplicated zeroes
+;--------------------------------------------------------------------------
   .ds 1            ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
   .byte %00000000  ;⏐        ⏐
@@ -501,248 +507,27 @@ ZERO_DATA:
   .ds 20
 ZERO_DATA_END = *
 
-CACTUS_1_SPRITE:
-  .ds 1             ;⏐
-  .byte #%00001000  ;⏐     █   
-  .byte #%10100011  ;⏐ █ █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%01110011  ;⏐  ███  ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%10100011  ;⏐ █ █   ██
-  .byte #%00100111  ;⏐   █  ███
-  .byte #%00001111  ;⏐     ████
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00001011  ;⏐     █ ██
-  .byte #%00000011  ;⏐       ██
-  .byte #%00000001  ;⏐        █
-  .ds 1             ;⏐
-CACTUS_1_SPRITE_END = *
-
-
-; HMxy offset reference (rows: pixels, hex and binary):
-;
-; LEFT  <-------------------------------------------------------------->  RIGHT
-;  -7   -6   -5   -4   -3   -2   -1    0   +1   +2   +3   +4   +5   +6   +7   +8
-;  70   60   50   40   30   20   10   00   F0   E0   D0   C0   B0   A0   90   80
-;0111 0110 0101 0100 0011 0010 0001 0000 1111 1110 1101 1100 1011 1010 1001 1000
-;
-
-CACTUS_1_MISSILE_1_CONF:
-;    Enable M1 bit
-;               ↓
-  .ds 1             ;⏐
-  .byte #%00100010  ;|
-  .byte #%11010010  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000010  ;|
-  .byte #%00010110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000010  ;|
-  .byte #%11110000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .ds 1             ;⏐
-CACTUS_1_MISSILE_1_CONF_END = *
-
-SINGLE_BIG_CACTUS_SPRITE:
-  .ds 1             ;⏐
-  .byte #%00000100  ;⏐      █  
-  .byte #%00110000  ;⏐   ██    
-  .byte #%00000110  ;⏐      ██ 
-  .byte #%00000110  ;⏐      ██ 
-  .byte #%00000110  ;⏐      ██ 
-  .byte #%00000110  ;⏐      ██ 
-  .byte #%00000110  ;⏐      ██ 
-  .byte #%00000111  ;⏐      ███
-  .byte #%00001111  ;⏐     ████
-  .byte #%00011110  ;⏐    ████ 
-  .byte #%00110110  ;⏐   ██ ██ 
-  .byte #%00110110  ;⏐   ██ ██ 
-  .byte #%00110110  ;⏐   ██ ██ 
-  .byte #%00010110  ;⏐    █ ██ 
-  .byte #%00000110  ;⏐      ██ 
-  .byte #%00000010  ;⏐       █ 
-  .ds 1             ;⏐
-SINGLE_BIG_CACTUS_SPRITE_END = *
-
-
-; HMxy offset reference (rows: pixels, hex and binary):
-;
-; LEFT  <-------------------------------------------------------------->  RIGHT
-;  -7   -6   -5   -4   -3   -2   -1    0   +1   +2   +3   +4   +5   +6   +7   +8
-;  70   60   50   40   30   20   10   00   F0   E0   D0   C0   B0   A0   90   80
-;0111 0110 0101 0100 0011 0010 0001 0000 1111 1110 1101 1100 1011 1010 1001 1000
-;
-
-SINGLE_BIG_CACTUS_MISSILE_1_CONF:
-;    Enable M1 bit
-;               ↓
-  .ds 1             ;⏐
-  .byte #%00010110  ;|
-  .byte #%11110000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00010000  ;|
-  .byte #%11110000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000010  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000010  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .ds 1             ;⏐
-SINGLE_BIG_CACTUS_MISSILE_1_CONF_END = *
-
-LILIT_CACTUS_SPRITE:
-  .ds 1             ;⏐
-  .byte #%00100001  ;⏐   █    █
-  .byte #%10011100  ;⏐ █  ███  
-  .byte #%00011100  ;⏐    ███  
-  .byte #%00011100  ;⏐    ███  
-  .byte #%00111100  ;⏐   ████  
-  .byte #%01111100  ;⏐  █████  
-  .byte #%11011100  ;⏐ ██ ███  
-  .byte #%11011100  ;⏐ ██ ███  
-  .byte #%11011100  ;⏐ ██ ███  
-  .byte #%11011100  ;⏐ ██ ███  
-  .byte #%11011110  ;⏐ ██ ████ 
-  .byte #%01011111  ;⏐  █ █████
-  .byte #%00011101  ;⏐    ███ █
-  .byte #%00011101  ;⏐    ███ █
-  .byte #%00011101  ;⏐    ███ █
-  .byte #%00011101  ;⏐    ███ █
-  .byte #%00011100  ;⏐    ███  
-  .byte #%00001000  ;⏐     █   
-  .ds 1             ;⏐
-LILIT_CACTUS_SPRITE_END = *
-
-
-; HMxy offset reference (rows: pixels, hex and binary):
-;
-; LEFT  <-------------------------------------------------------------->  RIGHT
-;  -7   -6   -5   -4   -3   -2   -1    0   +1   +2   +3   +4   +5   +6   +7   +8
-;  70   60   50   40   30   20   10   00   F0   E0   D0   C0   B0   A0   90   80
-;0111 0110 0101 0100 0011 0010 0001 0000 1111 1110 1101 1100 1011 1010 1001 1000
-;
-
-LILIT_CACTUS_MISSILE_1_CONF:
-;    Enable M1 bit
-;               ↓
-  .ds 1             ;⏐
-  .byte #%00010000  ;|
-  .byte #%11110110  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000010  ;|
-  .byte #%00000010  ;|
-  .byte #%00000010  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .ds 1             ;⏐
-LILIT_CACTUS_MISSILE_1_CONF_END = *
-
-
-DEBUG_ARROW_SPRITE:
-  .ds 1             ;⏐
-  .byte #%00000001  ;⏐        █
-  .byte #%00000011  ;⏐       ██
-  .byte #%00000111  ;⏐      ███
-  .byte #%00001111  ;⏐     ████
-  .byte #%00011111  ;⏐    █████
-  .byte #%00111111  ;⏐   ██████
-  .byte #%01111111  ;⏐  ███████
-  .byte #%11111111  ;⏐ ████████
-  .byte #%01111111  ;⏐  ███████
-  .byte #%00111111  ;⏐   ██████
-  .byte #%00011111  ;⏐    █████
-  .byte #%00001111  ;⏐     ████
-  .byte #%00000111  ;⏐      ███
-  .byte #%00000011  ;⏐       ██
-  .byte #%00000001  ;⏐        █
-  .byte #%00000001  ;⏐        █
-  .byte #%00000001  ;⏐        █
-  .byte #%00000001  ;⏐        █
-  .ds 1             ;⏐
-DEBUG_ARROW_SPRITE_END = *
-
-
-; HMxy offset reference (rows: pixels, hex and binary):
-;
-; LEFT  <-------------------------------------------------------------->  RIGHT
-;  -7   -6   -5   -4   -3   -2   -1    0   +1   +2   +3   +4   +5   +6   +7   +8
-;  70   60   50   40   30   20   10   00   F0   E0   D0   C0   B0   A0   90   80
-;0111 0110 0101 0100 0011 0010 0001 0000 1111 1110 1101 1100 1011 1010 1001 1000
-;
-
-DEBUG_ARROW_MISSILE_1_CONF:
-;    Enable M1 bit
-;               ↓
-  .ds 1             ;⏐
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00001110  ;|
-  .byte #%00001110  ;|
-  .byte #%00001110  ;|
-  .byte #%00001110  ;|
-  .byte #%00001110  ;|
-  .byte #%00001110  ;|
-  .byte #%00001110  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00001110  ;|
-  .ds 1             ;⏐
-DEBUG_ARROW_MISSILE_1_CONF_END = *
-
 CACTUS_2_SPRITE:
-  .ds 1             ;⏐
-  .byte #%00101000  ;⏐   █ █   
-  .byte #%10100011  ;⏐ █ █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%01110011  ;⏐  ███  ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00001111  ;⏐     ████
-  .byte #%00011111  ;⏐    █████
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00001011  ;⏐     █ ██
-  .byte #%00000011  ;⏐       ██
-  .ds 1             ;⏐
+  .ds 1            ;⏐
+  .byte %00101000  ;⏐   █ █   
+  .byte %10100011  ;⏐ █ █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %01110011  ;⏐  ███  ██
+  .byte %10101011  ;⏐ █ █ █ ██
+  .byte %10101011  ;⏐ █ █ █ ██
+  .byte %10101011  ;⏐ █ █ █ ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00001111  ;⏐     ████
+  .byte %00011111  ;⏐    █████
+  .byte %00011011  ;⏐    ██ ██
+  .byte %00011011  ;⏐    ██ ██
+  .byte %00011011  ;⏐    ██ ██
+  .byte %00001011  ;⏐     █ ██
+  .byte %00000011  ;⏐       ██
+  .ds 1            ;⏐
 CACTUS_2_SPRITE_END = *
 
 
@@ -757,49 +542,49 @@ CACTUS_2_SPRITE_END = *
 CACTUS_2_MISSILE_1_CONF:
 ;    Enable M1 bit
 ;               ↓
-  .ds 1             ;⏐
-  .byte #%00000110  ;|
-  .byte #%00000000  ;|
-  .byte #%11100000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%11110110  ;|
-  .byte #%00101010  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000010  ;|
-  .byte #%00000000  ;|
-  .byte #%11110000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00010000  ;|
-  .byte #%00000000  ;|
-  .byte #%11110000  ;|
-  .ds 1             ;⏐
+  .ds 1            ;⏐
+  .byte %00000110  ;|
+  .byte %00000000  ;|
+  .byte %11100000  ;|
+  .byte %00000000  ;|
+  .byte %00000000  ;|
+  .byte %11110110  ;|
+  .byte %00101010  ;|
+  .byte %00000110  ;|
+  .byte %00000110  ;|
+  .byte %00000110  ;|
+  .byte %00000010  ;|
+  .byte %00000000  ;|
+  .byte %11110000  ;|
+  .byte %00000000  ;|
+  .byte %00000000  ;|
+  .byte %00010000  ;|
+  .byte %00000000  ;|
+  .byte %11110000  ;|
+  .ds 1            ;⏐
 CACTUS_2_MISSILE_1_CONF_END = *
 
 CACTUS_3_SPRITE:
-  .ds 1             ;⏐
-  .byte #%00101000  ;⏐   █ █   
-  .byte #%10100011  ;⏐ █ █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%01110011  ;⏐  ███  ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%10101011  ;⏐ █ █ █ ██
-  .byte #%00100011  ;⏐   █   ██
-  .byte #%00001111  ;⏐     ████
-  .byte #%00011111  ;⏐    █████
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00011011  ;⏐    ██ ██
-  .byte #%00000011  ;⏐       ██
-  .byte #%00000011  ;⏐       ██
-  .ds 1             ;⏐
+  .ds 1            ;⏐
+  .byte %00101000  ;⏐   █ █   
+  .byte %10100011  ;⏐ █ █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %01110011  ;⏐  ███  ██
+  .byte %10101011  ;⏐ █ █ █ ██
+  .byte %10101011  ;⏐ █ █ █ ██
+  .byte %10101011  ;⏐ █ █ █ ██
+  .byte %00100011  ;⏐   █   ██
+  .byte %00001111  ;⏐     ████
+  .byte %00011111  ;⏐    █████
+  .byte %00011011  ;⏐    ██ ██
+  .byte %00011011  ;⏐    ██ ██
+  .byte %00011011  ;⏐    ██ ██
+  .byte %00000011  ;⏐       ██
+  .byte %00000011  ;⏐       ██
+  .ds 1            ;⏐
 CACTUS_3_SPRITE_END = *
 
 
@@ -814,36 +599,33 @@ CACTUS_3_SPRITE_END = *
 CACTUS_3_MISSILE_1_CONF:
 ;    Enable M1 bit
 ;               ↓
-  .ds 1             ;⏐
-  .byte #%00000110  ;|
-  .byte #%00000000  ;|
-  .byte #%11100000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%11110110  ;|
-  .byte #%00101010  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000110  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%11110000  ;|
-  .byte #%00000000  ;|
-  .byte #%00000000  ;|
-  .byte #%00010000  ;|
-  .byte #%00000000  ;|
-  .byte #%11110000  ;|
-  .ds 1             ;⏐
+  .ds 1            ;⏐
+  .byte %00000110  ;|
+  .byte %00000000  ;|
+  .byte %11100000  ;|
+  .byte %00000000  ;|
+  .byte %00000000  ;|
+  .byte %11110110  ;|
+  .byte %00101010  ;|
+  .byte %00000110  ;|
+  .byte %00000110  ;|
+  .byte %00000110  ;|
+  .byte %00000000  ;|
+  .byte %00000000  ;|
+  .byte %11110000  ;|
+  .byte %00000000  ;|
+  .byte %00000000  ;|
+  .byte %00010000  ;|
+  .byte %00000000  ;|
+  .byte %11110000  ;|
+  .ds 1            ;⏐
 CACTUS_3_MISSILE_1_CONF_END = *
 
 OBSTACLES_SPRITES_TABLE:
   .word ZERO_DATA_END
   .word PTERO_WINGS_OPEN_SPRITE_END
   .word PTERO_WINGS_CLOSED_SPRITE_END
-  .word DEBUG_ARROW_SPRITE_END
-  .word LILIT_CACTUS_SPRITE_END
-  .word SINGLE_BIG_CACTUS_SPRITE_END
-  .word CACTUS_1_SPRITE_END
+; Cacti (from index 3 onwards)
   .word CACTUS_2_SPRITE_END
   .word CACTUS_3_SPRITE_END
 
@@ -851,9 +633,6 @@ OBSTACLES_MISSILE_1_CONF_TABLE:
   .word ZERO_DATA_END
   .word PTERO_WINGS_OPEN_MISSILE_1_CONF_END
   .word PTERO_WINGS_CLOSED_MISSILE_1_CONF_END
-  .word DEBUG_ARROW_MISSILE_1_CONF_END
-  .word LILIT_CACTUS_MISSILE_1_CONF_END
-  .word SINGLE_BIG_CACTUS_MISSILE_1_CONF_END
-  .word CACTUS_1_MISSILE_1_CONF_END
+; Cacti (from index 3 onwards)
   .word CACTUS_2_MISSILE_1_CONF_END
   .word CACTUS_3_MISSILE_1_CONF_END
