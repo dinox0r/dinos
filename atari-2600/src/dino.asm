@@ -143,6 +143,21 @@ PTR_AFTER_PLAY_AREA_KERNEL .word   ; 2 bytes  (26)
 FLOOR_PF0                  .byte   ; 1 byte ()
 FLOOR_PF1                  .byte   ; 1 byte ()
 FLOOR_PF2                  .byte   ; 1 byte ()
+FLOOR_PF3                  .byte   ; 1 byte ()
+FLOOR_PF4                  .byte   ; 1 byte ()
+FLOOR_PF5                  .byte   ; 1 byte ()
+
+PEBBLE_X_INT                .byte
+PEBBLE_X_FRACT              .byte
+PEBBLE_CACHED_OBSTACLE_GRP1 .byte
+PEBBLE_CACHED_OBSTACLE_M1   .byte
+
+PEBBLE_PF0                  .byte   ; 1 byte ()
+PEBBLE_PF1                  .byte   ; 1 byte ()
+PEBBLE_PF2                  .byte   ; 1 byte ()
+PEBBLE_PF3                  .byte   ; 1 byte ()
+PEBBLE_PF4                  .byte   ; 1 byte ()
+PEBBLE_PF5                  .byte   ; 1 byte ()
 
 ; Gameplay variables
 GAME_FLAGS                 .byte   ; 1 byte   (28)
@@ -222,11 +237,17 @@ game_init:
   lda #>[DINO_MISSILE_0_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_MISSILE_0_CONF+1
 
+_init_batch_conf:
+  lda #200
+  sta PEBBLE_X_INT
+  lda #0
+  sta PEBBLE_X_FRACT
+
 _init_obstacle_conf:
 ; min 0, max 168
 DEBUG_OBSTACLE_X_POS = #168 
   ; TODO: Remove/Update after testing obstacle positioning
-  lda #3
+  lda #4
   sta OBSTACLE_TYPE
   lda #PLAY_AREA_TOP_Y  ; DEBUG
   lda #CACTUS_Y
@@ -1443,7 +1464,8 @@ legs_and_floor_kernel:
   sta ENAM0   ; 3 (67)
 
 _legs_and_floor__end_of_1st_scanline:
-  sta WSYNC     ; 3 (70)
+  sec         ; 2 (69)
+  sta WSYNC   ; 3 (72)
 
   ; 2nd scanline ========================================================
                 ; - (0)
@@ -1451,15 +1473,33 @@ _legs_and_floor__end_of_1st_scanline:
 
   DRAW_DINO     ; 3 (6)
 
-  ;lda #77
-  ;sta COLUBK
+  ; 27 (33)
+  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _legs_and_floor__decrement_y
+_legs_and_floor__decrement_y:  ; - (33)
+  dey          ; 2 (35)
 
-  ; 29 (35)
-  LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_2nd_scanline
-_legs_and_floor__end_of_2nd_scanline:  ; - (35)
-  dey          ; 2 (37)
+  ; Do the obstacle y-coord check here and save the result to avoid doing
+  ; the check on the 4th scanline, thus saving some cycles needed to do the
+  ; playfield update
+  sta TEMP             ; 3 (38)
+  sec                  ; 2 (40)
+  tya                  ; 2 (42)
+  sbc OBSTACLE_Y       ; 3 (45)
+  adc #OBSTACLE_HEIGHT ; 2 (47)
+  bcs _legs_2nd_scanline__obstacle_y_within_range ; 2/3 (49/50)
+  lda #0
+  sta PEBBLE_CACHED_OBSTACLE_GRP1      ; 3 (58)
+  sta PEBBLE_CACHED_OBSTACLE_M1        ; 3 (66)
+  jmp _legs_2nd_scanline__end_of_scanline
+_legs_2nd_scanline__obstacle_y_within_range: ; - (50)
+  lda (PTR_OBSTACLE_SPRITE),y          ; 5 (55)
+  sta PEBBLE_CACHED_OBSTACLE_GRP1      ; 3 (58)
+  lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (63)
+  sta PEBBLE_CACHED_OBSTACLE_M1        ; 3 (66)
+_legs_2nd_scanline__end_of_scanline:
+  lda TEMP     ; 3 (69)
 
-  sta WSYNC
+  sta WSYNC    ; 3 (72)
 
   ; 3rd scanline ========================================================
                               ; - (0)
@@ -1534,8 +1574,10 @@ _legs_3rd_scanline__obstacle_y_within_range: ; - (31)
     ; ... continue the inlining of the macro
     ;--------------------------------------------------------------------------
     sta HMCLR                            ; 3 (42)
-    LAX (PTR_OBSTACLE_SPRITE),y          ; 5 (47)
-    lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (52)
+    ;LAX (PTR_OBSTACLE_SPRITE),y          ; 5 (47)
+    ;lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (52)
+    ldx PEBBLE_CACHED_OBSTACLE_GRP1
+    lda PEBBLE_CACHED_OBSTACLE_M1
     sta HMM1                             ; 3 (55)
 
 _legs_and_floor__end_of_4th_scanline:
