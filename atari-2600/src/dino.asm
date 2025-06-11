@@ -919,10 +919,10 @@ _case_2__p1_partially_visible_m1_fully_visible:
 
   sta RESM1        ; 3 (25)
 
-  ; At cycle 25, M1 appears 7px to the right of GRP1 instead of 8px.
-  ; To fix this 1px misalignment (to match scenario B), apply a slight
-  ; left nudge to M1 using HMM1:
-  ldx #$F0         ; 2 (27)
+  ; At cycle 25, M1 appears 7px to the right of GRP1 instead of 8px. To fix
+  ; this 1px misalignment, here a slight nudge to the right is applied to M1
+  ; using HMM1
+  ldx #$F0         ; 2 (27) - 1px to the right
   stx HMM1         ; 3 (30)
 
   jmp _end_of_cases_1_2_and_3 ; 3 (33)
@@ -951,7 +951,6 @@ _case_4__p1_partially_visible_m1_fully_hidden:
   ; However, the coarse position after strobing RESP1 at cycle 74 results in
   ; GRP1 being placed at screen pixel 159. This requires an offset of -4 pixels
   ; to correct the position. Similarly:
-  ;   x = 163 → offset -4
   ;   x = 164 → offset -3
   ;   x = 165 → offset -2
   ;   ...
@@ -1017,24 +1016,23 @@ _end_case_4:
   ldx #0           ; 2 (5) - Do the fine offset in the next scanline, I'm
                    ;         avoiding doing it in the
 
-  ; same scanline as the coarse positioning because for x > 150 the strobing
-  ; will occur near the end of the scanline leaving barely room for strobing
-  ; wsync
-  INSERT_NOPS 8              ; 18 (23)
+  pha              ; 4 (9) - Wait/waste 7 cycles (2 bytes)
+  pla              ; 3 (12)
+
   ; Offsets the remainder from [-14, 0] to [0, 14]
   ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
-  clc
-  adc #15
+  clc             ; 2 (14)
+  adc #15         ; 2 (16)
   ;lda #7 ; DEBUG
 
-  tay                         ; 2 (25)
-  lda FINE_POSITION_OFFSET,y  ; 4 (29) - y should range between [-7, 7]
+  tay                         ; 2 (18)
+  lda FINE_POSITION_OFFSET,y  ; 4 (22) - y should range between [-7, 7]
   ; Apply the fine offset to both the GRP1 and the BALL, these won't shift the
   ; coarse position set above until the next time HMOVE is strobed
-  sta HMP1  ; 3 (32)
-  sta HMM1  ; 3 (35)
+  sta HMP1       ; 3 (25)
+  sta HMM1       ; 3 (28)
 
-  sta WSYNC                   ; 3 (38)
+  sta WSYNC      ; 3 (31)
 
 _last_setup_scanline:
   ; 5th scanline ==============================================================
@@ -1046,9 +1044,9 @@ _last_setup_scanline:
   bit GAME_FLAGS             ; 3 (10)
   bne __assign_crouching_kernel  ; 2/3 (12/13)
 
-  lda #<legs_and_floor_kernel        ; 2 (14)
+  lda #<legs_and_floor_kernel      ; 2 (14)
   sta PTR_AFTER_PLAY_AREA_KERNEL   ; 3 (17)
-  lda #>legs_and_floor_kernel        ; 2 (19)
+  lda #>legs_and_floor_kernel      ; 2 (19)
   sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (22)
 
   lda #PLAY_AREA_BOTTOM_Y          ; 2 (24)
@@ -1472,12 +1470,12 @@ _legs_and_floor__end_of_2nd_scanline:  ; - (35)
   LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_3rd_scanline
 _legs_and_floor__end_of_3rd_scanline:
 
-  lda BACKGROUND_COLOUR
-  sta COLUPF
-  lda FOREGROUND_COLOUR
+  lda BACKGROUND_COLOUR      ; 3 (47)
+  sta COLUPF                 ; 3 (50)
+  lda FOREGROUND_COLOUR      ; 3 (53)
 
-  sec
-  sta WSYNC
+  sec                        ; 2 (55)
+  sta WSYNC                  ; 3 (58)
 
   ; 4th scanline ========================================================
                               ; - (0)
