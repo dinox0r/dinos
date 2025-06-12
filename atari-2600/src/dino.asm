@@ -1521,73 +1521,50 @@ _legs_and_floor__end_of_3rd_scanline:
                               ; - (0)
   sta HMOVE                   ; 3 (3)
 
+; For reference:
+;       ┌──────────────────────────────────┬──────────────────────────────────┐
+;       │    Left side of the playfield    │    Right side of the playfield   │
+;       ├───────────────┬──────────────────┼───────────────┬──────────────────┤
+;       │ write b4 (x≤) │ write again (x≥) │ write b4 (x≤) │ write again (x≥) │
+; ┌─────┼───────────────┼──────────────────┼───────────────┼──────────────────┤
+; │ PF0 │      22*      │       28         │  ⌊49.3⌋ = 49  │   ⌈54.6⌉ = 55    │
+; ├─────┼───────────────┼──────────────────┼───────────────┼──────────────────┤
+; │ PF1 │      28       │    ⌈38.6⌉ = 39   │  ⌊54.6⌋ = 54  │   ⌈65.3⌉ = 66    │
+; ├─────┼───────────────┼──────────────────┼───────────────┼──────────────────┤
+; │ PF2 │  ⌊38.6⌋ = 38  │    ⌈49.3⌉ = 50   │  ⌊65.3⌋ = 65  │    ¯\_(ツ)_/¯    │
+; └─────┴───────────────┴──────────────────┴───────────────┴──────────────────┘
+; *: All values represent CPU cycles
+
   sta COLUBK                  ; 3 (6)
-  lda FLOOR_PF0               ; 3 (9)
-  sta PF0                     ; 3 (12)
+  DRAW_DINO                   ; 3 (9)
 
-  DRAW_DINO                   ; 3 (15)
-
+  lda FLOOR_PF0               ; 3 (12)
+  sta PF0                     ; 3 (15)
   lda FLOOR_PF1               ; 3 (18)
   sta PF1                     ; 3 (21)
+  lda FLOOR_PF2               ; 3 (24)
+  sta PF2                     ; 3 (27)
 
-    ;--------------------------------------------------------------------------
-    ; <...>: INLINING
-    ;--------------------------------------------------------------------------
-    ; Inline the LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro here so the playfield
-    ; updates can happen in between at the right times 
-    ;--------------------------------------------------------------------------
-    CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY          ; 7 (28)
-    bcs _legs_3rd_scanline__obstacle_y_within_range ; 2/3 (30/31)
-                              ; ↓
-                              ; - (30)
-    lda #0                    ; 2 (32)
-    tax                       ; 2 (34)
+  sta HMCLR                        ; 3 (30)
+  ldx PEBBLE_CACHED_OBSTACLE_GRP1  ; 3 (33)
+  lda PEBBLE_CACHED_OBSTACLE_M1    ; 3 (36)
+  sta HMM1                         ; 3 (39)
 
-  ; Update the playfield
-  sta PF0                     ; 3 (37)
-  sta PF1                     ; 3 (40)
-
-    ;--------------------------------------------------------------------------
-    ; [!] ROM space potential savings
-    ;--------------------------------------------------------------------------
-    ; In case ROM is needed, the padding instructions, that make this branch 
-    ; have the same CPU cycle count as the other branch, could be removed
-    ;--------------------------------------------------------------------------
-    pha                       ; 3 (43) - Wait/waste 9 CPU cycles so this
-    pla                       ; 4 (47)   branch has the same count as the
-    nop                       ; 2 (49)   other main branch
-    ;--------------------------------------------------------------------------
-
-    sta HMCLR                 ; 3 (52)
-    jmp _legs_and_floor__end_of_4th_scanline ; 3 (55)
-
-_legs_3rd_scanline__obstacle_y_within_range: ; - (31)
-
-  ; Update the playfield
-  lda #0                      ; 2 (33)
-  sta PF0                     ; 3 (36)
-  sta PF1                     ; 3 (39)
-
-    ;--------------------------------------------------------------------------
-    ; <...>: INLINING
-    ;--------------------------------------------------------------------------
-    ; ... continue the inlining of the macro
-    ;--------------------------------------------------------------------------
-    sta HMCLR                            ; 3 (42)
-    ;LAX (PTR_OBSTACLE_SPRITE),y          ; 5 (47)
-    ;lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (52)
-    ldx PEBBLE_CACHED_OBSTACLE_GRP1
-    lda PEBBLE_CACHED_OBSTACLE_M1
-    sta HMM1                             ; 3 (55)
+  lda FLOOR_PF3               ; 3 (42)
+  sta PF0                     ; 3 (45)
+  lda FLOOR_PF4               ; 3 (48)
+  sta PF1                     ; 3 (51)
+  lda FLOOR_PF5               ; 3 (54)
+  sta PF2                     ; 3 (57)
 
 _legs_and_floor__end_of_4th_scanline:
-  dey                         ; 2 (57)
-  sec                         ; 2 (59)
+  dey                         ; 2 (59)
+  sec                         ; 2 (61)
 
 ground_area_kernel:
-  sta TEMP                    ; 3 (62, 41 if coming from this kernel)
-  lda BACKGROUND_COLOUR       ; 3 (65, 44 if coming from this kernel)
-  sta WSYNC                   ; 3 (68, 47 if coming from this kernel)
+  sta TEMP                    ; 3 (64, 41 if coming from this kernel)
+  lda BACKGROUND_COLOUR       ; 3 (67, 44 if coming from this kernel)
+  sta WSYNC                   ; 3 (70, 47 if coming from this kernel)
 
   ; 1st scanline ==============================================================
                               ; - (0)
