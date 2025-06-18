@@ -501,14 +501,24 @@ _end_update_obstacle:
 
 update_floor:
 _update_pebble_anim:
+  lda FOREGROUND_COLOUR
+  sta COLUPF
+
   ; reset FLOOR_PFx
-  lda #0
+  lda #%11111111
   sta FLOOR_PF0
   sta FLOOR_PF1
   sta FLOOR_PF2
   sta FLOOR_PF3
   sta FLOOR_PF4
   sta FLOOR_PF5
+  lda #0
+  sta PEBBLE_PF0
+  sta PEBBLE_PF1
+  sta PEBBLE_PF2
+  sta PEBBLE_PF3
+  sta PEBBLE_PF4
+  sta PEBBLE_PF5
 
   lda OBSTACLE_X_INT_COPY
   ; Will appear 16 pixels after the obstacle and the range is within [0, 160]
@@ -540,7 +550,7 @@ __update_pf0:
   lsr
   lsr
   tay
-  lda POWERS_OF_2+#4,y
+  lda POWERS_OF_2_NEGATED+#4,y
   jmp _end_pebble_anim
 
 __update_pf1:
@@ -566,7 +576,7 @@ ___pf1_adjust_low_nibble:
   clc
   adc TEMP
   tay
-  lda POWERS_OF_2,y
+  lda POWERS_OF_2_NEGATED,y
   jmp _end_pebble_anim
 
 __update_pf2:
@@ -589,7 +599,7 @@ ___pf2_adjust_low_nibble:
   clc
   adc TEMP
   tay
-  lda POWERS_OF_2,y
+  lda POWERS_OF_2_NEGATED,y
   jmp _end_pebble_anim
 
 __pebble_out_of_bounds:
@@ -597,6 +607,8 @@ __pebble_out_of_bounds:
 
 _end_pebble_anim:
   sta FLOOR_PF0,x
+  eor #%11111111
+  sta PEBBLE_PF0,x
 
   lda DINO_TOP_Y_INT
   ; Remember: 'cmp' under the hood acts like: 256 + (a - b)
@@ -606,21 +618,28 @@ _end_pebble_anim:
   bcs __dino_y_over_10
 
   lda FLOOR_PF0
-  ora #%10000000
+  and #%01111111
   sta FLOOR_PF0
+  lda PEBBLE_PF0
+  and #%01111111
+  sta PEBBLE_PF0
+
   lda FLOOR_PF1
-  ora #%11000000
+  and #%00111111
   sta FLOOR_PF1
+  lda PEBBLE_PF1
+  and #%00111111
+  sta PEBBLE_PF1
 
   jmp _end_update_floor
 
 __dino_y_over_10:
-  lda FLOOR_PF0
-  ora #%00000000
-  sta FLOOR_PF0
   lda FLOOR_PF1
-  ora #%10000000
+  and #%01111111
   sta FLOOR_PF1
+  lda PEBBLE_PF1
+  and #%01111111
+  sta PEBBLE_PF1
   jmp _end_update_floor
 
 __dino_y_over_20:
@@ -1596,29 +1615,11 @@ _legs_2nd_scanline__obstacle_y_within_range: ; - (50)
   sta PEBBLE_CACHED_OBSTACLE_M1        ; 3 (66)
 _legs_2nd_scanline__end_of_scanline:
   lda TEMP     ; 3 (69)
-
-  sta WSYNC    ; 3 (72)
+  sec          ; 2 (71)
+  sta WSYNC    ; 3 (74)
 
   ; 3rd scanline ========================================================
                               ; - (0)
-  sta HMOVE                   ; 3 (3)
-  DRAW_OBSTACLE               ; 13 (16)
-
-  ; 28 (44)
-  LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_3rd_scanline
-_legs_and_floor__end_of_3rd_scanline:
-
-  lda BACKGROUND_COLOUR      ; 3 (47)
-  sta COLUPF                 ; 3 (50)
-  lda FOREGROUND_COLOUR      ; 3 (53)
-
-  sec                        ; 2 (55)
-  sta WSYNC                  ; 3 (58)
-
-  ; 4th scanline ========================================================
-                              ; - (0)
-  sta HMOVE                   ; 3 (3)
-
 ; For reference:
 ;       ┌──────────────────────────────────┬──────────────────────────────────┐
 ;       │    Left side of the playfield    │    Right side of the playfield   │
@@ -1633,48 +1634,104 @@ _legs_and_floor__end_of_3rd_scanline:
 ; └─────┴───────────────┴──────────────────┴───────────────┴──────────────────┘
 ; *: All values represent CPU cycles
 
-  sta COLUBK         ; 3 (6)
-  DRAW_DINO          ; 3 (9)
+  sta HMOVE       ; 3 (3)
+  ;DRAW_OBSTACLE  ; 13 (16)
+  stx GRP1        ; 3 (6)
+  sta ENAM1       ; 3 (9)
+  lda PEBBLE_PF0  ; 3 (12)
+  sta PF0         ; 3 (15)
+  lda PEBBLE_PF1  ; 3 (18)
+  sta PF1         ; 3 (21)
+  lda PEBBLE_PF2  ; 3 (24)
+  sta HMCLR       ; 3 (27)
 
-  lda FLOOR_PF0      ; 3 (12)
-  sta PF0            ; 3 (15)
-  lda FLOOR_PF1      ; 3 (18)
-  sta PF1            ; 3 (21)
-  lda FLOOR_PF2      ; 3 (24)
-  sta PF2            ; 3 (27)
+  sta PF2         ; 3 (30)
+  lda PEBBLE_PF3  ; 3 (33)
+  sta PF0         ; 3 (36)
+  lda PEBBLE_PF4  ; 3 (39)
+  sta PF1         ; 3 (42)
+  lda PEBBLE_PF5  ; 3 (45)
+  sta PF2         ; 3 (48)
 
-  sta HMCLR                        ; 3 (30)
-  ldx PEBBLE_CACHED_OBSTACLE_GRP1  ; 3 (33)
-  lda PEBBLE_CACHED_OBSTACLE_M1    ; 3 (36)
-  sta HMM1                         ; 3 (39)
+  ; 28 (44)
+  ;LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_3rd_scanline
+  tya                  ; 2 (50)
+  sbc DINO_TOP_Y_INT   ; 3 (53)
+  adc #DINO_HEIGHT     ; 2 (55)
+  bcs _legs_3rd_scanline__dino_y_within_range ; 2/3 (57/58)
+  lda #0               ; 2 (60)
+  tax                  ; 2 (62)
+  sta ENAM0            ; 3 (65)
+  jmp _legs_and_floor__end_of_3rd_scanline ; 3 (68)
 
-  lda FLOOR_PF3      ; 3 (42)
-  sta PF0            ; 3 (45)
-  lda FLOOR_PF4      ; 3 (48)
-  sta PF1            ; 3 (51)
-  lda FLOOR_PF5      ; 3 (54)
-  sta PF2            ; 3 (57)
+_legs_3rd_scanline__dino_y_within_range: ; - (57)
+  lda (PTR_DINO_OFFSET),y  ; 5 (62)
+  sta HMP0                 ; 3 (65)
+  LAX (PTR_DINO_SPRITE),y  ; 5 (60)
+
+_legs_and_floor__end_of_3rd_scanline:
+  sta WSYNC                ; 3 (73)
+
+  ; 4th scanline ========================================================
+                         ; - (0)
+  sta HMOVE              ; 3 (3)
+
+; For reference:
+;       ┌──────────────────────────────────┬──────────────────────────────────┐
+;       │    Left side of the playfield    │    Right side of the playfield   │
+;       ├───────────────┬──────────────────┼───────────────┬──────────────────┤
+;       │ write b4 (x≤) │ write again (x≥) │ write b4 (x≤) │ write again (x≥) │
+; ┌─────┼───────────────┼──────────────────┼───────────────┼──────────────────┤
+; │ PF0 │      22*      │       28         │  ⌊49.3⌋ = 49  │   ⌈54.6⌉ = 55    │
+; ├─────┼───────────────┼──────────────────┼───────────────┼──────────────────┤
+; │ PF1 │      28       │    ⌈38.6⌉ = 39   │  ⌊54.6⌋ = 54  │   ⌈65.3⌉ = 66    │
+; ├─────┼───────────────┼──────────────────┼───────────────┼──────────────────┤
+; │ PF2 │  ⌊38.6⌋ = 38  │    ⌈49.3⌉ = 50   │  ⌊65.3⌋ = 65  │    ¯\_(ツ)_/¯    │
+; └─────┴───────────────┴──────────────────┴───────────────┴──────────────────┘
+; *: All values represent CPU cycles
+  lda FLOOR_PF0         ; 3 (6)
+  sta PF0               ; 3 (9)
+  DRAW_DINO             ; 3 (12)
+  lda FLOOR_PF1         ; 3 (15)
+  sta PF1               ; 3 (18)
+  lda FLOOR_PF2         ; 3 (21)
+  sta PF2               ; 3 (24)
+
+  sta HMCLR                        ; 3 (27)
+  ldx PEBBLE_CACHED_OBSTACLE_GRP1  ; 3 (30)
+  lda PEBBLE_CACHED_OBSTACLE_M1    ; 3 (33)
+  sta HMM1                         ; 3 (36)
+
+  lda FLOOR_PF3         ; 3 (51)
+  sta PF0               ; 3 (54)
+  lda FLOOR_PF4         ; 3 (57)
+  sta PF1               ; 3 (60)
+  lda FLOOR_PF5         ; 3 (63)
+  sta PF2               ; 3 (66)
 
 _legs_and_floor__end_of_4th_scanline:
-  dey                ; 2 (59)
-  sec                ; 2 (61)
+  dey                   ; 2 (68)
+  sec                   ; 2 (70)
 
 ground_area_kernel:
-  lda BACKGROUND_COLOUR       ; 3 (64, 41 if coming from this kernel)
-  sta WSYNC                   ; 3 (64, 44 if coming from this kernel)
+  sta WSYNC                   ; 3 (76, 44 if coming from this kernel)
 
   ; 1st scanline ==============================================================
                                 ; - (0)
   sta HMOVE                     ; 3 (3)
-  sta COLUBK                    ; 3 (6)
-  lda PEBBLE_CACHED_OBSTACLE_M1 ; 3 (9)
-  DRAW_OBSTACLE                 ; 13 (22)
+  lda #0                        ; 2 (5)
+  sta PF0                       ; 3 (8)
+  sta PF1                       ; 3 (11)
+  lda PEBBLE_CACHED_OBSTACLE_M1 ; 3 (14)
+  DRAW_OBSTACLE                 ; 13 (27)
+  lda #0                        ; 3 (30)
+  sta PF2                       ; 3 (33)
 
-  ; 28 (50)
+  ; 28 (61)
   LOAD_DINO_P0_IF_IN_RANGE #IGNORE_CARRY, _ground__end_of_1st_scanline
 _ground__end_of_1st_scanline:
-  sec                         ; 2 (52)
-  sta WSYNC                   ; 3 (55)
+  sec                         ; 2 (63)
+  sta WSYNC                   ; 3 (66)
 
   ; 2nd scanline ==============================================================
                               ; - (0)
@@ -1863,15 +1920,15 @@ FINE_POSITION_OFFSET:
   .byte $90  ; offset  7
   .byte $80  ; offset  8
 
-POWERS_OF_2:
-  .byte #%00000001
-  .byte #%00000010
-  .byte #%00000100
-  .byte #%00001000
-  .byte #%00010000
-  .byte #%00100000
-  .byte #%01000000
-  .byte #%10000000
+POWERS_OF_2_NEGATED:
+  .byte #%11111110
+  .byte #%11111101
+  .byte #%11111011
+  .byte #%11110111
+  .byte #%11101111
+  .byte #%11011111
+  .byte #%10111111
+  .byte #%01111111
 ;=============================================================================
 ; ROM SETUP
 ;=============================================================================
