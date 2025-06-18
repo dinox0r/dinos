@@ -390,36 +390,6 @@ _end_check_joystick:
 ; -----------------------------------------------------------------------------
 in_game_screen:
 
-update_floor:
-  lda #0
-  sta FLOOR_PF2
-
-  ; 256 + (a - b)
-  lda DINO_TOP_Y_INT
-  cmp #INIT_DINO_TOP_Y+#20
-  bcs __dino_y_over_20
-  cmp #INIT_DINO_TOP_Y+#10
-  bcs __dino_y_over_10
-
-  lda #%10000000
-  sta FLOOR_PF0
-  lda #%11000000
-  sta FLOOR_PF1
-
-  jmp update_obstacle
-
-__dino_y_over_10:
-  lda #%00000000
-  sta FLOOR_PF0
-  lda #%10000000
-  sta FLOOR_PF1
-  jmp update_obstacle
-
-__dino_y_over_20:
-  lda #0
-  sta FLOOR_PF0
-  sta FLOOR_PF1
-
 update_obstacle:
 _update_obstacle_pos:
   ; TODO update the obstacle speed to adjust dynamically based on obstacle
@@ -528,6 +498,134 @@ __use_zero_for_obstacle_missile:
   jsr set_obstacle_data
 
 _end_update_obstacle:
+
+update_floor:
+_update_pebble_anim:
+  ; reset FLOOR_PFx
+  lda #0
+  sta FLOOR_PF0
+  sta FLOOR_PF1
+  sta FLOOR_PF2
+  sta FLOOR_PF3
+  sta FLOOR_PF4
+  sta FLOOR_PF5
+
+  lda OBSTACLE_X_INT_COPY
+  ; Will appear 16 pixels after the obstacle and the range is within [0, 160]
+  ; x + 16 - 8
+  ldy #0
+  clc
+  adc #8
+  cmp #160
+  bcs __pebble_out_of_bounds
+  cmp #128
+  ldx #5
+  bcs __update_pf2
+  cmp #96
+  ldx #4
+  bcs __update_pf1
+  cmp #80
+  ldx #3
+  bcs __update_pf0
+  cmp #48
+  ldx #2
+  bcs __update_pf2
+  cmp #16
+  ldx #1
+  bcs __update_pf1
+  ldx #0
+
+__update_pf0:
+  and #%00001100
+  lsr
+  lsr
+  tay
+  lda POWERS_OF_2+#4,y
+  jmp _end_pebble_anim
+
+__update_pf1:
+  ldy #4
+  cmp #96
+  bcs ___range_is_96_to_127 ; [96, 128) - PF4
+  ; range is [16, 32)
+  cmp #32
+  bcc ___pf1_adjust_low_nibble
+  ldy #0  ; ≥ 32
+  jmp ___pf1_adjust_low_nibble
+___range_is_96_to_127:
+  cmp #112
+  bcc ___pf1_adjust_low_nibble
+  ldy #0
+  jmp ___pf1_adjust_low_nibble
+___pf1_adjust_low_nibble:
+  and #%00001100
+  lsr
+  lsr
+  eor #%00000011
+  sty TEMP
+  clc
+  adc TEMP
+  tay
+  lda POWERS_OF_2,y
+  jmp _end_pebble_anim
+
+__update_pf2:
+  cmp #128
+  bcc ___range_is_48_to_79 ; [48, 80)
+  ; range is [128, 160)
+  cmp #144
+  bcc ___pf2_adjust_low_nibble
+  ldy #4
+  jmp ___pf2_adjust_low_nibble
+___range_is_48_to_79:
+  cmp #64
+  bcc ___pf2_adjust_low_nibble
+  ldy #4
+___pf2_adjust_low_nibble:
+  and #%00001100
+  lsr
+  lsr
+  sty TEMP
+  clc
+  adc TEMP
+  tay
+  lda POWERS_OF_2,y
+  jmp _end_pebble_anim
+
+__pebble_out_of_bounds:
+  ldx #0
+
+_end_pebble_anim:
+  sta FLOOR_PF0,x
+
+  lda DINO_TOP_Y_INT
+  ; Remember: 'cmp' under the hood acts like: 256 + (a - b)
+  cmp #INIT_DINO_TOP_Y+#20
+  bcs __dino_y_over_20
+  cmp #INIT_DINO_TOP_Y+#10
+  bcs __dino_y_over_10
+
+  lda FLOOR_PF0
+  ora #%10000000
+  sta FLOOR_PF0
+  lda FLOOR_PF1
+  ora #%11000000
+  sta FLOOR_PF1
+
+  jmp _end_update_floor
+
+__dino_y_over_10:
+  lda FLOOR_PF0
+  ora #%00000000
+  sta FLOOR_PF0
+  lda FLOOR_PF1
+  ora #%10000000
+  sta FLOOR_PF1
+  jmp _end_update_floor
+
+__dino_y_over_20:
+_end_update_floor:
+
 
 _check_if_dino_is_jumping:
   lda #FLAG_DINO_JUMPING
@@ -1535,43 +1633,42 @@ _legs_and_floor__end_of_3rd_scanline:
 ; └─────┴───────────────┴──────────────────┴───────────────┴──────────────────┘
 ; *: All values represent CPU cycles
 
-  sta COLUBK                  ; 3 (6)
-  DRAW_DINO                   ; 3 (9)
+  sta COLUBK         ; 3 (6)
+  DRAW_DINO          ; 3 (9)
 
-  lda FLOOR_PF0               ; 3 (12)
-  sta PF0                     ; 3 (15)
-  lda FLOOR_PF1               ; 3 (18)
-  sta PF1                     ; 3 (21)
-  lda FLOOR_PF2               ; 3 (24)
-  sta PF2                     ; 3 (27)
+  lda FLOOR_PF0      ; 3 (12)
+  sta PF0            ; 3 (15)
+  lda FLOOR_PF1      ; 3 (18)
+  sta PF1            ; 3 (21)
+  lda FLOOR_PF2      ; 3 (24)
+  sta PF2            ; 3 (27)
 
   sta HMCLR                        ; 3 (30)
   ldx PEBBLE_CACHED_OBSTACLE_GRP1  ; 3 (33)
   lda PEBBLE_CACHED_OBSTACLE_M1    ; 3 (36)
   sta HMM1                         ; 3 (39)
 
-  lda FLOOR_PF3               ; 3 (42)
-  sta PF0                     ; 3 (45)
-  lda FLOOR_PF4               ; 3 (48)
-  sta PF1                     ; 3 (51)
-  lda FLOOR_PF5               ; 3 (54)
-  sta PF2                     ; 3 (57)
+  lda FLOOR_PF3      ; 3 (42)
+  sta PF0            ; 3 (45)
+  lda FLOOR_PF4      ; 3 (48)
+  sta PF1            ; 3 (51)
+  lda FLOOR_PF5      ; 3 (54)
+  sta PF2            ; 3 (57)
 
 _legs_and_floor__end_of_4th_scanline:
-  dey                         ; 2 (59)
-  sec                         ; 2 (61)
+  dey                ; 2 (59)
+  sec                ; 2 (61)
 
 ground_area_kernel:
-  sta TEMP                    ; 3 (64, 41 if coming from this kernel)
-  lda BACKGROUND_COLOUR       ; 3 (67, 44 if coming from this kernel)
-  sta WSYNC                   ; 3 (70, 47 if coming from this kernel)
+  lda BACKGROUND_COLOUR       ; 3 (64, 41 if coming from this kernel)
+  sta WSYNC                   ; 3 (64, 44 if coming from this kernel)
 
   ; 1st scanline ==============================================================
-                              ; - (0)
-  sta HMOVE                   ; 3 (3)
-  sta COLUBK                  ; 3 (6)
-  lda TEMP                    ; 3 (9)
-  DRAW_OBSTACLE               ; 13 (22)
+                                ; - (0)
+  sta HMOVE                     ; 3 (3)
+  sta COLUBK                    ; 3 (6)
+  lda PEBBLE_CACHED_OBSTACLE_M1 ; 3 (9)
+  DRAW_OBSTACLE                 ; 13 (22)
 
   ; 28 (50)
   LOAD_DINO_P0_IF_IN_RANGE #IGNORE_CARRY, _ground__end_of_1st_scanline
@@ -1597,8 +1694,11 @@ _ground__end_of_2nd_scanline:
   sta ENAM0                   ; 3 (48)
   sta ENAM1                   ; 3 (51)
   sta ENABL                   ; 3 (54)
+  sta PF0                     ; 3 (57)
+  sta PF1                     ; 3 (60)
+  sta PF2                     ; 3 (63)
 
-  sta WSYNC                   ; 3 (57)
+  sta WSYNC                   ; 3 (66)
   ;----------------------------------------------------------------------------
                               ; - (0)
   sta HMOVE                   ; 3 (3)
@@ -1763,6 +1863,15 @@ FINE_POSITION_OFFSET:
   .byte $90  ; offset  7
   .byte $80  ; offset  8
 
+POWERS_OF_2:
+  .byte #%00000001
+  .byte #%00000010
+  .byte #%00000100
+  .byte #%00001000
+  .byte #%00010000
+  .byte #%00100000
+  .byte #%01000000
+  .byte #%10000000
 ;=============================================================================
 ; ROM SETUP
 ;=============================================================================

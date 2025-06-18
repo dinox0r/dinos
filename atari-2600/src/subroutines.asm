@@ -37,4 +37,3 @@ set_obstacle_data subroutine
   sbc #0          ; 2 (13) Subtract carry from high byte
   sta $01,x       ; 4 (17) Store adjusted high byte at pointer X+1
   rts             ; 6 (23) Return from subroutine
-
