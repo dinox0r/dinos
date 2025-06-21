@@ -379,14 +379,23 @@
 .TARGET_BRANCH_IF_OFFSCREEN SET {1}
     ; First, check if the obstacle sprite data is off-screen in which case
     ; it doesn't matter the data for the sprite will be zeroed
-    lda OBSTACLE_X_INT_COPY
+    lda OBSTACLE_X_INT
     cmp #OBSTACLE_GRP1_MIN_SCREEN_X
     bcc .TARGET_BRANCH_IF_OFFSCREEN
   ENDM
 
   MACRO CHECK_IF_OBSTACLE_MISSILE_IS_OFFSCREEN
 .TARGET_BRANCH_IF_OFFSCREEN SET {1}
-    lda OBSTACLE_X_INT_COPY
+    lda OBSTACLE_X_INT
     cmp #OBSTACLE_M1_MAX_SCREEN_X
     bcs .TARGET_BRANCH_IF_OFFSCREEN
+  ENDM
+
+  ; TODO: Remove this
+  MACRO MAX_BETWEEN_A_AND_CONSTANT
+.CONSTANT SET {1}
+    cmp #.CONSTANT
+    bcs .a_is_greater_or_equal_than_constant
+    lda #.CONSTANT
+a_is_greater_or_equal_than_constant:
   ENDM

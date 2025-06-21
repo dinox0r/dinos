@@ -43,7 +43,7 @@ DINO_SPRITE_1:
 ;  |   █    █        |     |   █    █        |     |█    █  |
 ;  |   ██   ██       |     |   ██   ██       |     |██   ██ |
 
-  .ds 1             ; <------ clears GRP0 so the last row doesn't repeat
+  .ds 1              ; <------ clears GRP0 so the last row doesn't repeat
   .byte #%11000110   ;  ██   ██
   .byte #%10000100   ;  █    █
   .byte #%11000100   ;  ██   █
@@ -62,11 +62,11 @@ DINO_SPRITE_1:
   .byte #%11111111   ;  ████████
   .byte #%01111111   ;   ███████
   .byte #%11111111   ;  ████████
-  .ds 1             ; <- this is to match the size of the pixel offsets table
+  .ds 1              ; <- this is to match the size of the pixel offsets table
 DINO_SPRITE_1_END = * ; * means 'here' or 'this'
 
 DINO_SPRITE_2:
-  .ds 1             ;
+  .ds 1              ;
   .byte #%11000000   ;  ██
   .byte #%10000000   ;  █
   .byte #%11000110   ;  ██   ██
@@ -85,11 +85,11 @@ DINO_SPRITE_2:
   .byte #%11111111   ;  ████████
   .byte #%01111111   ;   ███████
   .byte #%11111111   ;  ████████
-  .ds 1             ;
+  .ds 1              ;
 DINO_SPRITE_2_END = *
 
 DINO_SPRITE_3:
-  .ds 1             ;
+  .ds 1              ;
   .byte #%00000110   ;       ██
   .byte #%11000100   ;  ██   █
   .byte #%10000100   ;  █    █
@@ -108,30 +108,31 @@ DINO_SPRITE_3:
   .byte #%11111111   ;  ████████
   .byte #%01111111   ;   ███████
   .byte #%11111111   ;  ████████
-  .ds 1             ;
+  .ds 1              ;
 DINO_SPRITE_3_END = *
 
-;DINO_SPRITE_DEAD:
-;  .ds 1             ;
-;  .byte #%00000110   ;       ██
-;  .byte #%11000100   ;  ██   █
-;  .byte #%10000100   ;  █    █
-;  .byte #%11101100   ;  ███ ██
-;  .byte #%11111111   ;  ████████
-;  .byte #%11111111   ;  ████████
-;  .byte #%11111111   ;  ████████
-;  .byte #%11111101   ;  ██████ █
-;  .byte #%11001111   ;  ██  ████
-;  .byte #%11111100   ;  ██████
-;  .byte #%11111000   ;  █████
-;  .byte #%11111110   ;  ███████
-;  .byte #%11110000   ;  ████
-;  .byte #%11111111   ;  ████████
-;  .byte #%11111111   ;  ████████
-;  .byte #%11111111   ;  █ ██████
-;  .byte #%01111111   ;   █ █████
-;  .byte #%11111111   ;  █ ██████
-;  .ds 1             ;
+DINO_GAME_OVER_SPRITE:
+  .ds 1              ;
+  .byte #%11000110   ;  ██   ██
+  .byte #%10000100   ;  █    █
+  .byte #%11000100   ;  ██   █
+  .byte #%11101100   ;  ███ ██
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%11111101   ;  ██████ █
+  .byte #%11001111   ;  ██  ████
+  .byte #%11111100   ;  ██████
+  .byte #%11111000   ;  █████
+  .byte #%11111110   ;  ███████
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%01111111   ;  █ ██████
+  .byte #%10111111   ;   █ █████
+  .byte #%10111111   ;  █ ██████
+  .ds 1              ;
+DINO_GAME_OVER_SPRITE_END = *
 
 DINO_SPRITE_OFFSETS:
 ;       LEFT  <---------------------------------------------------------> RIGHT
@@ -221,6 +222,30 @@ DINO_MISSILE_0_OFFSETS:
   ;    ▒ missile pixels
   ;    X overlapping pixels
 DINO_MISSILE_0_OFFSETS_END = *
+
+DINO_GAME_OVER_MISSILE_0_OFFSETS:
+                  ;                        offset           size
+  .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+  .byte #%00000000 ; |   ██   |██       |       0                0
+  .byte #%00000000 ; |   █    |█        |       0                0
+  .byte #%00000000 ; |   ██   |█        |       0                0
+  .byte #%00000000 ; |   ███ █|█        |       0                0
+  .byte #%00000000 ; |  ██████|██       |       0                0
+  .byte #%11110110 ; | ▒▒█████|███      |      +1                2
+  .byte #%00001010 ; |▒▒▒▒████|███      |       0                4
+  .byte #%01011110 ; |▒▒▒▒▒XXX|███ █    |      -5                8
+  .byte #%10111110 ; |██  █XXX|▒▒▒▒▒    |      +5                8
+  .byte #%00000010 ; |▒    ███|███      |       0                1
+  .byte #%01110010 ; |▒     ██|███      |      -7                1
+  .byte #%00000010 ; |       ▒|███████  |       0                1
+  .byte #%00000110 ; |       ▒|X███     |       0                2
+  .byte #%00000110 ; |       ▒|▒████████|       0                2
+  .byte #%00000110 ; |       ▒|▒████████|       0                2
+  .byte #%00000110 ; |       ▒|▒ ███████|       0                2
+  .byte #%10000010 ; |       ▒| █ ██████|      +8                1
+  .byte #%00000000 ; |        |█ ██████ |       0                0
+  .ds 1; 
+DINO_GAME_OVER_MISSILE_0_OFFSETS_END = *
 
 ; Crouching sprite diagram:
 ;
@@ -348,7 +373,7 @@ PTERO_WINGS_OPEN_SPRITE:
 ; In case ROM is needed, the ptero sprites could be merged together 
 ; to reuse the duplicated zeroes
 ;--------------------------------------------------------------------------
-  .ds 1            ;⏐        ⏐
+  .ds 1             ;⏐        ⏐
   .byte #%00000000  ;⏐        ⏐
   .byte #%00000000  ;⏐        ⏐
   .byte #%00000000  ;⏐        ⏐
@@ -367,7 +392,7 @@ PTERO_WINGS_OPEN_SPRITE:
   .byte #%00000000  ;⏐        ⏐
   .byte #%00000000  ;⏐        ⏐
   .byte #%00000000  ;⏐        ⏐
-  .ds 1            ;⏐        ⏐
+  .ds 1             ;⏐        ⏐
 PTERO_WINGS_OPEN_SPRITE_END = *
 
 ; For reference:
@@ -376,9 +401,9 @@ PTERO_WINGS_OPEN_SPRITE_END = *
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 PTERO_WINGS_OPEN_MISSILE_1_CONF:
   ;                                    HMM1 bits 7,6,5,4   NUSIZx bits 5,4
-  ; Enable M1 bit
-  ;            ⏐
-  .ds 1 ;      ↓    |        ⏐        |
+  ;  Enable M1 bit
+  ;             ⏐
+  .ds 1 ;       ↓    |        ⏐        |
   .byte #%00000000 ; |        ⏐        |         0              0
   .byte #%00000000 ; |        ⏐        |         0              0
   .byte #%00000000 ; |        ⏐        |         0              0
@@ -397,9 +422,9 @@ PTERO_WINGS_OPEN_MISSILE_1_CONF:
   .byte #%00000000 ; |        ⏐        |         0              0
   .byte #%00000000 ; |        ⏐        |         0              0
   .byte #%00000000 ; |        ⏐        |         0              0
-  .ds 1           ; |        ⏐        |
-  ;                          ↑↑
-  ;                 end GRP1/  \-- M1 position
+  .ds 1            ; |        ⏐        |
+  ;                           ↑↑
+  ;                  end GRP1/  \-- M1 position
 PTERO_WINGS_OPEN_MISSILE_1_CONF_END = *
 
 PTERO_WINGS_CLOSED_SPRITE:
@@ -477,9 +502,9 @@ PTERO_WINGS_CLOSED_MISSILE_1_CONF:
 ;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
 
   ;                                    HMM1 bits 7,6,5,4   NUSIZx bits 5,4
-  ; Enable M1 bit
-  ;            ⏐
-  .ds 1 ;      ↓    ⏐        ⏐        |
+  ;  Enable M1 bit
+  ;             ⏐
+  .ds 1 ;       ↓    ⏐        ⏐        |
   .byte #%00000000 ; ⏐      █ ⏐        |         0              0
   .byte #%00000000 ; ⏐      ██⏐        |         0              0
   .byte #%00000000 ; ⏐      ██⏐        |         0              0
@@ -498,9 +523,9 @@ PTERO_WINGS_CLOSED_MISSILE_1_CONF:
   .byte #%00000000 ; ⏐        ⏐        |         0              0
   .byte #%00000000 ; ⏐        ⏐        |         0              0
   .byte #%00000000 ; ⏐        ⏐        |         0              0
-  .ds 1           ; ⏐        ⏐        |
-  ;                           ↑
-  ;                   initial M1 position (cycle 25)
+  .ds 1            ; ⏐        ⏐        |
+  ;                            ↑
+  ;                    initial M1 position (cycle 25)
 PTERO_WINGS_CLOSED_MISSILE_1_CONF_END = *
 
 ZERO_DATA:
@@ -542,7 +567,7 @@ CACTUS_2_SPRITE_END = *
 CACTUS_2_MISSILE_1_CONF:
 ;    Enable M1 bit
 ;               ↓
-  .ds 1            ;⏐
+  .ds 1             ;⏐
   .byte #%00000110  ;|
   .byte #%00000000  ;|
   .byte #%11100000  ;|
@@ -561,11 +586,11 @@ CACTUS_2_MISSILE_1_CONF:
   .byte #%00010000  ;|
   .byte #%00000000  ;|
   .byte #%11110000  ;|
-  .ds 1            ;⏐
+  .ds 1             ;⏐
 CACTUS_2_MISSILE_1_CONF_END = *
 
 CACTUS_3_SPRITE:
-  .ds 1            ;⏐
+  .ds 1             ;⏐
   .byte #%00101000  ;⏐   █ █   
   .byte #%10100011  ;⏐ █ █   ██
   .byte #%00100011  ;⏐   █   ██
@@ -599,7 +624,7 @@ CACTUS_3_SPRITE_END = *
 CACTUS_3_MISSILE_1_CONF:
 ;    Enable M1 bit
 ;               ↓
-  .ds 1            ;⏐
+  .ds 1             ;⏐
   .byte #%00000110  ;|
   .byte #%00000000  ;|
   .byte #%11100000  ;|
@@ -618,7 +643,7 @@ CACTUS_3_MISSILE_1_CONF:
   .byte #%00010000  ;|
   .byte #%00000000  ;|
   .byte #%11110000  ;|
-  .ds 1            ;⏐
+  .ds 1             ;⏐
 CACTUS_3_MISSILE_1_CONF_END = *
 
 OBSTACLES_SPRITES_TABLE:

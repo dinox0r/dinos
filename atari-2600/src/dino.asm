@@ -35,11 +35,15 @@ OBSTACLE_GRP1_MIN_SCREEN_X = #9  ; if obstacle_x < 8, grp1 = 0
 OBSTACLE_MIN_X = #0
 OBSTACLE_MAX_X = #163
 
+; TODO Set this value to a beginner level
+OBSTACLE_INITIAL_SPEED = #250
+
 CACTUS_Y = #27
 
 PTERO_OPEN_WINGS_TABLE_ENTRY_INDEX = #1
 PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
 
+GAME_OVER_TIMER_TOTAL_TIME = #50
 
 PLAY_AREA_SCANLINES = #61    ; All of these are measured as 2x scanlines
 FLOOR_SCANLINES = #2
@@ -94,11 +98,14 @@ FLAG_DINO_LEFT_LEG =  #%00000010
 FLAG_DINO_JUMPING =   #%00000100
 FLAG_DINO_CROUCHING = #%00010000
 
+FLAG_GAME_OVER = #%01000000
+
 FLAG_DINO_CROUCHING_OR_JUMPING = FLAG_DINO_CROUCHING | FLAG_DINO_JUMPING
 
 TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
 TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
+TOGGLE_FLAG_GAME_OVER_OFF      = #%10111111
 
 ;=============================================================================
 ; ZERO PAGE MEMORY / VARIABLES
@@ -107,62 +114,63 @@ TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
   ORG $80
 
 ; Dino State Variables
-DINO_TOP_Y_INT             .byte   ; 1 byte   (0)
-DINO_TOP_Y_FRACT           .byte   ; 1 byte   (1)
-DINO_VY_INT                .byte   ; 1 byte   (2)
-DINO_VY_FRACT              .byte   ; 1 byte   (3)
+DINO_TOP_Y_INT               .byte   ; 1 byte   (0)
+DINO_TOP_Y_FRACT             .byte   ; 1 byte   (1)
+DINO_VY_INT                  .byte   ; 1 byte   (2)
+DINO_VY_FRACT                .byte   ; 1 byte   (3)
 
-PTR_DINO_SPRITE            .word   ; 2 bytes  (4)
-PTR_DINO_OFFSET            .word   ; 2 bytes  (6)
+PTR_DINO_SPRITE              .word   ; 2 bytes  (4)
+PTR_DINO_OFFSET              .word   ; 2 bytes  (6)
 PTR_DINO_MISSILE_0_CONF      .word   ; 2 bytes  (8)
 
 ; Input variables
-KEY_UP_PRESSED_FRAMES      .byte   ; 1 byte   (10)
+KEY_UP_PRESSED_FRAMES        .byte   ; 1 byte   (10)
 
 ; Obstacle Variables
-OBSTACLE_TYPE              .byte   ; 1 byte   (11)
-OBSTACLE_Y                 .byte   ; 1 byte   (12)
-OBSTACLE_X_INT_COPY             .byte   ; 1 byte   (13)
-OBSTACLE_X_INT             .byte   ; 1 byte   (13)
-OBSTACLE_X_FRACT           .byte   ; 1 byte   (14)
-OBSTACLE_VX_INT            .byte   ; 1 byte   (15)
-OBSTACLE_VX_FRACT          .byte   ; 1 byte   (16)
+OBSTACLE_TYPE                .byte   ; 1 byte   (11)
+OBSTACLE_Y                   .byte   ; 1 byte   (12)
+OBSTACLE_X_INT               .byte   ; 1 byte   (13)
+OBSTACLE_X_FRACT             .byte   ; 1 byte   (14)
+OBSTACLE_VX_INT              .byte   ; 1 byte   (15)
+OBSTACLE_VX_FRACT            .byte   ; 1 byte   (16)
 
-PTR_OBSTACLE_SPRITE        .word   ; 2 bytes  (17)
-PTR_OBSTACLE_OFFSET        .word   ; 2 bytes  (19)
+PTR_OBSTACLE_SPRITE          .word   ; 2 bytes  (17)
+PTR_OBSTACLE_OFFSET          .word   ; 2 bytes  (19)
 PTR_OBSTACLE_MISSILE_1_CONF  .word   ; 2 bytes  (21)
 
 ; Play area
-PLAY_AREA_MIN_Y            .byte   ; 1 byte   (23)
-FOREGROUND_COLOUR          .byte   ; 1 byte   (24)
-BACKGROUND_COLOUR          .byte   ; 1 byte   (25)
+PLAY_AREA_MIN_Y              .byte   ; 1 byte   (23)
+FOREGROUND_COLOUR            .byte   ; 1 byte   (24)
+BACKGROUND_COLOUR            .byte   ; 1 byte   (25)
 
-PTR_AFTER_PLAY_AREA_KERNEL .word   ; 2 bytes  (26)
+PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (26)
 
 ; Ground area
-FLOOR_PF0                  .byte   ; 1 byte ()
-FLOOR_PF1                  .byte   ; 1 byte ()
-FLOOR_PF2                  .byte   ; 1 byte ()
-FLOOR_PF3                  .byte   ; 1 byte ()
-FLOOR_PF4                  .byte   ; 1 byte ()
-FLOOR_PF5                  .byte   ; 1 byte ()
+FLOOR_PF0                    .byte   ; 1 byte   (28)
+FLOOR_PF1                    .byte   ; 1 byte   (29)
+FLOOR_PF2                    .byte   ; 1 byte   (30)
+FLOOR_PF3                    .byte   ; 1 byte   (31)
+FLOOR_PF4                    .byte   ; 1 byte   (32)
+FLOOR_PF5                    .byte   ; 1 byte   (33)
 
-PEBBLE_X_INT                .byte
-PEBBLE_X_FRACT              .byte
-PEBBLE_CACHED_OBSTACLE_GRP1 .byte
-PEBBLE_CACHED_OBSTACLE_M1   .byte
+PEBBLE_X_INT                 .byte   ; 1 byte   (34)
+PEBBLE_X_FRACT               .byte   ; 1 byte   (35)
+PEBBLE_CACHED_OBSTACLE_GRP1  .byte   ; 1 byte   (36)
+PEBBLE_CACHED_OBSTACLE_M1    .byte   ; 1 byte   (37)
 
-PEBBLE_PF0                  .byte   ; 1 byte ()
-PEBBLE_PF1                  .byte   ; 1 byte ()
-PEBBLE_PF2                  .byte   ; 1 byte ()
-PEBBLE_PF3                  .byte   ; 1 byte ()
-PEBBLE_PF4                  .byte   ; 1 byte ()
-PEBBLE_PF5                  .byte   ; 1 byte ()
+PEBBLE_PF0                   .byte   ; 1 byte   (38)
+PEBBLE_PF1                   .byte   ; 1 byte   (39)
+PEBBLE_PF2                   .byte   ; 1 byte   (40)
+PEBBLE_PF3                   .byte   ; 1 byte   (41)
+PEBBLE_PF4                   .byte   ; 1 byte   (42)
+PEBBLE_PF5                   .byte   ; 1 byte   (43)
 
 ; Gameplay variables
-GAME_FLAGS                 .byte   ; 1 byte   (28)
-FRAME_COUNT                .word   ; 2 bytes  (29)
-RND_SEED                   .word   ; 2 bytes  (31)
+GAME_FLAGS                   .byte   ; 1 byte   (44)
+FRAME_COUNT                  .word   ; 2 bytes  (45)
+RND_SEED                     .word   ; 2 bytes  (47)
+RANDOM                       .word   ; 2 bytes  (49)
+GAME_OVER_TIMER              .byte   ; 1 byte   (50)
 
 ; This section is to include variables that share the same memory but are 
 ; referenced under different names, something like temporary variables that 
@@ -170,13 +178,13 @@ RND_SEED                   .word   ; 2 bytes  (31)
 ; at a time, leaving no risk of overlap)
 
 ; To save the state of a register temporarily during tight situations
-TEMP                       .byte   ; 1 byte   (36)
+TEMP                         .byte   ; 1 byte   (51)
 
 ;=============================================================================
 ; ROM / GAME CODE
 ;=============================================================================
   SEG code
-  ORG $f000
+  ORG $F000
 
   ; -----------------------
   ; RESET
@@ -187,13 +195,13 @@ reset:
 
   ; At the start, the machine memory could be in any state, and that's good!
   ; We can use those leftover bytes as seed for RND before doing cleaning ZP
-  lda #<RND_SEED
+  lda #<RANDOM
   adc RND_MEM_LOC_1
-  sta RND_SEED
+  sta RANDOM
   ;
-  lda #>RND_SEED
+  lda #>RANDOM
   adc RND_MEM_LOC_2
-  sta RND_SEED+1
+  sta RANDOM+1
 
   ; -----------------------
   ; CLEAR ZERO PAGE MEMORY
@@ -222,6 +230,7 @@ game_init:
   lda #BKG_LIGHT_GRAY
   sta BACKGROUND_COLOUR
 
+_init_dino_conf:
   lda #<[DINO_SPRITE_1 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE
   lda #>[DINO_SPRITE_1 - INIT_DINO_POS_Y]
@@ -237,14 +246,15 @@ game_init:
   lda #>[DINO_MISSILE_0_OFFSETS - INIT_DINO_POS_Y]
   sta PTR_DINO_MISSILE_0_CONF+1
 
-_init_batch_conf:
-  lda #200
+_init_pebble_conf:
+  lda #250
   sta PEBBLE_X_INT
   lda #0
   sta PEBBLE_X_FRACT
 
 _init_obstacle_conf:
 ; min 0, max 168
+
 DEBUG_OBSTACLE_X_POS = #168 
   ; TODO: Remove/Update after testing obstacle positioning
   lda #4
@@ -257,6 +267,12 @@ DEBUG_OBSTACLE_X_POS = #168
   lda #0
   sta OBSTACLE_X_FRACT
 
+  lda #OBSTACLE_INITIAL_SPEED
+  ;lda #0    ; Uncomment this to make the obstacle state
+  sta OBSTACLE_VX_FRACT
+  lda #0
+  sta OBSTACLE_VX_INT
+
 ;=============================================================================
 ; FRAME
 ;=============================================================================
@@ -266,7 +282,6 @@ vsync_and_vblank:
   lda #2     ;
   sta VBLANK ; Enables VBLANK (and turns video signal off)
 
-  ;inc <RND_SEED
   ; last line of overscan
   sta WSYNC
 
@@ -318,9 +333,26 @@ check_joystick:
   ;    2   | #%00000100  | lef       | 1
   ;    1   | #%00000010  | down      | 1
   ;    0   | #%00000001  | up        | 1
+  lda #FLAG_GAME_OVER
+  bit GAME_FLAGS
+  beq _check_joystick_down
+  ; If the game over timer is still going, ignore any input, this is to 
+  ; give the player a brief pause so they get to see the game over screen 
+  ; and don't skip it by an accidental button press
+  lda GAME_OVER_TIMER
+  beq _check_for_any_button
+  jmp end_frame_setup
+
+_check_for_any_button:
+  lda #%11110000   ; Check all the player 1 buttons
+  and SWCHA
+  cmp #%11110000
+  beq __no_input
+  jmp game_init    ; If any button was preset, reset
+__no_input:
+  jmp end_frame_setup
 
 _check_joystick_down:
-  lda SWCHA
   lda #%00100000 ; down (player 0)
   bit SWCHA
   beq _on_joystick_down
@@ -389,17 +421,13 @@ _end_check_joystick:
 ; GAME SCREEN SETUP
 ; -----------------------------------------------------------------------------
 in_game_screen:
+  lda #FLAG_GAME_OVER
+  bit GAME_FLAGS
+  beq update_obstacle
+  jmp end_frame_setup
 
 update_obstacle:
 _update_obstacle_pos:
-  ; TODO update the obstacle speed to adjust dynamically based on obstacle
-  ; type and difficulty
-  lda #250 ;
-  ;lda #0    ; DEBUG
-  sta OBSTACLE_VX_FRACT
-  lda #0
-  sta OBSTACLE_VX_INT
-
   ; update obstacle x
   sec
   lda OBSTACLE_X_FRACT
@@ -408,16 +436,6 @@ _update_obstacle_pos:
   lda OBSTACLE_X_INT
   sbc OBSTACLE_VX_INT
   sta OBSTACLE_X_INT
-
-  sta OBSTACLE_X_INT_COPY
-
-  ;lda FRAME_COUNT
-  ;and #1
-  ;beq _check_obstacle_pos
-  ;clc
-  ;lda #8
-  ;adc OBSTACLE_X_INT_COPY
-  ;sta OBSTACLE_X_INT_COPY
 
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
@@ -432,8 +450,6 @@ _reset_obstacle_position:
   sta OBSTACLE_X_FRACT
 
 _update_obstacle_sprite:
-
-
   lda OBSTACLE_TYPE
   ; obstacle_type == 0 is the empty obstacle
   beq __no_ptero
@@ -496,10 +512,33 @@ __use_zero_for_obstacle_missile:
   lda OBSTACLES_MISSILE_1_CONF_TABLE,x
   ldx #PTR_OBSTACLE_MISSILE_1_CONF
   jsr set_obstacle_data
-
-_end_update_obstacle:
+end_update_obstacle:
 
 update_floor:
+_update_pebble_pos:
+  sec
+  lda PEBBLE_X_FRACT
+  sbc OBSTACLE_VX_FRACT
+  sta PEBBLE_X_FRACT
+  lda PEBBLE_X_INT
+  sbc OBSTACLE_VX_INT
+  sta PEBBLE_X_INT
+
+  cmp #8
+  bcs __end_update_pebble_pos
+  ; reset pebble pos to a random x
+  jsr rnd16
+  lda RANDOM
+  and #63
+  sta TEMP
+  lda RANDOM+1
+  sta PEBBLE_X_FRACT
+  and #15
+  adc #160
+  adc TEMP
+  sta PEBBLE_X_INT
+__end_update_pebble_pos:
+
 _update_pebble_anim:
   lda FOREGROUND_COLOUR
   sta COLUPF
@@ -520,12 +559,8 @@ _update_pebble_anim:
   sta PEBBLE_PF4
   sta PEBBLE_PF5
 
-  lda OBSTACLE_X_INT_COPY
-  ; Will appear 16 pixels after the obstacle and the range is within [0, 160]
-  ; x + 16 - 8
+  lda PEBBLE_X_INT
   ldy #0
-  clc
-  adc #8
   cmp #160
   bcs __pebble_out_of_bounds
   cmp #128
@@ -631,7 +666,7 @@ _end_pebble_anim:
   and #%00111111
   sta PEBBLE_PF1
 
-  jmp _end_update_floor
+  jmp end_update_floor
 
 __dino_y_over_10:
   lda FLOOR_PF1
@@ -640,12 +675,12 @@ __dino_y_over_10:
   lda PEBBLE_PF1
   and #%01111111
   sta PEBBLE_PF1
-  jmp _end_update_floor
+  jmp end_update_floor
 
 __dino_y_over_20:
-_end_update_floor:
+end_update_floor:
 
-
+update_dino:
 _check_if_dino_is_jumping:
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
@@ -705,7 +740,6 @@ _update_jump:
   sta DINO_VY_INT
 
 _update_jump_pos:
-  ; the following assumes DINO_SPRITE_1 does not cross page boundary
   sec
   lda #<DINO_SPRITE_1_END
   sbc DINO_TOP_Y_INT
@@ -768,7 +802,7 @@ _swap_legs:
   sta GAME_FLAGS
 
 _end_legs_anim:
-
+end_update_dino:
   jmp end_frame_setup
 
 ; -----------------------------------------------------------------------------
@@ -964,7 +998,7 @@ _set_obstacle_x_position:
   ;   setup logic before invoking case 3
   ;   case 3: both GRP1 and M1 are fully visible
   ; }
-  lda OBSTACLE_X_INT_COPY                                   ; 3 (40)
+  lda OBSTACLE_X_INT                                   ; 3 (40)
   cmp #9                                               ; 2 (42)
   bcc _case_1__p1_fully_hidden_m1_partially_visible    ; 2/3 (44/45)
   cmp #17                                              ; 2 (46)
@@ -1204,20 +1238,22 @@ __end_middle_section_kernel_setup:
   sta PLAY_AREA_MIN_Y  ; (30/28) - If crouching, the play area min y is changed
 
   ; TODO can remove this sec?
-  sec              ; 2 (32/30) Set the carry ahead of time for the next scanline
+  sec         ; 2 (32/30) Set the carry ahead of time for the next scanline
 
   ; Remove the fine offsets applied to the obstacles before going to the next 
   ; scanline, also leave the other motion registers in a clear state
-  sta HMCLR        ; 3 (35/33) 
+  sta HMCLR   ; 3 (35/33) 
 
-  lda #$0C         ; for debugging purposes
-  sta COLUBK       ;
+  lda #$0C    ; for debugging purposes
+  sta COLUBK  ;
 
   ; We are assuming that reg A has the obstacle graphics, which go to GRP1
   ; and that reg X has the BALL state for the obstacle additional graphics, 
   ; so we have to 0 both before the first scanline of the sky kernel
   lda #0
   tax
+
+  sta CXCLR  ; Clear all collisions
 
 play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta WSYNC      ; 3 (37/35)
@@ -1869,17 +1905,91 @@ end_of_frame:
   sta TIM64T
   lda #2
   sta VBLANK
-_overscan:
-  lda INTIM
-  bne _overscan
-  ; We're on the final OVERSCAN line and 40 cpu cycles remain,
-  ; do the jump now to consume some cycles and a WSYNC at the 
-  ; beginning of the next frame to consume the rest
 
+  lda #FLAG_GAME_OVER
+  bit GAME_FLAGS
+  bne _no_collision    ; Skip the collision detection if the game over 
+                       ; flag is already set, otherwise the game over timer
+                       ; is reset
+
+  ; Collision detection
+  bit CXPPMM
+  bmi _set_game_over
+  jmp _no_collision
+_set_game_over:
+  lda #GAME_OVER_TIMER_TOTAL_TIME
+  sta GAME_OVER_TIMER
+
+  lda #FLAG_GAME_OVER
+  ora GAME_FLAGS
+  sta GAME_FLAGS
+
+  ; Set the speed of the obstacles and dino to 0
+  lda #0
+  sta OBSTACLE_VX_FRACT
+  sta OBSTACLE_VX_INT
+  sta DINO_VY_INT     ; Clearing the vertical speed will stop the
+  sta DINO_VY_FRACT   ; dino vertical movement (in case it was jumping)
+
+  ; Remove the crouching flag in case it was crouching
+  lda #FLAG_DINO_CROUCHING
+  bit GAME_FLAGS
+  beq __set_dino_game_over_sprite
+  lda #TOGGLE_FLAG_DINO_CROUCHING_OFF
+  ora GAME_FLAGS
+  ; Restore the Y position to the standing default position
+  lda DINO_TOP_Y_INT
+  bne __set_dino_game_over_sprite
+  lda #INIT_DINO_TOP_Y
+  sta DINO_TOP_Y_INT
+
+__set_dino_game_over_sprite:
+  sec
+  lda #<DINO_GAME_OVER_SPRITE_END
+  sbc DINO_TOP_Y_INT
+  sta PTR_DINO_SPRITE
+  lda #>DINO_GAME_OVER_SPRITE_END
+  sbc #0
+  sta PTR_DINO_SPRITE+1
+
+  sec
+  lda #<DINO_SPRITE_OFFSETS_END
+  sbc DINO_TOP_Y_INT
+  sta PTR_DINO_OFFSET
+  lda #>DINO_SPRITE_OFFSETS_END
+  sbc #0
+  sta PTR_DINO_OFFSET+1
+
+  sec
+  lda #<DINO_GAME_OVER_MISSILE_0_OFFSETS_END
+  sbc DINO_TOP_Y_INT
+  sta PTR_DINO_MISSILE_0_CONF
+  lda #>DINO_GAME_OVER_MISSILE_0_OFFSETS_END
+  sbc #0
+  sta PTR_DINO_MISSILE_0_CONF+1
+
+_no_collision:
+  lda GAME_OVER_TIMER
+  beq _update_random
+  dec GAME_OVER_TIMER
+
+_update_random:
+  dec RANDOM+1
+  inc RANDOM
+  jsr rnd16
+
+_update_frame_count:
   inc FRAME_COUNT
   bne __skip_inc_frame_count_upper_byte
   inc FRAME_COUNT+1
 __skip_inc_frame_count_upper_byte:
+
+_remaining_overscan:
+  lda INTIM
+  bne _remaining_overscan
+  ; We're on the final OVERSCAN line and 40 cpu cycles remain,
+  ; do the jump now to consume some cycles and a WSYNC at the
+  ; beginning of the next frame to consume the rest
 
   jmp start_of_frame
 
