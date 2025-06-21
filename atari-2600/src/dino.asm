@@ -1936,7 +1936,8 @@ _set_game_over:
   bit GAME_FLAGS
   beq __set_dino_game_over_sprite
   lda #TOGGLE_FLAG_DINO_CROUCHING_OFF
-  ora GAME_FLAGS
+  and GAME_FLAGS
+  sta GAME_FLAGS
   ; Restore the Y position to the standing default position
   lda DINO_TOP_Y_INT
   bne __set_dino_game_over_sprite
