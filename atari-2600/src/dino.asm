@@ -114,62 +114,61 @@ TOGGLE_FLAG_GAME_OVER_OFF      = #%10111111
   ORG $80
 
 ; Dino State Variables
-DINO_TOP_Y_INT               .byte   ; 1 byte   (0)
-DINO_TOP_Y_FRACT             .byte   ; 1 byte   (1)
-DINO_VY_INT                  .byte   ; 1 byte   (2)
-DINO_VY_FRACT                .byte   ; 1 byte   (3)
+DINO_TOP_Y_INT               .byte   ; 1 byte   (1)
+DINO_TOP_Y_FRACT             .byte   ; 1 byte   (2)
+DINO_VY_INT                  .byte   ; 1 byte   (3)
+DINO_VY_FRACT                .byte   ; 1 byte   (4)
 
-PTR_DINO_SPRITE              .word   ; 2 bytes  (4)
-PTR_DINO_OFFSET              .word   ; 2 bytes  (6)
-PTR_DINO_MISSILE_0_CONF      .word   ; 2 bytes  (8)
+PTR_DINO_SPRITE              .word   ; 2 bytes  (6)
+PTR_DINO_OFFSET              .word   ; 2 bytes  (8)
+PTR_DINO_MISSILE_0_CONF      .word   ; 2 bytes  (10)
 
 ; Input variables
-KEY_UP_PRESSED_FRAMES        .byte   ; 1 byte   (10)
+KEY_UP_PRESSED_FRAMES        .byte   ; 1 byte   (11)
 
 ; Obstacle Variables
-OBSTACLE_TYPE                .byte   ; 1 byte   (11)
-OBSTACLE_Y                   .byte   ; 1 byte   (12)
-OBSTACLE_X_INT               .byte   ; 1 byte   (13)
-OBSTACLE_X_FRACT             .byte   ; 1 byte   (14)
-OBSTACLE_VX_INT              .byte   ; 1 byte   (15)
-OBSTACLE_VX_FRACT            .byte   ; 1 byte   (16)
+OBSTACLE_TYPE                .byte   ; 1 byte   (12)
+OBSTACLE_Y                   .byte   ; 1 byte   (13)
+OBSTACLE_X_INT               .byte   ; 1 byte   (14)
+OBSTACLE_X_FRACT             .byte   ; 1 byte   (15)
+OBSTACLE_VX_INT              .byte   ; 1 byte   (16)
+OBSTACLE_VX_FRACT            .byte   ; 1 byte   (17)
 
-PTR_OBSTACLE_SPRITE          .word   ; 2 bytes  (17)
-PTR_OBSTACLE_OFFSET          .word   ; 2 bytes  (19)
-PTR_OBSTACLE_MISSILE_1_CONF  .word   ; 2 bytes  (21)
+PTR_OBSTACLE_SPRITE          .word   ; 2 bytes  (19)
+PTR_OBSTACLE_OFFSET          .word   ; 2 bytes  (21)
+PTR_OBSTACLE_MISSILE_1_CONF  .word   ; 2 bytes  (23)
 
 ; Play area
-PLAY_AREA_MIN_Y              .byte   ; 1 byte   (23)
-FOREGROUND_COLOUR            .byte   ; 1 byte   (24)
-BACKGROUND_COLOUR            .byte   ; 1 byte   (25)
+PLAY_AREA_MIN_Y              .byte   ; 1 byte   (24)
+FOREGROUND_COLOUR            .byte   ; 1 byte   (25)
+BACKGROUND_COLOUR            .byte   ; 1 byte   (26)
 
-PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (26)
+PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (28)
 
 ; Ground area
-FLOOR_PF0                    .byte   ; 1 byte   (28)
-FLOOR_PF1                    .byte   ; 1 byte   (29)
-FLOOR_PF2                    .byte   ; 1 byte   (30)
-FLOOR_PF3                    .byte   ; 1 byte   (31)
-FLOOR_PF4                    .byte   ; 1 byte   (32)
-FLOOR_PF5                    .byte   ; 1 byte   (33)
+FLOOR_PF0                    .byte   ; 1 byte   (29)
+FLOOR_PF1                    .byte   ; 1 byte   (30)
+FLOOR_PF2                    .byte   ; 1 byte   (31)
+FLOOR_PF3                    .byte   ; 1 byte   (32)
+FLOOR_PF4                    .byte   ; 1 byte   (33)
+FLOOR_PF5                    .byte   ; 1 byte   (34)
 
-PEBBLE_X_INT                 .byte   ; 1 byte   (34)
-PEBBLE_X_FRACT               .byte   ; 1 byte   (35)
-PEBBLE_CACHED_OBSTACLE_GRP1  .byte   ; 1 byte   (36)
-PEBBLE_CACHED_OBSTACLE_M1    .byte   ; 1 byte   (37)
+PEBBLE_X_INT                 .byte   ; 1 byte   (35)
+PEBBLE_X_FRACT               .byte   ; 1 byte   (36)
+PEBBLE_CACHED_OBSTACLE_GRP1  .byte   ; 1 byte   (37)
+PEBBLE_CACHED_OBSTACLE_M1    .byte   ; 1 byte   (38)
 
-PEBBLE_PF0                   .byte   ; 1 byte   (38)
-PEBBLE_PF1                   .byte   ; 1 byte   (39)
-PEBBLE_PF2                   .byte   ; 1 byte   (40)
-PEBBLE_PF3                   .byte   ; 1 byte   (41)
-PEBBLE_PF4                   .byte   ; 1 byte   (42)
-PEBBLE_PF5                   .byte   ; 1 byte   (43)
+PEBBLE_PF0                   .byte   ; 1 byte   (39)
+PEBBLE_PF1                   .byte   ; 1 byte   (40)
+PEBBLE_PF2                   .byte   ; 1 byte   (41)
+PEBBLE_PF3                   .byte   ; 1 byte   (42)
+PEBBLE_PF4                   .byte   ; 1 byte   (43)
+PEBBLE_PF5                   .byte   ; 1 byte   (44)
 
 ; Gameplay variables
-GAME_FLAGS                   .byte   ; 1 byte   (44)
-FRAME_COUNT                  .word   ; 2 bytes  (45)
-RND_SEED                     .word   ; 2 bytes  (47)
-RANDOM                       .word   ; 2 bytes  (49)
+GAME_FLAGS                   .byte   ; 1 byte   (45)
+FRAME_COUNT                  .word   ; 2 bytes  (47)
+RANDOM                       .byte   ; 1 byte   (48)
 GAME_OVER_TIMER              .byte   ; 1 byte   (50)
 
 ; This section is to include variables that share the same memory but are 
@@ -195,13 +194,10 @@ reset:
 
   ; At the start, the machine memory could be in any state, and that's good!
   ; We can use those leftover bytes as seed for RND before doing cleaning ZP
-  lda #<RANDOM
+  lda RANDOM
   adc RND_MEM_LOC_1
-  sta RANDOM
-  ;
-  lda #>RANDOM
   adc RND_MEM_LOC_2
-  sta RANDOM+1
+  sta RANDOM
 
   ; -----------------------
   ; CLEAR ZERO PAGE MEMORY
@@ -257,10 +253,11 @@ _init_obstacle_conf:
 
 DEBUG_OBSTACLE_X_POS = #168 
   ; TODO: Remove/Update after testing obstacle positioning
-  lda #4
+  lda #1
   sta OBSTACLE_TYPE
   lda #PLAY_AREA_TOP_Y  ; DEBUG
   lda #CACTUS_Y
+  lda #PLAY_AREA_TOP_Y-#35
   sta OBSTACLE_Y
   lda #DEBUG_OBSTACLE_X_POS
   sta OBSTACLE_X_INT
@@ -526,13 +523,15 @@ _update_pebble_pos:
 
   cmp #8
   bcs __end_update_pebble_pos
-  ; reset pebble pos to a random x
-  jsr rnd16
-  lda RANDOM
+  ; Reset pebble pos to a random x beyond the screen right edge
+  jsr rnd8
+  ; reg A has the random byte
+  sta PEBBLE_X_FRACT
+  jsr rnd8
+  ; reg A has the random byte
   and #63
   sta TEMP
-  lda RANDOM+1
-  sta PEBBLE_X_FRACT
+  jsr rnd8
   and #15
   adc #160
   adc TEMP
@@ -1975,9 +1974,8 @@ _no_collision:
   dec GAME_OVER_TIMER
 
 _update_random:
-  dec RANDOM+1
   inc RANDOM
-  jsr rnd16
+  jsr rnd8
 
 _update_frame_count:
   inc FRAME_COUNT

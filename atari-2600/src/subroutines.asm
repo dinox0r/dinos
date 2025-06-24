@@ -38,13 +38,11 @@ set_obstacle_data subroutine
   sta $01,x       ; 4 (17) Store adjusted high byte at pointer X+1
   rts             ; 6 (23) Return from subroutine
 
-rnd16 subroutine
-  ; Copied from the book 
-  lsr RANDOM+1
-  ror RANDOM
-  bcc .no_eor
-  lda RANDOM+1
-  eor #$d4
-  sta RANDOM+1
-.no_eor:
+rnd8 subroutine
+  lda RANDOM
+  lsr
+  bcc .no_xor
+  eor #$D4
+.no_xor:
+  sta RANDOM
   rts
