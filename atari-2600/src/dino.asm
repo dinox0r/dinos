@@ -171,13 +171,19 @@ FRAME_COUNT                  .word   ; 2 bytes  (47)
 RANDOM                       .byte   ; 1 byte   (48)
 GAME_OVER_TIMER              .byte   ; 1 byte   (50)
 
+; Sound
+SFX_TRACKER_1                .byte   ; 1 byte   (51)
+SFX_TRACKER_2                .byte   ; 1 byte   (52)
+
+; To save the state of a register temporarily during tight situations
+; ⚠ WARNING: Should not be used across frames
+TEMP                         .byte   ; 1 byte   (53)
+
 ; This section is to include variables that share the same memory but are 
 ; referenced under different names, something like temporary variables that 
 ; can be used differently by different kernels (which are only active one 
 ; at a time, leaving no risk of overlap)
 
-; To save the state of a register temporarily during tight situations
-TEMP                         .byte   ; 1 byte   (51)
 
 ;=============================================================================
 ; ROM / GAME CODE
@@ -1907,9 +1913,9 @@ end_of_frame:
 
   lda #FLAG_GAME_OVER
   bit GAME_FLAGS
-  bne _no_collision    ; Skip the collision detection if the game over 
-                       ; flag is already set, otherwise the game over timer
-                       ; is reset
+  bne _already_game_over ; Skip the collision detection if the game over 
+                         ; flag is already set, otherwise the game over timer
+                         ; is reset
 
   ; Collision detection
   bit CXPPMM
@@ -1968,10 +1974,17 @@ __set_dino_game_over_sprite:
   sbc #0
   sta PTR_DINO_MISSILE_0_CONF+1
 
-_no_collision:
+__init_game_over_sound:
+  MONO_INIT_SFX GAME_OVER_SOUND
+
+_already_game_over:
+  MONO_UPDATE_PLAYING_SFX GAME_OVER_SOUND
+
   lda GAME_OVER_TIMER
   beq _update_random
   dec GAME_OVER_TIMER
+
+_no_collision:
 
 _update_random:
   inc RANDOM
@@ -1990,6 +2003,7 @@ _remaining_overscan:
   ; do the jump now to consume some cycles and a WSYNC at the
   ; beginning of the next frame to consume the rest
 
+  sta WSYNC
   jmp start_of_frame
 
 
@@ -2002,6 +2016,11 @@ _remaining_overscan:
 ; SPRITE GRAPHICS DATA
 ;=============================================================================
   include "sprites.asm"
+
+;=============================================================================
+; SOUND DATA
+;=============================================================================
+  include "sounds.asm"
 
 ;-----------------------------------------------------------------------------
 ; FINE OFFSETS TABLE
