@@ -123,9 +123,6 @@ PTR_DINO_SPRITE              .word   ; 2 bytes  (6)
 PTR_DINO_OFFSET              .word   ; 2 bytes  (8)
 PTR_DINO_MISSILE_0_CONF      .word   ; 2 bytes  (10)
 
-; Input variables
-KEY_UP_PRESSED_FRAMES        .byte   ; 1 byte   (11)
-
 ; Obstacle Variables
 OBSTACLE_TYPE                .byte   ; 1 byte   (12)
 OBSTACLE_Y                   .byte   ; 1 byte   (13)
@@ -347,10 +344,15 @@ check_joystick:
   jmp end_frame_setup
 
 _check_for_any_button:
-  lda #%11110000   ; Check all the player 1 buttons
+  ; Check the button first
+  bit INPT4
+  bpl __button_pressed
+  ; If not, check all joystick directions
+  lda #%11110000   ; Query if any direction was pressed
   and SWCHA
   cmp #%11110000
   beq __no_input
+__button_pressed:
   jmp game_init    ; If any button was preset, reset
 __no_input:
   jmp end_frame_setup
@@ -360,28 +362,23 @@ _check_joystick_down:
   bit SWCHA
   beq _on_joystick_down
 
-  ; We need to clear the crouching flag as the player might have released the
-  ; joystick down and we have to make sure the dino is not crouching anymore
+  ; Clear the crouching flag as the player might have released the
+  ; joystick down, in which case the dino is not crouching anymore
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DINO_CROUCHING_OFF
   sta GAME_FLAGS
 
+_check_joystick_button:
+  bit INPT4        ; bit 7 will be on if the button was pressed
+  bpl _on_button_pressed
+
 _check_joystick_up:
   lda #%00010000 ; up (player 0)
   bit SWCHA
-  bne _reset_up_counter  ; not pressing UP, reset up counter
+  bne _end_check_joystick  ; not pressing UP
 
+_on_button_pressed:
 _on_joystick_up:
-  inc KEY_UP_PRESSED_FRAMES
-  bne _keep_checking_joystick_up  ; if up-counter > 255 then up-counter = 255
-  lda #255
-  sta KEY_UP_PRESSED_FRAMES
-
-_keep_checking_joystick_up:
-  lda KEY_UP_PRESSED_FRAMES
-  cmp #10
-  bcs _end_check_joystick
-
   ; if it's already jumping, ignore
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
@@ -395,23 +392,20 @@ _keep_checking_joystick_up:
   sta DINO_VY_INT
   lda #DINO_JUMP_INIT_VY_FRACT
   sta DINO_VY_FRACT
+
+  SFX_INIT JUMP_SOUND
+
   jmp _end_check_joystick
 
 _on_joystick_down:
   ; If the dino is already crouching or jumping, ignore the input
   lda #FLAG_DINO_CROUCHING_OR_JUMPING
   bit GAME_FLAGS
-  bne _reset_up_counter
+  bne _end_check_joystick
 
   lda #FLAG_DINO_CROUCHING
   ora GAME_FLAGS
   sta GAME_FLAGS
-
-  ;
-  ; fall through to reset the up-counter
-_reset_up_counter:
-  lda #0
-  sta KEY_UP_PRESSED_FRAMES
 
 _end_check_joystick:
 
@@ -1975,10 +1969,10 @@ __set_dino_game_over_sprite:
   sta PTR_DINO_MISSILE_0_CONF+1
 
 __init_game_over_sound:
-  MONO_INIT_SFX GAME_OVER_SOUND
+  SFX_INIT GAME_OVER_SOUND
 
 _already_game_over:
-  MONO_UPDATE_PLAYING_SFX GAME_OVER_SOUND
+  SFX_UPDATE_PLAYING GAME_OVER_SOUND
 
   lda GAME_OVER_TIMER
   beq _update_random
@@ -1989,6 +1983,17 @@ _no_collision:
 _update_random:
   inc RANDOM
   jsr rnd8
+
+  lda #FLAG_DINO_JUMPING
+  bit GAME_FLAGS
+  ; Continue to '_update_frame_count' if not jumping
+  beq _update_frame_count
+  ; Also check if not game over, in which, the game over sound has priority
+  lda #FLAG_GAME_OVER
+  bit GAME_FLAGS
+  bne _update_frame_count
+
+  SFX_UPDATE_PLAYING JUMP_SOUND
 
 _update_frame_count:
   inc FRAME_COUNT

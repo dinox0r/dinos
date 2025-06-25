@@ -8,13 +8,24 @@ GAME_OVER_SOUND:
 
   ; 1st note
   ; Duration in frames / Tone / Frequency / Volume (max 15)
-  byte #3, #$0E, #3, #4
+  byte #3, #$0E, #4, #3
 
   ; 2nd note
   byte #2, #0, #0, #0
 
   ; 3rd note
-  byte #5, #$0E, #4, #8
+  byte #4, #$0E, #4, #3
+
+  ; 4th note
+  byte #2, #$0E, #29, #3
+
+  ; end of the sound
+  .ds 1
+
+JUMP_SOUND:
+  ; Duration in frames / Tone / Frequency / Volume (max 15)
+  ; byte #3, #$04, #31, #2
+  byte #3, #$0D, #9, #2
 
   ; end of the sound
   .ds 1

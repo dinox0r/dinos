@@ -401,13 +401,13 @@
     lsr
   ENDM
 
-  MACRO MONO_INIT_SFX
+  MACRO SFX_INIT
     ; Load the duration of 1 for the first note
     lda #%00001000
     sta SFX_TRACKER_1
   ENDM
 
-  MACRO MONO_UPDATE_PLAYING_SFX
+  MACRO SFX_UPDATE_PLAYING
 .SFX_ROM_LABEL SET {1}
     lda SFX_TRACKER_1
     beq .end_update_sfx_mono
