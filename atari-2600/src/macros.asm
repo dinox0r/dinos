@@ -492,3 +492,13 @@
 .end_update_sfx_mono:
   ENDM
 
+
+  MACRO GENERATE_RANDOM_NUMBER_BETWEEN_160_AND_238
+    jsr rnd8
+    and #63
+    sta TEMP
+    jsr rnd8
+    and #15
+    adc #160
+    adc TEMP
+  ENDM
