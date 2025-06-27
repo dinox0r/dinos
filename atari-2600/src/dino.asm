@@ -71,14 +71,6 @@ OBSTACLE_HEIGHT = #PTERO_HEIGHT
 PTERO_OPEN_WINGS_TABLE_ENTRY_INDEX = #1
 PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
 
-PTERO_Y_POS_1 = #PLAY_AREA_TOP_Y
-PTERO_Y_POS_2 = #PLAY_AREA_TOP_Y
-PTERO_Y_POS_3 = #PLAY_AREA_TOP_Y
-PTERO_Y_POS_4 = #PLAY_AREA_TOP_Y
-;PTERO_Y_POS_2 = #PTERO_HEIGHT+#8
-;PTERO_Y_POS_3 = #PTERO_HEIGHT+#3
-;PTERO_Y_POS_4 = #CACTUS_Y+#5
-
 ;=============================================================================
 ; GAME_FLAGS
 ;=============================================================================

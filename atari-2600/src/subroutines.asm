@@ -47,7 +47,7 @@ spawn_obstacle subroutine
   jsr rnd8
   and #3 ; equivalent to RND % 4
   sta OBSTACLE_TYPE
-  bne __set_y_pos
+  bne .set_y_pos
   ; If is the obstacle type 0 (no obstacle or invisible obstacle)
   ; then overwrite its x coordinate to a value between [0, 127], this is
   ; to give a breather to the player but not for too long
@@ -55,17 +55,20 @@ spawn_obstacle subroutine
   and #127
   sta OBSTACLE_X_INT
 
-__set_y_pos:
+.set_y_pos:
   lda OBSTACLE_TYPE
   cmp #3  ; If obstacle_type is less than 3 (ptero but also affects invisible)
-  bcc __chose_ptero_random_y_pos
-  jmp _update_obstacle_sprite
-__chose_ptero_random_y_pos:
+  bcc .chose_ptero_random_y_pos
+  lda #CACTUS_Y
+  sta OBSTACLE_Y
+  jmp .end_spawn_obstacle
+.chose_ptero_random_y_pos:
   jsr rnd8
   and #3
   tax
   lda PTERO_Y_POS,x
   sta OBSTACLE_Y
+.end_spawn_obstacle
   rts
 
 rnd8 subroutine

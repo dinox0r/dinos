@@ -105,32 +105,28 @@
 
     bcs .dino_y_within_range         ; 2/3 (11/12) - Branch if inside
 
+    IF (* ^ .dino_y_within_range) & $FF00
+      ECHO "PAGE CROSSING","ERROR ",.dino_y_within_range," at ",*
+      ERR
+    ENDIF
+
 .dino_y_outside_range:        ; - (11) (9 if ignoring the carry)
 
-    ;--------------------------------------------------------------------------
-    ; [!] ROM space potential savings
-    ;--------------------------------------------------------------------------
-    ; In case ROM is needed, the padding instructions, that make this branch 
-    ; have the same CPU cycle count as the other branch, could be removed
-    ;--------------------------------------------------------------------------
-    pha                       ; 3 (14) - Wait/waste 23 cycles (6 bytes)
-    pla                       ; 4 (18)
-    pha                       ; 3 (21)
-    pla                       ; 4 (25)
-    pha                       ; 3 (28)
-    pla                       ; 4 (32)
-    nop                       ; 2 (34)
-    ;--------------------------------------------------------------------------
+    IF ! .SET_CARRY_BEFORE_SUBTRACTION
+      sec                     ; 2 (11) - Acts as a nop, restoring the 2 cycles
+                              ; missing to make the count back to 11
+    ENDIF
 
-    lda #0                    ; 2 (36) - Clear A and X
-    tax                       ; 2 (38)
-    sta ENAM0                 ; 3 (40)
+    lda #0                    ; 2 (13) - Clear A and X
+    tax                       ; 2 (15)
+    sta ENAM0                 ; 3 (18)
 
-    sta HMCLR                         ; 3 (43)
-    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (46)
+    inc $2D                   ; 5 (23) - Waste/wait 5 cycles (2 bytes)
+
+    sta HMCLR                         ; 3 (26)
+    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (29)
 
 .dino_y_within_range:         ; - (12)
-
     ; By the moment this macro is call and the execution reaches this point, it
     ; is assumed that 24+ CPU cycles have passed since this scanline's HMOVE,
     ; meaning it is safe to modify HMMx registers without triggering unwanted
@@ -196,6 +192,10 @@
     adc #DINO_HEIGHT                 ; 2 (9) - A += dino height
 
     bcs .dino_y_within_range         ; 2/3 (11/12) - In range if carry set
+    IF (* ^ .dino_y_within_range) & $FF00
+      ECHO "PAGE CROSSING","ERROR ",.dino_y_within_range," at ",*
+      ERR
+    ENDIF
 .dino_y_outside_range:               ; - (11 or 9 cycles total if SEC skipped)
 
     ;--------------------------------------------------------------------------
@@ -267,6 +267,10 @@
     adc #OBSTACLE_HEIGHT             ; 2 (9) - A += obstacle height
 
     bcs .obstacle_y_within_range     ; 2/3 (11/12) - Branch if inside
+    IF (* ^ .obstacle_y_within_range) & $FF00
+      ECHO "PAGE CROSSING","ERROR ",.obstacle_y_within_range," at ",*
+      ERR
+    ENDIF
 
 .obstacle_y_outside_range:    ; - (11) (9 if ignoring the carry)
 
@@ -291,7 +295,7 @@
     ; LAX (illegal opcode) is used here because there is no 'ldx (aa),y'. The
     ; non-illegal-opcode alternative is to do 'lda (aa),y' and then 'tax'
     ; incurring in 2 extra cycles, whereas LAX will only cost 5
-    LAX (PTR_OBSTACLE_SPRITE),y          ; 5 (23)
+    LAX (PTR_OBSTACLE_SPRITE),y          ; 5 (17)
 
     ; Load obstacle missile configuration. Bit Layout duplicated here for ref:
     ;     bit index: 7 6 5 4 3 2 1 0
@@ -299,7 +303,7 @@
     ;                 HMM1    │  │
     ;                         │  └─ ENAM1
     ;                      NUSIZ1 <- needs to be shifted left twice
-    lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (17)
+    lda (PTR_OBSTACLE_MISSILE_1_CONF),y  ; 5 (23)
 
 
     ; ⚠ IMPORTANT:
