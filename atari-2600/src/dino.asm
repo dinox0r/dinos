@@ -851,6 +851,7 @@ draw_game:
   INCLUDE "kernels/play_area_kernel.asm"
   INCLUDE "kernels/dino_crouching_kernel.asm"
   INCLUDE "kernels/legs_and_floor_kernel.asm"
+  INCLUDE "kernels/ground_area_kernel.asm"
   INCLUDE "kernels/gravel_area_kernel.asm"
 
   jmp end_of_frame  ; 3 ()
