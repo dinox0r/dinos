@@ -40,9 +40,6 @@ OBSTACLE_INITIAL_SPEED = #250
 
 CACTUS_Y = #27
 
-PTERO_OPEN_WINGS_TABLE_ENTRY_INDEX = #1
-PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
-
 GAME_OVER_TIMER_TOTAL_TIME = #50
 
 PLAY_AREA_SCANLINES = #61    ; All of these are measured as 2x scanlines
@@ -71,6 +68,16 @@ PTERO_HEIGHT = #20
 ; height, it wastes some rom though
 OBSTACLE_HEIGHT = #PTERO_HEIGHT
 
+PTERO_OPEN_WINGS_TABLE_ENTRY_INDEX = #1
+PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
+
+PTERO_Y_POS_1 = #PLAY_AREA_TOP_Y
+PTERO_Y_POS_2 = #PLAY_AREA_TOP_Y
+PTERO_Y_POS_3 = #PLAY_AREA_TOP_Y
+PTERO_Y_POS_4 = #PLAY_AREA_TOP_Y
+;PTERO_Y_POS_2 = #PTERO_HEIGHT+#8
+;PTERO_Y_POS_3 = #PTERO_HEIGHT+#3
+;PTERO_Y_POS_4 = #CACTUS_Y+#5
 
 ;=============================================================================
 ; GAME_FLAGS
@@ -248,16 +255,17 @@ _init_obstacle_conf:
 
 DEBUG_OBSTACLE_X_POS = #168 
   ; TODO: Remove/Update after testing obstacle positioning
-  lda #1
-  sta OBSTACLE_TYPE
-  lda #PLAY_AREA_TOP_Y  ; DEBUG
-  lda #CACTUS_Y
-  lda #PLAY_AREA_TOP_Y-#35
-  sta OBSTACLE_Y
-  lda #DEBUG_OBSTACLE_X_POS
-  sta OBSTACLE_X_INT
-  lda #0
-  sta OBSTACLE_X_FRACT
+  ;lda #1
+  ;sta OBSTACLE_TYPE
+  ;lda #PLAY_AREA_TOP_Y  ; DEBUG
+  ;lda #CACTUS_Y
+  ;lda #CACTUS_Y+(#PTERO_HEIGHT/2)+#3
+  ;sta OBSTACLE_Y
+  ;lda #DEBUG_OBSTACLE_X_POS
+  ;sta OBSTACLE_X_INT
+  ;lda #0
+  ;sta OBSTACLE_X_FRACT
+  jsr spawn_obstacle
 
   lda #OBSTACLE_INITIAL_SPEED
   ;lda #0    ; Uncomment this to make the obstacle state
@@ -370,7 +378,9 @@ _check_joystick_up:
   bne _end_check_joystick  ; not pressing UP
 
 _on_button_pressed:
+  jsr rnd8
 _on_joystick_up:
+  jsr rnd8
   ; if it's already jumping, ignore
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
@@ -390,6 +400,7 @@ _on_joystick_up:
   jmp _end_check_joystick
 
 _on_joystick_down:
+  jsr rnd8
   ; If the dino is already crouching or jumping, ignore the input
   lda #FLAG_DINO_CROUCHING_OR_JUMPING
   bit GAME_FLAGS
@@ -429,14 +440,9 @@ _update_obstacle_pos:
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
   cmp #0 ; -3
-  beq _reset_obstacle_position
-  jmp _update_obstacle_sprite
+  bne _update_obstacle_sprite
 
-_reset_obstacle_position:
-  lda #DEBUG_OBSTACLE_X_POS
-  sta OBSTACLE_X_INT
-  lda #0
-  sta OBSTACLE_X_FRACT
+  jsr spawn_obstacle
 
 _update_obstacle_sprite:
   lda OBSTACLE_TYPE
@@ -519,14 +525,8 @@ _update_pebble_pos:
   jsr rnd8
   ; reg A has the random byte
   sta PEBBLE_X_FRACT
-  jsr rnd8
-  ; reg A has the random byte
-  and #63
-  sta TEMP
-  jsr rnd8
-  and #15
-  adc #160
-  adc TEMP
+
+  GENERATE_RANDOM_NUMBER_BETWEEN_160_AND_238
   sta PEBBLE_X_INT
 __end_update_pebble_pos:
 

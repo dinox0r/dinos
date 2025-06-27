@@ -38,6 +38,36 @@ set_obstacle_data subroutine
   sta $01,x       ; 4 (17) Store adjusted high byte at pointer X+1
   rts             ; 6 (23) Return from subroutine
 
+spawn_obstacle subroutine
+  jsr rnd8
+  sta OBSTACLE_X_FRACT
+  lda #161
+  sta OBSTACLE_X_INT
+
+  jsr rnd8
+  and #3 ; equivalent to RND % 4
+  sta OBSTACLE_TYPE
+  bne __set_y_pos
+  ; If is the obstacle type 0 (no obstacle or invisible obstacle)
+  ; then overwrite its x coordinate to a value between [0, 127], this is
+  ; to give a breather to the player but not for too long
+  jsr rnd8
+  and #127
+  sta OBSTACLE_X_INT
+
+__set_y_pos:
+  lda OBSTACLE_TYPE
+  cmp #3  ; If obstacle_type is less than 3 (ptero but also affects invisible)
+  bcc __chose_ptero_random_y_pos
+  jmp _update_obstacle_sprite
+__chose_ptero_random_y_pos:
+  jsr rnd8
+  and #3
+  tax
+  lda PTERO_Y_POS,x
+  sta OBSTACLE_Y
+  rts
+
 rnd8 subroutine
   lda RANDOM
   lsr
