@@ -103,36 +103,27 @@
     sbc DINO_TOP_Y_INT               ; 3 (7) - A = Y - obstacle Y
     adc #DINO_HEIGHT                 ; 2 (9) - A += obstacle height
 
-    bcs .dino_y_within_range         ; 2/3 (11/12) - Branch if inside
+    sta HMCLR                        ; 3 (12)
+    bcs .dino_y_within_range         ; 2/3 (14/15) - Branch if inside
 
     IF (* ^ .dino_y_within_range) & $FF00
       ECHO "PAGE CROSSING","ERROR ",.dino_y_within_range," at ",*
       ERR
     ENDIF
 
-.dino_y_outside_range:        ; - (11) (9 if ignoring the carry)
+.dino_y_outside_range:        ; - (14) (12 if ignoring the carry)
+    lda #0                    ; 2 (16) - Clear A and X
+    tax                       ; 2 (18)
+    sta ENAM0                 ; 3 (21)
 
-    IF ! .SET_CARRY_BEFORE_SUBTRACTION
-      sec                     ; 2 (11) - Acts as a nop, restoring the 2 cycles
-                              ; missing to make the count back to 11
-    ENDIF
+    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (24)
 
-    lda #0                    ; 2 (13) - Clear A and X
-    tax                       ; 2 (15)
-    sta ENAM0                 ; 3 (18)
-
-    inc $2D                   ; 5 (23) - Waste/wait 5 cycles (2 bytes)
-
-    sta HMCLR                         ; 3 (26)
-    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (29)
-
-.dino_y_within_range:         ; - (12)
+.dino_y_within_range:         ; - (15)
     ; By the moment this macro is call and the execution reaches this point, it
     ; is assumed that 24+ CPU cycles have passed since this scanline's HMOVE,
     ; meaning it is safe to modify HMMx registers without triggering unwanted
     ; shifts.  First, we use HMCLR to reset HMP1 and HMM1. It also clears all
     ; HMMx regs, which is fine — HMM0 and HMP0 are about to be updated anyway.
-    sta HMCLR                 ; 3 (15)
 
     ; dino graphics offset
     lda (PTR_DINO_OFFSET),y   ; 5 (20)
@@ -273,23 +264,14 @@
     ENDIF
 
 .obstacle_y_outside_range:    ; - (11) (9 if ignoring the carry)
+    nop                       ; 2 (13) - Wait/waste 2 cycles to prevent 
+                              ; strobing HMCLR too soon
 
-    ;--------------------------------------------------------------------------
-    ; [!] ROM space potential savings
-    ;--------------------------------------------------------------------------
-    ; In case ROM is needed, the padding instructions, that make this branch 
-    ; have the same CPU cycle count as the other branch, could be removed
-    ;--------------------------------------------------------------------------
-    pha                       ; 3 (14) - Wait/waste 9 cycles (3 bytes)
-    pla                       ; 4 (18)
-    nop                       ; 2 (20)
-    ;--------------------------------------------------------------------------
+    lda #0                    ; 2 (15) - Clear A and X
+    tax                       ; 2 (17)
 
-    lda #0                    ; 2 (22) - Clear A and X
-    tax                       ; 2 (24)
-
-    sta HMCLR                         ; 3 (26)
-    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (29)
+    sta HMCLR                         ; 3 (20)
+    jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (23)
 
 .obstacle_y_within_range:             ; - (12)
     ; LAX (illegal opcode) is used here because there is no 'ldx (aa),y'. The
@@ -313,7 +295,7 @@
     ; HMOVE timing notes:
     ; - HMxx writes must not happen within 24 CPU cycles of HMOVE.
     ; - By the time this macro runs, enough time should have passed since
-    ;   the last HMOVE for HMCLR to be safely written.
+    ;   the last HMOVE for HMCLR to be safely strobed.
     sta HMCLR                            ; 3 (26)
 
     ; reg X holds a copy of the original (without shifting) missile 1
