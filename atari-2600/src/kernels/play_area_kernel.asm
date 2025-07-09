@@ -45,7 +45,7 @@ _end_grp0_coarse_position:
   ; Maybe a more useful instruction here? We need this 3 cycles so 
   ; the numbers below add up (don't think of strobing HMCLR, remember that
   ; you can't touch HMMx registers 24 cyles after strobing HMOVE
-  sta COLUBK       ; 3 (6)
+  sta $2D       ; 3 (6)
 
   ; Set M0 coarse position
   ;
@@ -365,9 +365,6 @@ __end_middle_section_kernel_setup:
   ; Remove the fine offsets applied to the obstacles before going to the next 
   ; scanline, also leave the other motion registers in a clear state
   sta HMCLR   ; 3 (35/33) 
-
-  lda #$0C    ; for debugging purposes
-  sta COLUBK  ;
 
   ; We are assuming that reg A has the obstacle graphics, which go to GRP1
   ; and that reg X has the BALL state for the obstacle additional graphics, 

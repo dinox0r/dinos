@@ -29,7 +29,6 @@ _legs_and_floor__end_of_1st_scanline:
   ; 2nd scanline ========================================================
                 ; - (0)
   sta HMOVE     ; 3 (3)
-
   DRAW_DINO     ; 3 (6)
 
   ; 27 (33)
