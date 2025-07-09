@@ -42,7 +42,7 @@ CACTUS_Y = #27
 
 GAME_OVER_TIMER_TOTAL_TIME = #50
 
-PLAY_AREA_SCANLINES = #61    ; All of these are measured as 2x scanlines
+PLAY_AREA_SCANLINES = #59    ; All of these are measured as 2x scanlines
 FLOOR_SCANLINES = #2
 GRAVEL_SCANLINES = #9
 
@@ -59,7 +59,7 @@ CROUCHING_SCANLINES = #8
 CROUCHING_REGION_TOP_Y = #PLAY_AREA_BOTTOM_Y + #CROUCHING_SCANLINES
 
 DINO_JUMP_INIT_VY_INT = #5
-DINO_JUMP_INIT_VY_FRACT = #40
+DINO_JUMP_INIT_VY_FRACT = #21
 DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #78
 
@@ -132,6 +132,10 @@ FOREGROUND_COLOUR            .byte   ; 1 byte   (25)
 BACKGROUND_COLOUR            .byte   ; 1 byte   (26)
 
 PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (28)
+
+; Sky area
+CLOUD_1_X_INT                .byte 
+CLOUD_1_X_FRACT              .byte
 
 ; Ground area
 FLOOR_PF0                    .byte   ; 1 byte   (29)
@@ -954,6 +958,7 @@ _already_game_over:
   dec GAME_OVER_TIMER
 
 _no_collision:
+  ; Increment the score
 
 _update_random:
   inc RANDOM
