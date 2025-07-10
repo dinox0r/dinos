@@ -1,6 +1,6 @@
 
-sky_setup_kernel:;-->>> 2 scanlines <<<-----
-  DEBUG_SUB_KERNEL #$30,#2
+sky_setup_kernel:;-->>> 4 scanlines <<<-----
+  DEBUG_SUB_KERNEL #$CA,#4
 
-sky_kernel:;-------->>> 15 scanlines <<<----
-  DEBUG_SUB_KERNEL #$4C,#24
+sky_kernel:;-------->>> 24 scanlines <<<----
+  DEBUG_SUB_KERNEL #$9A,#28
