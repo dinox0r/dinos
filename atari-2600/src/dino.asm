@@ -329,9 +329,8 @@ check_joystick:
   ;    2   | #%00000100  | lef       | 1
   ;    1   | #%00000010  | down      | 1
   ;    0   | #%00000001  | up        | 1
-  lda #FLAG_GAME_OVER
-  bit GAME_FLAGS
-  beq _check_joystick_down
+  bit GAME_FLAGS           ; #FLAG_GAME_OVER = %#01000000
+  bvc _check_joystick_down ; hence can directly check bit 6
   ; If the game over timer is still going, ignore any input, this is to 
   ; give the player a brief pause so they get to see the game over screen 
   ; and don't skip it by an accidental button press
@@ -417,9 +416,8 @@ _end_check_joystick:
 ; GAME SCREEN SETUP
 ; -----------------------------------------------------------------------------
 in_game_screen:
-  lda #FLAG_GAME_OVER
-  bit GAME_FLAGS
-  beq update_obstacle
+  bit GAME_FLAGS        ; #FLAG_GAME_OVER = %#01000000
+  bvc update_obstacle   ; hence can directly check bit 6
   jmp end_frame_setup
 
 update_obstacle:
@@ -884,9 +882,8 @@ end_of_frame:
   lda #2
   sta VBLANK
 
-  lda #FLAG_GAME_OVER
-  bit GAME_FLAGS
-  bne _already_game_over ; Skip the collision detection if the game over 
+  bit GAME_FLAGS         ; Remember: #FLAG_GAME_OVER = %#01000000
+  bvs _already_game_over ; Skip the collision detection if the game over 
                          ; flag is already set, otherwise the game over timer
                          ; is reset
 
