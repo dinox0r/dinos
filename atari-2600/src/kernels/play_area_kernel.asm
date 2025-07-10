@@ -9,15 +9,16 @@ play_area_setup_kernel:;----->>> 5 scanlines <<<-----
                 ; - (0)
   sta HMOVE     ; 3 (3)
 
-  ; Set GRP0 coarse position
-  ; 28 cycles for dino in standing position, and 27 for crouching
-  ;
-  ; TODO: These instructions could be replaced by something more useful
-  php        ; 3 (6) - Adds 7 cycles so time aligns
-  plp        ; 4 (10) -
+  ; Set GRP0 coarse position: 28 cycles for dino in standing position, and 27
+  ; for crouching
 
-  php        ; 3 (13)
-  plp        ; 4 (17)
+  lda BACKGROUND_COLOUR ; 3 (6)
+  sta COLUBK            ; 3 (9)
+
+  ; TODO: Perhaps these instructions could be replaced by something more useful
+  ; Waste/wait 8 cycles
+  lda ($80,X)           ; 6 (15)
+  nop                   ; 2 (17)
 
   lda #FLAG_DINO_CROUCHING      ; 2 (19)
   bit GAME_FLAGS                ; 3 (22)
@@ -26,8 +27,9 @@ play_area_setup_kernel:;----->>> 5 scanlines <<<-----
                                 ; - (24)
   sta RESP0                     ; 3 (27)
 
-  ; Turns the next 'sta RESP0' (opcodes 85 10) into (2C 85 10) or 'bit $8510'
-  ; which does nothing, avoiding the need for a 'jmp _end_grp0_coarse_position'
+  ; Turns the next 'sta RESP0' (opcodes 85 10) into '2C 85 10' or 'bit $8510'
+  ; which does nothing (meaningful), avoiding the need for a
+  ; 'jmp _end_grp0_coarse_position'
   .byte $2C
 
 _dino_is_not_crouching_1:       ; - (25)
