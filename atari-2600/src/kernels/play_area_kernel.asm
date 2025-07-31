@@ -15,10 +15,9 @@ play_area_setup_kernel:;----->>> 5 scanlines <<<-----
   lda BACKGROUND_COLOUR ; 3 (6)
   sta COLUBK            ; 3 (9)
 
-  ; TODO: Perhaps these instructions could be replaced by something more useful
-  ; Waste/wait 8 cycles
-  lda ($80,X)           ; 6 (15)
-  nop                   ; 2 (17)
+  lda #0                ; 2 (11)
+  sta GRP0              ; 3 (14)
+  sta GRP1              ; 3 (17)
 
   lda #FLAG_DINO_CROUCHING      ; 2 (19)
   bit GAME_FLAGS                ; 3 (22)
@@ -111,7 +110,9 @@ _end_m0_coarse_position: ; (25/34)
 _set_obstacle_x_position:
   sta HMCLR        ; 3 (Worst case scenario CPU count at this point is 37)
 
-  SET_STITCHED_SPRITE_X_POS OBSTACLE_X_INT, #PLAYER_1_INDEX, #MISSILE_1_INDEX
+  lda OBSTACLE_X_INT
+  SET_STITCHED_SPRITE_X_POS #PLAYER_1_INDEX, #MISSILE_1_INDEX, #DONT_USE_SEAMLESS_STITCHING
+  sta WSYNC      ; 3 (31)
 
 _last_setup_scanline:
   ; 5th scanline ==============================================================

@@ -1,3 +1,18 @@
+;------------------------------------------------------------------------------
+; General subroutines
+;------------------------------------------------------------------------------
+rnd8 subroutine
+  lda RANDOM
+  lsr
+  bcc .no_xor
+  eor #$D4
+.no_xor:
+  sta RANDOM
+  rts
+
+;------------------------------------------------------------------------------
+; Obstacle related subroutines
+;------------------------------------------------------------------------------
 ; set_obstacle_data: Computes a ROM address offset by OBSTACLE_Y and
 ;                    stores the result in a zero-page pointer.
 ;
@@ -71,11 +86,77 @@ spawn_obstacle subroutine
 .end_spawn_obstacle
   rts
 
-rnd8 subroutine
-  lda RANDOM
-  lsr
-  bcc .no_xor
-  eor #$D4
-.no_xor:
-  sta RANDOM
+;------------------------------------------------------------------------------
+; Sky related subroutines
+;------------------------------------------------------------------------------
+reset_cloud subroutine
+  lda #161
+  sta CLOUD_1_X_INT,x
+
+  jsr rnd8
+  sta CLOUD_1_X_FRACT,x
+  and #15
+  ; clc  ; The carry is irrelevant as it makes the outcome a bit more random
+  adc #CLOUD_HEIGHT+#1
+  sta CLOUD_1_TOP_Y,x
   rts
+
+set_cloud_pos_x subroutine
+  ; The macro adds 27 cycles to current scanline, then ends it
+  ; and consumes a whole new scanline for the positioning
+  SET_STITCHED_SPRITE_X_POS PLAYER_0_INDEX, PLAYER_1_INDEX, #USE_SEAMLESS_STITCHING
+  ; Once is finished, it leaves the execution on a new (3rd) scanline
+  ; with 27 cycles (when using SEAMLESS_STITCHING)
+  rts ; 6 (33)
+
+render_cloud_layer subroutine
+  ; Assumes reg A contains the x position of the cloud
+  jsr set_cloud_pos_x       ; 6 for jsr + 27 of the subroutine (+33)
+                            ; consumes a whole scanline and then resumes 
+                            ; execution on cycle 27 of the next one
+.cloud_layer_setup:         ; - (27)
+
+  sta WSYNC           ; 3 (30)
+                      ; - (0)
+  sta HMOVE           ; 3 (3)
+
+  lda #0              ; 2 (5)
+  tax                 ; 2 (7)
+  sta GRP0            ; 3 (10)
+  sta GRP1            ; 3 (13)
+
+  ldy CLOUD_LAYER_SCANLINES  ; 3 (16)
+
+  lda CURRENT_CLOUD_X ; 3 (19)
+  cmp #9              ; 2 (21)
+  nop
+  sta HMCLR
+  bcc .only_show_grp1
+  cmp #161
+  bcc .show_both_grp0_and_grp1
+  cmp #170
+  bcc .only_show_grp1
+
+  lda #0
+  CLOUD_KERNEL_2 #IGNORE_GRP0, #IGNORE_GRP1
+  rts
+
+.only_show_grp0:
+  lda #0
+  ;sta HMCLR           ; 3 (23)
+  CLOUD_KERNEL_2 #USE_GRP0, #IGNORE_GRP1
+  sta WSYNC
+  rts
+
+.only_show_grp1:
+  lda #0
+  ;sta HMCLR           ; 3 (23)
+  CLOUD_KERNEL_2 #IGNORE_GRP0, #USE_GRP1
+  sta WSYNC
+  rts
+
+.show_both_grp0_and_grp1:
+  lda #0
+  ;sta HMCLR           ; 3 (23)
+  CLOUD_KERNEL_2 #USE_GRP0, #USE_GRP1
+  rts  ; 6 (76) - Notice no WSYNC in this case

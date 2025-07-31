@@ -20,17 +20,11 @@ RND_MEM_LOC_1 = $c1  ; "random" memory locations to sample the upper/lower
 RND_MEM_LOC_2 = $e5  ; bytes when the machine starts. Hopefully this finds
                      ; some garbage values that can be used as seed
 
-; Constants for the LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro
-SET_CARRY = #1
-IGNORE_CARRY = #0
 
 BKG_LIGHT_GRAY = #13
 DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y + #DINO_HEIGHT
-
-OBSTACLE_M1_MAX_SCREEN_X = #160   ; if obstacle_x >= 160, m1 = 0
-OBSTACLE_GRP1_MIN_SCREEN_X = #9  ; if obstacle_x < 8, grp1 = 0
 
 OBSTACLE_MIN_X = #0
 OBSTACLE_MAX_X = #163
@@ -56,6 +50,39 @@ PLAYER_0_INDEX = #0
 PLAYER_1_INDEX = #1
 MISSILE_0_INDEX = #2
 MISSILE_1_INDEX = #3
+
+; MACRO constants
+;------------------------
+
+ENABLE_PAGE_CROSSING_CHECK = #0
+
+; UPDATE_X_POS macro
+TREAT_SPEED_PARAMETER_AS_A_CONSTANT = #1
+TREAT_SPEED_PARAMETER_AS_A_VARIABLE = #0
+
+; SET_STITCHED_SPRITE_X_POS macro
+USE_SEAMLESS_STITCHING = #1
+DONT_USE_SEAMLESS_STITCHING = #0
+
+; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro
+SET_CARRY = #1
+IGNORE_CARRY = #0
+
+OBSTACLE_M1_MAX_SCREEN_X = #160   ; if obstacle_x >= 160, m1 = 0
+OBSTACLE_GRP1_MIN_SCREEN_X = #9  ; if obstacle_x < 8, grp1 = 0
+
+USE_GRP0 = #1
+IGNORE_GRP0 = #0
+USE_GRP1 = #1
+IGNORE_GRP1 = #0
+
+; Sky kernel
+; -----------------------------------------------------------------------------
+SKY_SCANLINES = #28
+
+CLOUD_VX_INT = #1
+CLOUD_VX_FRACT = #15
+CLOUD_HEIGHT = #11
 
 ; Crouching Kernel
 ; -----------------------------------------------------------------------------
@@ -85,6 +112,10 @@ FLAG_SPLASH_SCREEN =  #%00000001
 ; When in splash screen mode:
 ;   bit 7: dino blinking ON / OFF
 FLAG_DINO_BLINKING =  #%10000000
+
+; When in game screen mode:
+;   bit 7: The current sky frame is layer 1 (out of the 2)
+FLAG_SKY_LAYER_1_ON = #%10000000
 
 ; When in game mode:
 ;   bit 1: dino left/right leg up sprite
@@ -139,8 +170,24 @@ BACKGROUND_COLOUR            .byte   ; 1 byte   (26)
 PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (28)
 
 ; Sky area
+;
+; These variables are layed out this way (array form) so they can be indexed
+; in a subroutine
 CLOUD_1_X_INT                .byte 
+CLOUD_2_X_INT                .byte 
+CLOUD_3_X_INT                .byte 
+
 CLOUD_1_X_FRACT              .byte
+CLOUD_2_X_FRACT              .byte
+CLOUD_3_X_FRACT              .byte
+
+CLOUD_1_TOP_Y                .byte
+CLOUD_2_TOP_Y                .byte
+CLOUD_3_TOP_Y                .byte
+
+CURRENT_CLOUD_X              .byte
+CURRENT_CLOUD_TOP_Y          .byte
+CLOUD_LAYER_SCANLINES        .byte
 
 ; Ground area
 FLOOR_PF0                    .byte   ; 1 byte   (29)
@@ -173,8 +220,8 @@ SFX_TRACKER_1                .byte   ; 1 byte   (51)
 SFX_TRACKER_2                .byte   ; 1 byte   (52)
 
 ; To save the state of a register temporarily during tight situations
-; ⚠ WARNING: Should not be used across frames
-TEMP                         .byte   ; 1 byte   (53)
+; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames
+TEMP                         .word   ; 2 bytes  (54)
 
 ; This section is to include variables that share the same memory but are 
 ; referenced under different names, something like temporary variables that 
@@ -214,7 +261,7 @@ clear_zero_page_memory:
   pha  ; the stack and ZP RAM are the very same 128 bytes
   bne clear_zero_page_memory
 
-game_init:
+on_game_init:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
@@ -252,27 +299,16 @@ _init_pebble_conf:
   sta PEBBLE_X_FRACT
 
 _init_obstacle_conf:
-; min 0, max 168
-
-DEBUG_OBSTACLE_X_POS = #168 
-  ; TODO: Remove/Update after testing obstacle positioning
-  ;lda #1
-  ;sta OBSTACLE_TYPE
-  ;lda #PLAY_AREA_TOP_Y  ; DEBUG
-  ;lda #CACTUS_Y
-  ;lda #CACTUS_Y+(#PTERO_HEIGHT/2)+#3
-  ;sta OBSTACLE_Y
-  ;lda #DEBUG_OBSTACLE_X_POS
-  ;sta OBSTACLE_X_INT
-  ;lda #0
-  ;sta OBSTACLE_X_FRACT
   jsr spawn_obstacle
 
   lda #OBSTACLE_INITIAL_SPEED
-  ;lda #0    ; Uncomment this to make the obstacle state
   sta OBSTACLE_VX_FRACT
   lda #0
   sta OBSTACLE_VX_INT
+
+_init_cloud_conf:
+  ldx #0
+  jsr reset_cloud
 
 ;=============================================================================
 ; FRAME
@@ -353,7 +389,7 @@ _check_for_any_button:
   cmp #%11110000
   beq __no_input
 __button_pressed:
-  jmp game_init    ; If any button was preset, reset
+  jmp on_game_init    ; If any button was preset, reset
 __no_input:
   jmp end_frame_setup
 
@@ -422,19 +458,28 @@ _end_check_joystick:
 ; -----------------------------------------------------------------------------
 in_game_screen:
   bit GAME_FLAGS        ; #FLAG_GAME_OVER = %#01000000
-  bvc update_obstacle   ; hence can directly check bit 6
+  bvc update_sky        ; hence can directly check bit 6
   jmp end_frame_setup
+
+update_sky:
+
+_update_cloud_pos:
+  UPDATE_X_POS CLOUD_1_X_INT, CLOUD_1_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
+
+  lda CLOUD_1_X_INT
+  cmp #6
+  bcs _check_cloud_2_x_pos
+_reset_cloud_1_pos:
+  ldx #0
+  jsr reset_cloud
+
+_check_cloud_2_x_pos:
+  ; TODO do clouds 2 and 3
 
 update_obstacle:
 _update_obstacle_pos:
   ; update obstacle x
-  sec
-  lda OBSTACLE_X_FRACT
-  sbc OBSTACLE_VX_FRACT
-  sta OBSTACLE_X_FRACT
-  lda OBSTACLE_X_INT
-  sbc OBSTACLE_VX_INT
-  sta OBSTACLE_X_INT
+  UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
 
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
@@ -510,13 +555,7 @@ end_update_obstacle:
 
 update_floor:
 _update_pebble_pos:
-  sec
-  lda PEBBLE_X_FRACT
-  sbc OBSTACLE_VX_FRACT
-  sta PEBBLE_X_FRACT
-  lda PEBBLE_X_INT
-  sbc OBSTACLE_VX_INT
-  sta PEBBLE_X_INT
+  UPDATE_X_POS PEBBLE_X_INT, PEBBLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
 
   cmp #8
   bcs __end_update_pebble_pos
@@ -730,29 +769,10 @@ _update_jump:
   sta DINO_VY_INT
 
 _update_jump_pos:
-  sec
-  lda #<DINO_SPRITE_1_END
-  sbc DINO_TOP_Y_INT
-  sta PTR_DINO_SPRITE
-  lda #>DINO_SPRITE_1_END
-  sbc #0
-  sta PTR_DINO_SPRITE+1
+  OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_SPRITE, DINO_SPRITE_1_END
+  OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_OFFSET, DINO_SPRITE_OFFSETS_END
+  OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_MISSILE_0_CONF, DINO_MISSILE_0_OFFSETS_END
 
-  sec
-  lda #<DINO_SPRITE_OFFSETS_END
-  sbc DINO_TOP_Y_INT
-  sta PTR_DINO_OFFSET
-  lda #>DINO_SPRITE_OFFSETS_END
-  sbc #0
-  sta PTR_DINO_OFFSET+1
-
-  sec
-  lda #<DINO_MISSILE_0_OFFSETS_END
-  sbc DINO_TOP_Y_INT
-  sta PTR_DINO_MISSILE_0_CONF
-  lda #>DINO_MISSILE_0_OFFSETS_END
-  sbc #0
-  sta PTR_DINO_MISSILE_0_CONF+1
   jmp _end_legs_anim
 
 _crouching:
@@ -925,29 +945,9 @@ _set_game_over:
   sta DINO_TOP_Y_INT
 
 __set_dino_game_over_sprite:
-  sec
-  lda #<DINO_GAME_OVER_SPRITE_END
-  sbc DINO_TOP_Y_INT
-  sta PTR_DINO_SPRITE
-  lda #>DINO_GAME_OVER_SPRITE_END
-  sbc #0
-  sta PTR_DINO_SPRITE+1
-
-  sec
-  lda #<DINO_SPRITE_OFFSETS_END
-  sbc DINO_TOP_Y_INT
-  sta PTR_DINO_OFFSET
-  lda #>DINO_SPRITE_OFFSETS_END
-  sbc #0
-  sta PTR_DINO_OFFSET+1
-
-  sec
-  lda #<DINO_GAME_OVER_MISSILE_0_OFFSETS_END
-  sbc DINO_TOP_Y_INT
-  sta PTR_DINO_MISSILE_0_CONF
-  lda #>DINO_GAME_OVER_MISSILE_0_OFFSETS_END
-  sbc #0
-  sta PTR_DINO_MISSILE_0_CONF+1
+  OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_SPRITE, DINO_GAME_OVER_SPRITE_END
+  OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_OFFSET, DINO_SPRITE_OFFSETS_END
+  OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_MISSILE_0_CONF, DINO_GAME_OVER_MISSILE_0_OFFSETS_END
 
 __init_game_over_sound:
   SFX_INIT GAME_OVER_SOUND
@@ -1013,6 +1013,9 @@ _remaining_overscan:
 ; UTILITY TABLES
 ;=============================================================================
   INCLUDE "tables.asm"
+
+  ECHO "ROM at:", *, "(", [*]d, ")"
+  ECHO "Remaining: ", [$fffc - *]d, "bytes"
 
 ;=============================================================================
 ; ROM SETUP

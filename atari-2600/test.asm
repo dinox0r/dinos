@@ -1,182 +1,176 @@
-  PROCESSOR 6502
+  processor 6502
+  include "include/vcs.h"
+  include "include/macro.h"
 
-  INCLUDE "include/vcs.h"
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Besides the two 8x1 sprites ("players") the TIA has
+; two "missiles" and one "ball", which are just variable-length
+; dots or dashes. They have similar positioning and display
+; requirements, so we're going to make a subroutine that can
+; set the horizontal position of any of them.
+; But we can also use the HMPx/HMOVE registers directly to move the
+; objects by small offsets without using this routine every time.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  ; constats ------------------------------------------------------------------
-SPRITE_HEIGHT = 10
-SPRITE_Y_POS = 150
+  org  $f000
 
-  ; variables -----------------------------------------------------------------
-  SEG.U variables
-  ORG $80
+counter  equ $81
 
-  ; code ----------------------------------------------------------------------
-  SEG code
-  ORG $F000
+; Initialize and set initial offsets of objects.
+start  CLEAN_START
+  lda #149
+  ldx #0
+  jsr SetHorizPos  ; set player 0 horiz. pos
+  inx
+  lda #130
+  jsr SetHorizPos  ; set player 1 horiz. pos
+  inx
+  lda #40
+  jsr SetHorizPos  ; set missile 0 horiz. pos
+  lda #$10
+  sta NUSIZ0  ; make missile 0 2x-wide
+  inx
+  lda #70
+  jsr SetHorizPos  ; set missile 1 horiz. pos
+  lda #$20
+  sta NUSIZ1  ; make missile 1 4x-wide
+  inx
+  lda #100
+  jsr SetHorizPos  ; set ball horiz. pos
+  lda #$30
+  sta CTRLPF  ; set ball 8x-wide
+  sta WSYNC
+  sta HMOVE
+; We've technically generated an invalid frame because
+; these operations have generated superfluous WSYNCs.
+; But it's just at the beginning of our program, so whatever.
 
-reset:
-  sei
-  cld
-
-  lda #0
-  tax
-  tay
-_clear_mem_loop:
+; Next frame loop
+nextframe
+  VERTICAL_SYNC
+  
+; 36 lines of VBLANK
+  ldx #36
+lvblank  sta WSYNC
   dex
-  txs
-  pha
-  bne _clear_mem_loop
+  bne lvblank
 
-on_begin_frame:
-  ; turn VBLANK and VSYNC on
-  lda #2
-  sta VBLANK
-  sta VSYNC
-
-  ; 3 scanlines of VSYNC
-  sta WSYNC
-  sta WSYNC
-  sta WSYNC
-  ; turn VSYNC off
-  lda #0
-  sta VSYNC
-
-  sta WSYNC
-  nop ; 5
-  nop ; 5
-  nop ; 5
-  nop ; 9
-  nop ; 9
-  nop ; 9
-  nop ; 11
-  nop ; 13
-  nop ; 15
-  dec $2D ; 20
-  sta RESM0
-  sta RESP1 ; 23
-  sta RESM1
-
-; Again, for reference:
-;       LEFT  <---------------------------------------------------------> RIGHT
-;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
-;value in hex | 70  60  50  40  30  20  10 00  F0  E0  D0  C0  B0  A0  90  80
-  lda #$C0
-  sta HMM0
-  lda #$50
-  sta HMM1
-  ;lda #$80
-  ;sta HMM0
-  sta WSYNC
-  sta HMOVE
-
-  inc $2D
-  inc $2D
-  inc $2D
-  inc $2D
-  inc $2D
-
-  lda #$00
-  sta HMM0
-  sta HMP1
-
-  ;lda #$E0
-  ;sta HMM0
-  sta WSYNC
-  sta HMOVE
-
-  inc $2D
-  inc $2D
-  inc $2D
-  inc $2D
-  inc $2D
-
+; Draw 192 scanlines
+; We're going to draw both players, both missiles, and the ball
+; straight down the screen. We can draw various kinds of vertical
+; lines this way.
+  ldx #71
+  stx counter
+  ldx #192
+  stx COLUBK  ; set the background color
+  lda #0    ; A changes every scanline
+  ldy #0    ; Y is sprite data index
+lvscan
+  sta WSYNC  ; wait for next scanline
+  lda NUMBERS,y
+  sta GRP0  ; set sprite 0 pixels
+  sta GRP1  ; set sprite 1 pixels
+  tya    ; we'll use the Y position, only the 2nd bit matters
+  sta ENAM0  ; enable/disable missile 0
+  sta ENAM1  ; enable/disable missile 1
+  sta ENABL  ; enable/disable ball
+  iny
+  cpy #60
+  bne wrap1  ; wrap Y at 60 to 0
+  ldy #0
+wrap1
+  dex
+  bne lvscan  ; repeat next scanline until finished
+  
+; Clear all colors to black before overscan
+  stx COLUBK
+  stx COLUP0
+  stx COLUP1
+  stx COLUPF
+; 30 lines of overscan
+  ldx #25
+lvover  sta WSYNC
+  dex
+  bne lvover
+  
+; Move all the objects by a different offset using HMP/HMOVE registers
+; We'll hard-code the offsets in a table for now
+  ldx #0
+hmoveloop
+  lda MOVEMENT,x
   sta HMCLR
-
-  ; 37 (minus the few above for positioning) scanlines of VBLANK
-  lda #43
-  sta TIM64T
-
-_on_vblank_timer:
-  lda INTIM
-  bne _on_vblank_timer
-
-  ; turn VBLANK off
-  lda #0
-  sta VBLANK
-
-  lda #$0C
-  sta COLUBK
-
-  lda #$04        ; 2 (29)
-  sta COLUP0      ; 3 (32)
-  sta COLUP1      ; 3 (32)
-
-  ; scaline 191
-  sta HMOVE
-  ; remaining 190 scanlines
-  ldy #190
-
-scanline:
-  sta WSYNC
-  sta HMOVE       ; 3
-
-  tya
-  sec               ; 2 (10)
-  sbc #SPRITE_Y_POS ; 2 (12)
-  cmp #SPRITE_HEIGHT ; 2 (14)
-  bcc _draw_sprite ; 2/3 (16/17)
-
-  lda #0
-  sta GRP1
-  sta ENAM1
-  sta ENAM0
-
-  jmp _end_of_scanline
-
-_draw_sprite:     ; - (17)
-  lda #%11010111  ; 2 (24)
-  sta GRP1        ; 3 (27)
-  lda #2  ; 
-  sta ENAM0
-  sta ENAM1
-  lda #%00100101  ; 2 (19) 2x GRP1 4x M1
-  sta NUSIZ0      ; 3 (22)
-  lda #1
-  sta NUSIZ1
-
-_end_of_scanline:
-  dey             ; 2 (34)
-  bne scanline    ; 3
+  sta HMP0,x
   sta WSYNC
   sta HMOVE
+  inx
+  cpx #5
+  bcc hmoveloop
+; This loop also gave us 5 extra scanlines = 30 total
 
-on_end_frame:
-overscan:
-  lda #2
-  sta VBLANK
-  ; 30 scanlines of overscan
-  lda #35
-  sta TIM64T
-_on_overscan_timer:
-  lda INTIM
-  bne _on_overscan_timer
-  sta WSYNC
+; Cycle the sprite colors for the next frame
+  ;inc counter
+  lda counter
+  sta COLUP0
+  clc
+  ror
+  sta COLUP1
+  clc
+  ror
+  sta COLUPF
+  jmp nextframe
 
-  jmp on_begin_frame
+; SetHorizPos - Sets the horizontal position of an object.
+; The X register contains the index of the desired object:
+;  X=0: player 0
+;  X=1: player 1
+;  X=2: missile 0
+;  X=3: missile 1
+;  X=4: ball
+; This routine does a WSYNC and HMOVE before executing,
+; so whatever you do here will not take effect until you
+; call the routine again or do your own WSYNC and HMOVE.
+SetHorizPos
+  sta WSYNC  ; start a new line
+  sta HMOVE  ; apply the previous fine position(s)
+  sta HMCLR  ; reset the old horizontal position(s)
+  sec    ; set carry flag
+DivideLoop
+  sbc #15    ; subtract 15
+  bcs DivideLoop  ; branch until negative
+  eor #7    ; calculate fine offset
+  asl
+  asl
+  asl
+  asl
+  sta RESP0,x  ; fix coarse position
+  sta HMP0,x  ; set fine offset
+  rts    ; return to caller
 
-; Sprite data
-;SPRITE:
-;  .ds 1
-;  .byte %00111100
-;  .byte %01000010
-;  .byte %10011001
-;  .byte %10100101
-;  .byte %10000001
-;  .byte %10100101
-;  .byte %01000010
-;  .byte %00111100
-;  .ds 1
-; ---- Cartridge beginning ----
-  ORG $fffc
-  .word reset
-  .word reset
+; Hard-coded  values for movement registers
+MOVEMENT
+  .byte $00  ; +1 pixels
+  .byte $00  ; +2 pixels
+  .byte $00  ; +4 pixels
+  .byte $00  ; -1 pixels
+  .byte $00  ; -2 pixels
+
+; Bitmap pattern for digits
+NUMBERS ;;{w:8,h:6,count:10,brev:1};;
+        .byte $E2,$A2,$A2,$A2,$E2,$00
+        .byte $22,$22,$2E,$28,$2E,$00
+        .byte $EE,$22,$E6,$82,$EE,$00
+        .byte $EE,$2A,$6E,$22,$E2,$00
+        .byte $AA,$A8,$EE,$22,$2E,$00
+        .byte $EE,$88,$EE,$2A,$EE,$00
+        .byte $EE,$82,$E2,$A2,$E2,$00
+        .byte $EE,$2A,$2E,$2A,$2E,$00
+        .byte $EE,$AA,$EE,$A2,$EE,$00
+        .byte $E2,$A2,$E2,$22,$E2,$00
+;;end
+
+; Epilogue
+  org $fffc
+  .word start
+  .word start

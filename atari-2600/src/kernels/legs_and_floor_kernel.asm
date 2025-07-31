@@ -44,6 +44,7 @@ _legs_and_floor__decrement_y:  ; - (33)
   tya                  ; 2 (42)
   sbc OBSTACLE_Y       ; 3 (45)
   adc #OBSTACLE_HEIGHT ; 2 (47)
+  ;sbcs _legs_2nd_scanline__obstacle_y_within_range ; 2/3 (49/50)
   bcs _legs_2nd_scanline__obstacle_y_within_range ; 2/3 (49/50)
   lda #0
   sta PEBBLE_CACHED_OBSTACLE_GRP1      ; 3 (58)

@@ -1,5 +1,4 @@
-  ;SEG data
-  ;ORG $fe00
+  ECHO "ROM for sprites starts at: ", *, "(", [*]d, ")"
 
 DINO_SPRITE_1:
 ;      full sprite                     franke-sprite (GRP0 + M0)
@@ -528,7 +527,8 @@ PTERO_WINGS_CLOSED_MISSILE_1_CONF:
   ;                    initial M1 position (cycle 25)
 PTERO_WINGS_CLOSED_MISSILE_1_CONF_END = *
 
-CLOUD_PART_1:
+  ALIGN 256
+CLOUD_PART_1: ; fb00
   .ds 1             ;⏐
   .byte #%10001111  ;⏐█   ████
   .byte #%01010000  ;⏐ █ █
@@ -552,9 +552,19 @@ CLOUD_PART_2:
   .byte #%00010000  ;⏐   █
   .byte #%00010000  ;⏐   █
   .byte #%10100000  ;⏐█ █
-  .byte #%01000000  ;⏐ █
+  .byte #%01000000  ;⏐ █         fb14
   .ds 1             ;⏐
 CLOUD_PART_2_END = *
+
+  ; Make sure that both CLOUD_PART_1 and CLOUD_PART_2_END (the whole cloud
+  ; sprite) lies within the same page, this helps reduce the cycle count in
+  ; the cloud kernel
+  IF >CLOUD_PART_1 != >CLOUD_PART_2_END
+    ECHO "CLOUD_PART_1 and CLOUD_PART_2_END are in different pages"
+    ECHO "CLOUD_PART_1:     ",CLOUD_PART_1 
+    ECHO "CLOUD_PART_2_END: ",CLOUD_PART_2_END
+    ERR
+  ENDIF
 
 SCORE_DIGIT_0:
   .byte #%00100010  ;⏐  █   █
@@ -768,3 +778,5 @@ OBSTACLES_MISSILE_1_CONF_TABLE:
 ; Cacti (from index 3 onwards)
   .word CACTUS_2_MISSILE_1_CONF_END
   .word CACTUS_3_MISSILE_1_CONF_END
+
+  ECHO "ROM for sprites reaches address: ",*,[*]d
