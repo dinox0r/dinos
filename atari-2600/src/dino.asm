@@ -307,7 +307,16 @@ _init_obstacle_conf:
   sta OBSTACLE_VX_INT
 
 _init_cloud_conf:
+  lda #168
   ldx #0
+  jsr reset_cloud
+
+  lda #200
+  ldx #1
+  jsr reset_cloud
+
+  lda #255
+  ldx #2
   jsr reset_cloud
 
 ;=============================================================================
@@ -466,15 +475,23 @@ update_sky:
 _update_cloud_pos:
   UPDATE_X_POS CLOUD_1_X_INT, CLOUD_1_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
 
-  lda CLOUD_1_X_INT
-  cmp #6
-  bcs _check_cloud_2_x_pos
-_reset_cloud_1_pos:
-  ldx #0
+  ; The following is equivalent to:
+  ; for (x = 2; x >= 0; x--) 
+  ;   if cloud_x_pos[x] >= 0
+  ;     continue
+  ;   else
+  ;     call reset_cloud(new_x_pos=255, cloud_index=x)
+  ldx #2
+__cloud_check_x_pos_loop:
+  lda CLOUD_1_X_INT,x
+  cmp #0
+  bcs ___continue_next_cloud
+___reset_cloud_pos:
+  lda #255
   jsr reset_cloud
-
-_check_cloud_2_x_pos:
-  ; TODO do clouds 2 and 3
+___continue_next_cloud:
+  dex
+  bpl __cloud_check_x_pos_loop
 
 update_obstacle:
 _update_obstacle_pos:

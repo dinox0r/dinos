@@ -90,14 +90,14 @@ spawn_obstacle subroutine
 ; Sky related subroutines
 ;------------------------------------------------------------------------------
 reset_cloud subroutine
-  lda #161
+  ; Assumes reg A has the starting position for the cloud
   sta CLOUD_1_X_INT,x
 
   jsr rnd8
   sta CLOUD_1_X_FRACT,x
   and #15
   ; clc  ; The carry is irrelevant as it makes the outcome a bit more random
-  adc #CLOUD_HEIGHT+#1
+  adc #CLOUD_HEIGHT+#2
   sta CLOUD_1_TOP_Y,x
   rts
 
@@ -114,10 +114,9 @@ render_cloud_layer subroutine
   jsr set_cloud_pos_x       ; 6 for jsr + 27 of the subroutine (+33)
                             ; consumes a whole scanline and then resumes 
                             ; execution on cycle 27 of the next one
-.cloud_layer_setup:         ; - (27)
 
   sta WSYNC           ; 3 (30)
-                      ; - (0)
+                      ; - (0) -------------------------------------------------
   sta HMOVE           ; 3 (3)
 
   lda #0              ; 2 (5)
@@ -129,34 +128,42 @@ render_cloud_layer subroutine
 
   lda CURRENT_CLOUD_X ; 3 (19)
   cmp #9              ; 2 (21)
-  nop
-  sta HMCLR
-  bcc .only_show_grp1
-  cmp #161
-  bcc .show_both_grp0_and_grp1
-  cmp #170
-  bcc .only_show_grp1
+  nop                 ; 2 (23)
+  sta HMCLR           ; 3 (26)
+  bcc .only_show_grp1 ; 2/3 (28/29)
+  cmp #160            ; 2 (30)
+  bcc .show_both_grp0_and_grp1 ; 2/3 (32/33)
+  cmp #167            ; 2 (34)
+  bcc .only_show_grp0 ; 2/3 (36/37)
 
-  lda #0
-  CLOUD_KERNEL_2 #IGNORE_GRP0, #IGNORE_GRP1
-  rts
+  lda #0              ; 2 (38)
+  CLOUD_KERNEL #IGNORE_GRP0, #IGNORE_GRP1
+  sta WSYNC           ; 3 (?)
+                      ; - (0)
+  sta HMOVE           ; 3 (3)
+  rts                 ; 6 (9)
 
-.only_show_grp0:
-  lda #0
-  ;sta HMCLR           ; 3 (23)
-  CLOUD_KERNEL_2 #USE_GRP0, #IGNORE_GRP1
-  sta WSYNC
-  rts
+.only_show_grp1: ; - (29)
+  lda #0         ; 2 (31)
+  CLOUD_KERNEL #IGNORE_GRP0, #USE_GRP1
+  sta WSYNC           ; 3 (?)
+                      ; - (0)
+  sta HMOVE           ; 3 (3)
+  rts                 ; 6 (9)
 
-.only_show_grp1:
-  lda #0
-  ;sta HMCLR           ; 3 (23)
-  CLOUD_KERNEL_2 #IGNORE_GRP0, #USE_GRP1
-  sta WSYNC
-  rts
+.show_both_grp0_and_grp1: ; - (33)
+  lda #0                  ; 2 (35)
+  CLOUD_KERNEL #USE_GRP0, #USE_GRP1
+  sta WSYNC           ; 3 (73)
+                      ; - (0)
+  sta HMOVE           ; 3 (3)
+  rts                 ; 6 (9)
 
-.show_both_grp0_and_grp1:
-  lda #0
-  ;sta HMCLR           ; 3 (23)
-  CLOUD_KERNEL_2 #USE_GRP0, #USE_GRP1
-  rts  ; 6 (76) - Notice no WSYNC in this case
+.only_show_grp0:      ; - (37)
+  lda #0              ; 2 (39)
+  CLOUD_KERNEL #USE_GRP0, #IGNORE_GRP1
+  sta WSYNC           ; 3 (?)
+                      ; - (0)
+  sta HMOVE           ; 3 (3)
+  rts                 ; 6 (9)
+
