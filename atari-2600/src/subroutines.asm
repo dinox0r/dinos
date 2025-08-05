@@ -129,7 +129,7 @@ reset_cloud subroutine
 set_cloud_pos_x subroutine
   ; The macro adds 27 cycles to current scanline, then ends it
   ; and consumes a whole new scanline for the positioning
-  SET_STITCHED_SPRITE_X_POS PLAYER_0_INDEX, PLAYER_1_INDEX, #USE_SEAMLESS_STITCHING
+  SET_STITCHED_SPRITE_X_POS #PLAYER_0_INDEX, #PLAYER_1_INDEX, #USE_SEAMLESS_STITCHING
   ; Once is finished, it leaves the execution on a new (3rd) scanline
   ; with 27 cycles (when using SEAMLESS_STITCHING)
   rts ; 6 (33)

@@ -8,7 +8,7 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
 
   lda GAME_FLAGS            ; 3 (6)
   ;eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
-  ;ora #FLAG_SKY_LAYER_1_ON  ; -
+  ora #FLAG_SKY_LAYER_1_ON  ; -
   sta GAME_FLAGS            ; 3 (10)
 
   bpl double_cloud_layer    ; 2/3 (12/13)
