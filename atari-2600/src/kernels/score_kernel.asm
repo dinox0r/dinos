@@ -8,5 +8,5 @@ score_setup_kernel:;---->>> 2 scanlines <<<----
   sta HMOVE   
   sta WSYNC
 
-score_kernel:;---------->>> 10 scanlines <<<---
+score_kernel:;---------->>> 8 scanlines <<<---
   DEBUG_SUB_KERNEL #$20, #8

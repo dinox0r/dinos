@@ -543,6 +543,8 @@
     bcc .case_1__obj1_fully_hidden_obj2_partially_visible   ; 2/3 (7/8)
     cmp #17                                                 ; 2 (9)
     bcc .case_2__obj1_partially_visible_obj2_fully_visible  ; 2/3 (11/12)
+    cmp #171
+    bcs .case_5__both_obj1_and_obj2_fully_hidden
     cmp #163                                                ; 2 (13)
     bcs .case_4__obj1_partially_visible_obj2_fully_hidden   ; 2/3 (15/16)
 
@@ -700,6 +702,17 @@
     sta HMOVE
     jmp .end_case_4
 
+.case_5__both_obj1_and_obj2_fully_hidden:
+    sta WSYNC      ; 3 (?)
+    ; 2nd scanline ============================================================
+    sta HMOVE      ; 3 (3)
+    sta RESP0+.OBJECT_1_INDEX
+    sta RESP1+.OBJECT_2_INDEX
+    sta WSYNC
+    sta HMOVE
+    jmp .end_case_5
+
+
 .case_3__obj1_and_obj2_fully_visible: ; - (24)
     sta WSYNC      ; 3 (27)
     ; 2nd scanline ============================================================
@@ -754,7 +767,7 @@
       sta HMP0+.OBJECT_1_INDEX    ; 3 (25)
       sta HMP0+.OBJECT_2_INDEX    ; 3 (28)
     ENDIF
-
+.end_case_5:
     ;❗ IMPORTANT: Caller is responsible of invoking 'sta WSYNC'
   ENDM
 

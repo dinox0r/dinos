@@ -78,7 +78,8 @@ IGNORE_GRP1 = #0
 
 ; Sky kernel
 ; -----------------------------------------------------------------------------
-SKY_SCANLINES = #28
+SKY_SINGLE_CLOUD_SCANLINES = #28
+SKY_2_CLOUDS_SCANLINES = #13
 
 CLOUD_VX_INT = #1
 CLOUD_VX_FRACT = #15

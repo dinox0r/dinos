@@ -90,13 +90,38 @@ spawn_obstacle subroutine
 ; Sky related subroutines
 ;------------------------------------------------------------------------------
 reset_cloud subroutine
-  ; Assumes reg A has the starting position for the cloud
+  ; Assumes register A contains the new X integer position for the cloud.
+  ; The value is stored into the appropriate cloud slot (indexed by X).
   sta CLOUD_1_X_INT,x
 
   jsr rnd8
   sta CLOUD_1_X_FRACT,x
+
+  ; If X == 0, this resets the cloud for the single-cloud sky.
+  ; If X >= 1, this is one of the two clouds in the double-cloud sky.
+  cpx #0
+  beq .single_cloud_layer
+
+  ; For a double-cloud sky, restrict the random Y offset to 2 bits (0–3)
+  ; using AND #3. The vertical range is narrower since each cloud is
+  ; drawn smaller and must fit within the same number of #SKY_SCANLINES
+  ; as the taller single-cloud variant.
+  and #3
+
+  ; Trick: if the branch above is not taken (X > 0), skip the AND #15
+  ; by turning the next instruction (AND #15) into a harmless BIT.
+  ; $2C is the opcode for BIT, which turns the next two bytes
+  ; into an ignored address operand, effectively forming a 3-byte NOP.
+  .byte $2C
+
+.single_cloud_layer:
+  ; For the single-cloud sky (X == 0), allow a larger random vertical
+  ; placement by masking with AND #15 (i.e., range 0–15).
   and #15
-  ; clc  ; The carry is irrelevant as it makes the outcome a bit more random
+
+  ; Add a base offset to the Y value, placing the cloud below the HUD
+  ; or sky margin. The carry flag is not cleared, as the result doesn't
+  ; need to be precise. Leaving the carry random adds slight variation.
   adc #CLOUD_HEIGHT+#2
   sta CLOUD_1_TOP_Y,x
   rts
