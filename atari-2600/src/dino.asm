@@ -475,20 +475,20 @@ update_sky:
 
 _update_cloud_pos:
   UPDATE_X_POS CLOUD_1_X_INT, CLOUD_1_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
-  UPDATE_X_POS CLOUD_2_X_INT, CLOUD_3_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
+  UPDATE_X_POS CLOUD_2_X_INT, CLOUD_2_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
   UPDATE_X_POS CLOUD_3_X_INT, CLOUD_3_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
 
   ; The following is equivalent to:
   ; for (x = 2; x >= 0; x--) 
-  ;   if cloud_x_pos[x] >= 0
+  ;   if cloud_x_pos[x] > 1
   ;     continue
   ;   else
   ;     call reset_cloud(new_x_pos=255, cloud_index=x)
   ldx #2
 __cloud_check_x_pos_loop:
   lda CLOUD_1_X_INT,x
-  cmp #0
-  bcs ___continue_next_cloud
+  cmp #2
+  bcs ___continue_next_cloud    ; if x > 1
 ___reset_cloud_pos:
   lda #255
   jsr reset_cloud
