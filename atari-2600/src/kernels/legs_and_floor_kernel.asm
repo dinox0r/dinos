@@ -101,18 +101,18 @@ _legs_2nd_scanline__end_of_scanline:
   sbc DINO_TOP_Y_INT   ; 3 (55)
   adc #DINO_HEIGHT     ; 2 (57)
   bcs _legs_3rd_scanline__dino_y_within_range ; 2/3 (59/60)
-  lda #0               ; 2 (62)
-  tax                  ; 2 (64)
-  sta ENAM0            ; 3 (67)
-  jmp _legs_and_floor__end_of_3rd_scanline ; 3 (70)
+  lda #0               ; 2 (61)
+  tax                  ; 2 (63)
+  sta ENAM0            ; 3 (66)
+  jmp _legs_and_floor__end_of_3rd_scanline ; 3 (69)
 
-_legs_3rd_scanline__dino_y_within_range: ; - (59)
-  lda (PTR_DINO_OFFSET),y  ; 5 (64)
-  sta HMP0                 ; 3 (67)
-  LAX (PTR_DINO_SPRITE),y  ; 5 (62)
+_legs_3rd_scanline__dino_y_within_range: ; - (60)
+  lda (PTR_DINO_OFFSET),y  ; 5 (65)
+  sta HMP0                 ; 3 (68)
+  LAX (PTR_DINO_SPRITE),y  ; 5 (73)
 
 _legs_and_floor__end_of_3rd_scanline:
-  sta WSYNC                ; 3 (75)
+  sta WSYNC                ; 3 (76)
 
   ; 4th scanline ========================================================
                          ; - (0)
