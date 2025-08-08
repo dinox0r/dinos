@@ -7,8 +7,8 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
   sta COLUBK     ; can be ignored for total CPU cycles count
 
   lda GAME_FLAGS            ; 3 (6)
-  ;eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
-  ora #FLAG_SKY_LAYER_1_ON  ; -
+  eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
+  ;ora #FLAG_SKY_LAYER_1_ON  ; -
   sta GAME_FLAGS            ; 3 (10)
 
   bpl double_cloud_layer    ; 2/3 (12/13)
@@ -39,12 +39,15 @@ double_cloud_layer:                ; - (13)
   sta CURRENT_CLOUD_TOP_Y          ; 3 (23)
   lda CLOUD_2_X_INT                ; 3 (26)
   sta CURRENT_CLOUD_X              ; 3 (29)
-  jsr render_cloud_layer
+  jsr render_cloud_layer           ; 6 (?)
 
   lda CLOUD_3_TOP_Y                ; 3 (?)
   sta CURRENT_CLOUD_TOP_Y          ; 3 (?)
   lda CLOUD_3_X_INT                ; 3 (?)
   sta CURRENT_CLOUD_X              ; 3 (?)
-  jsr render_cloud_layer           ; 3 (?)
+  jsr render_cloud_layer           ; 6 (?)
+
+  sta WSYNC
+  sta HMOVE
 
 end_of_sky_kernel:

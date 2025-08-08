@@ -57,7 +57,8 @@ _legs_2nd_scanline__obstacle_y_within_range: ; - (50)
   sta PEBBLE_CACHED_OBSTACLE_M1        ; 3 (66)
 _legs_2nd_scanline__end_of_scanline:
   lda TEMP     ; 3 (69)
-  sta WSYNC    ; 3 ()
+  sec          ; 2 (71)
+  sta WSYNC    ; 3 (74)
 
   ; 3rd scanline ========================================================
                               ; - (0)
@@ -94,25 +95,23 @@ _legs_2nd_scanline__end_of_scanline:
   lda PEBBLE_PF5  ; 3 (45)
   sta PF2         ; 3 (48)
 
-  ; 28 (44)
-  ;LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_3rd_scanline
-  sec                  ; 2 (50)
-  tya                  ; 2 (52)
-  sbc DINO_TOP_Y_INT   ; 3 (55)
-  adc #DINO_HEIGHT     ; 2 (57)
-  bcs _legs_3rd_scanline__dino_y_within_range ; 2/3 (59/60)
-  lda #0               ; 2 (61)
-  tax                  ; 2 (63)
-  sta ENAM0            ; 3 (66)
-  jmp _legs_and_floor__end_of_3rd_scanline ; 3 (69)
+  ; sec is invoked in the previous scanline
+  tya                  ; 2 (50)
+  sbc DINO_TOP_Y_INT   ; 3 (53)
+  adc #DINO_HEIGHT     ; 2 (55)
+  bcs _legs_3rd_scanline__dino_y_within_range ; 2/3 (57/58)
+  lda #0               ; 2 (59)
+  tax                  ; 2 (61)
+  sta ENAM0            ; 3 (64)
+  jmp _legs_and_floor__end_of_3rd_scanline ; 3 (67)
 
-_legs_3rd_scanline__dino_y_within_range: ; - (60)
-  lda (PTR_DINO_OFFSET),y  ; 5 (65)
-  sta HMP0                 ; 3 (68)
-  LAX (PTR_DINO_SPRITE),y  ; 5 (73)
+_legs_3rd_scanline__dino_y_within_range: ; - (58)
+  lda (PTR_DINO_OFFSET),y  ; 5 (63)
+  sta HMP0                 ; 3 (66)
+  LAX (PTR_DINO_SPRITE),y  ; 5 (71)
 
 _legs_and_floor__end_of_3rd_scanline:
-  sta WSYNC                ; 3 (76)
+  sta WSYNC                ; 3 (74)
 
   ; 4th scanline ========================================================
                          ; - (0)

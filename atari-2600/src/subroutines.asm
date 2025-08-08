@@ -102,17 +102,15 @@ reset_cloud subroutine
   cpx #0
   beq .single_cloud_layer
 
-  ; For a double-cloud sky, restrict the random Y offset to 2 bits (0–3)
-  ; using AND #3. The vertical range is narrower since each cloud is
-  ; drawn smaller and must fit within the same number of #SKY_SCANLINES
-  ; as the taller single-cloud variant.
-  and #3
+  ; For a double-cloud sky, set the cloud Y to 0, there is no
+  ; room for vertical offset
+  lda #0
 
-  ; Trick: if the branch above is not taken (X > 0), skip the AND #15
-  ; by turning the next instruction (AND #15) into a harmless BIT.
-  ; $2C is the opcode for BIT, which turns the next two bytes
-  ; into an ignored address operand, effectively forming a 3-byte NOP.
-  .byte $2C
+  ; If the branch above is not taken (X > 0), skip the 'and #15'
+  ; below by turning it into a harmless 'bit'. 0x2c is the opcode for
+  ; 'bit', which turns the next two bytes into an ignored address
+  ; operand, effectively forming a 3-byte noop.
+  .byte #$2C
 
 .single_cloud_layer:
   ; For the single-cloud sky (X == 0), allow a larger random vertical
