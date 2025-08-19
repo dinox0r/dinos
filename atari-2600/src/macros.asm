@@ -534,11 +534,14 @@
     ; } else if (reg A > 162) {
     ;   case 4: object1 is partially offscreen (to the right), object2 is fully
     ;   hidden
+    ; } else if (reg A > 170) {
+    ;   case 5: both objects are fully hidden, strobe their registers
+    ;   on HBLANK so to make sure they stay out of screen (hidden behind the
+    ;   the HMOVE black curtain
     ; } else {
     ;   setup logic before invoking case 3
     ;   case 3: both object1 and object2 are fully visible
     ; }
-
     cmp #9                                                  ; 2 (5)
     bcc .case_1__obj1_fully_hidden_obj2_partially_visible   ; 2/3 (7/8)
     cmp #17                                                 ; 2 (9)
@@ -752,7 +755,8 @@
       LAX FINE_POSITION_OFFSET,y  ; 4 (15) - y should range between [-7, 7]
 
       ; Instead of using the same offset for both, use a +1 offset for 
-      ; object1, this will move it slightly to the right
+      ; object1, this will move it 1px to the right, stitching both objects
+      ; without a seam
       iny                         ; 2 (17)
       lda FINE_POSITION_OFFSET,y  ; 4 (21) - y should range between [-7, 7]
 
@@ -770,6 +774,96 @@
 .end_case_5:
     ;❗ IMPORTANT: Caller is responsible of invoking 'sta WSYNC'
   ENDM
+
+
+  ; ⚠ IMPORTANT: This assumes the sprite X position is already in reg A
+  MACRO SET_SPRITE_X_POS
+.OBJECT_INDEX SET {1}
+    ; (current) scanline ==================================================
+    ;
+    cmp #9                                                  ; 2 (5)
+    bcc .case_1_and_5__obj_fully_offscreen   ; 2/3 (7/8)
+    cmp #171
+    bcs .case_1_and_5__obj_fully_offscreen
+    cmp #17                                                 ; 2 (9)
+    bcc .case_2__obj_partially_visible_on_left_side_of_screen  ; 2/3 (11/12)
+    cmp #163                                                ; 2 (13)
+    bcs .case_4__obj_partially_visible_on_right_side_of_screen   ; 2/3 (15/16)
+    ; case 3: obj fully visible
+.prepare_before_invoking_case_3:    ; - (15)
+    clc                             ; 2 (17)
+    adc #45-#13                     ; 2 (19)
+    sec                             ; 2 (21)
+    jmp .case_3__obj_fully_visible  ; 3 (24)
+
+.case_1_and_5__obj_fully_offscreen: ; - (8)
+    sta WSYNC                       ; 3 (11)
+    ; 2nd scanline ============================================================
+                                    ; - (0)
+    sta HMOVE                       ; 3 (3)
+    sta RESP0+.OBJECT_INDEX         ; 3 (6)
+    jmp .end_of_cases_1_and_5       ; 3 ()
+
+.case_2__obj_partially_visible_on_left_side_of_screen: ; - (12)
+    sta WSYNC                       ; 3 (15)
+    ; 2nd scanline ============================================================
+                                    ; - (0)
+    sta HMOVE                       ; 3 (3)
+    sta RESP0+.OBJECT_INDEX         ; 3 (6)
+    sec                             ; 2 (8)
+    sbc #5+#15                      ; 2 (10)
+    jmp .end_of_cases_2_and_3       ; 3 (33)
+
+.case_4__obj_partially_visible_on_right_side_of_screen: ; - (16)
+    sta WSYNC                       ; 3 (19)
+    ; 2nd scanline ============================================================
+                                    ; - (0)
+    sta HMOVE                       ; 3 (3)
+    sec                             ; 2 (5)
+    sbc #160+#15                    ; 2 (7)
+    ldx #12                         ; 2 (9)
+.wait_until_cpu_is_at_cycle_71:         ; - (9) \
+    dex                                 ; 2      > total: 59 cycles
+    bne .wait_until_cpu_is_at_cycle_71  ; 2/3   /
+    sta $2D                         ; 3 (71)
+    sta RESP0+.OBJECT_INDEX         ; 3 (74)
+    nop                             ; 2 (76) - no WSYNC
+    ; 3rd scanline ============================================================
+    sta HMOVE
+    jmp .end_case_4
+
+.case_3__obj_fully_visible: ; - (24)
+    sta WSYNC      ; 3 (27)
+    ; 2nd scanline ============================================================
+                   ; - (0)
+    sta HMOVE      ; 3 (3)
+
+.div_by_15_loop:        ; - (3)
+    sbc #15             ; 2 (5) - Divide by 15 (sucessive subtractions)
+    bcs .div_by_15_loop ; 2/3     (obstacle-x / 5 + 5)
+    sta RESP0+.OBJECT_INDEX
+
+.end_of_cases_2_and_3:
+    sta WSYNC      ;
+    ; 3rd scanline ============================================================
+                   ; - (0)
+    sta HMOVE      ; 3 (3)
+.end_case_4:
+    ldx #0         ; 2 (5)
+
+    ; Offsets the remainder from [-14, 0] to [0, 14]
+    ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
+    clc            ; 2 (7)
+    adc #15        ; 2 (9)
+    tay            ; 2 (11)
+    pha                         ; 4 (15) - Wait/waste 7 cycles (2 bytes)
+    pla                         ; 3 (18)
+    lda FINE_POSITION_OFFSET,y  ; 4 (22) - y should range between [-7, 7]
+    sta HMP0+.OBJECT_INDEX      ; 3 (25)
+
+.end_cases_1_and_5:
+  ENDM
+
 
   MACRO CLOUD_KERNEL
 .USE_GRP0 SET {1}

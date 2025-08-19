@@ -688,8 +688,8 @@ _crouching:
 _update_leg_anim:
   ; Dino leg animation
   lda FRAME_COUNT            ; Check if is time to update dino's legs
-  and #%00000111             ; animation
-  cmp #7                     ;
+  and #%00000011             ; animation
+  cmp #3                     ;
   bne _end_legs_anim         ;
 
   lda #FLAG_DINO_LEFT_LEG    ; Check which leg is up, and swap

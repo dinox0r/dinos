@@ -49,5 +49,9 @@ double_cloud_layer:                ; - (13)
 
   sta WSYNC
   sta HMOVE
+  jmp end_of_sky_kernel
+
+moon_and_stars_layer:
+  
 
 end_of_sky_kernel:
