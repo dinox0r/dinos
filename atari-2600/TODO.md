@@ -8,6 +8,7 @@
         so it can be called twice (why a macro first and then
         a subroutine? To copy/paste edit in the same file)
     [ ] Draw the stars sprites
+    [x] Add the 2 scanlines I took from play area to the sky kernel
 
 [ ] Merge a few zero bytes of the ptero sprite together to
     save some ROM
@@ -17,3 +18,7 @@
     `jmp end_case_4` instead of a `nop`, `sta HMOVE` and 
     then `jmp end_case_4`. This might shave a few ROM bytes.
 
+[ ] Try the idea of using 2 sprites for obstacles and then once
+    the leftmost one is out of screen swap to 1 sprite and set
+    the x position to the one of the rightmost obstacle in the 
+    2 sprite formation (might require some extra ROM)

@@ -861,7 +861,7 @@
     lda FINE_POSITION_OFFSET,y  ; 4 (22) - y should range between [-7, 7]
     sta HMP0+.OBJECT_INDEX      ; 3 (25)
 
-.end_cases_1_and_5:
+.end_of_cases_1_and_5:
   ENDM
 
 

@@ -62,8 +62,8 @@ IGNORE_GRP1 = #0
 
 ; Sky kernel
 ; -----------------------------------------------------------------------------
-SKY_SINGLE_CLOUD_SCANLINES = #29 ; Contrary to the play area, these
-SKY_2_CLOUDS_SCANLINES = #12     ; are 1x kernel lines
+SKY_SINGLE_CLOUD_SCANLINES = #31 ; Contrary to the play area, these
+SKY_2_CLOUDS_SCANLINES = #13     ; are 1x kernel lines
 
 CLOUD_VX_INT = #0
 CLOUD_VX_FRACT = #100
