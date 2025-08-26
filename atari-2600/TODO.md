@@ -13,7 +13,7 @@
 [ ] Merge a few zero bytes of the ptero sprite together to
     save some ROM
 
-[ ] In both `SET_SPRITE_X_POS` and `SET_STITCHED_SPRITE_X_POS`
+[x] In both `SET_SPRITE_X_POS` and `SET_STITCHED_SPRITE_X_POS`
     check case 4 and strobe 1 CPU cycle earlier, and do
     `jmp end_case_4` instead of a `nop`, `sta HMOVE` and 
     then `jmp end_case_4`. This might shave a few ROM bytes.
