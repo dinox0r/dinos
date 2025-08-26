@@ -650,15 +650,14 @@
                    ; - (0)
     sta HMOVE      ; 3 (3)
 
-    ; For case 4, RESP1 must be strobed at CPU cycle 71. The strobe completes
-    ; at cycle 74, leaving just enough space for a 2-cycle instruction (like
-    ; 'nop') before the scanline ends. There is no room for a 'sta WSYNC'.
+    ; For case 4, RESP1 will be strobed at CPU cycle 70. The strobe completes
+    ; at cycle 73.
     ;
-    ; Theoretically, strobing RESP1 at CPU cycle 74 corresponds to TIA cycle 222
-    ; (74 * 3), which should map to screen pixel 154 (222 - 68 cycles of HBLANK),
-    ; but in practice, GRP1 appears at screen pixel 159... Go figure ¯\_(ツ)_/¯
+    ; Theoretically, strobing RESP1 at CPU cycle 73 corresponds to TIA cycle 219
+    ; (73 * 3), which should map to screen pixel 151 (219 - 68 cycles of HBLANK),
+    ; but in practice, GRP1 appears at screen pixel 156... Go figure ¯\_(ツ)_/¯
     ;
-    ; First, configure the fine offset. Then, delay until cycle 71 for RESP1.
+    ; First, configure the fine offset. Then, delay until cycle 70 for RESP1.
     ;
     ; The rightmost position case 3 can handle without resorting to an extra 
     ; scanline is x=162 which maps to screen pixel 154, case 4 should continue
@@ -675,10 +674,11 @@
 
     sec             ; 2 (5)
     ; reg A contains x ∈ [163, 171]
-    ; x needs to be mapped to index ∈ [3, 8] (offsets from -4 to +1)
-    ; This is computed as: x - 160
+  ; x needs to be mapped to index ∈ [3, 8] (offsets from -4 to +1)
+    ; x needs to be mapped to index ∈ [6, 11] (offsets from -1 to 4)
+    ; This is computed as: x - 163
     ; But A will later be shared with case 1, 2 and 3 logic, which subtract 15.
-    sbc #160+#15        ; 2 (7)
+    sbc #157+#15        ; 2 (7)
 
     ; reg A now holds the correct offset index to be used later during
     ; the 4th scanline. The CPU is currently at cycle 7 and must reach cycle 71,
@@ -688,22 +688,16 @@
     ;   - 11 iterations × 5 cycles (DEX + BNE) = 55 cycles
     ;   - Final iteration (DEX + BNE fails) = 4 cycles
     ldx #12         ; 2 (9)
-.wait_until_cpu_is_at_cycle_71:         ; - (9) \
+.wait_until_cpu_is_at_cycle_68:         ; - (9) \
     dex                                 ; 2      > total: 59 cycles
-    bne .wait_until_cpu_is_at_cycle_71  ; 2/3   /
+    bne .wait_until_cpu_is_at_cycle_68  ; 2/3   /
 
-    ; The CPU is now at cycle 68. A dummy instruction fills the gap to cycle 71.
-    sta $2D       ; 3 (71)
+    ; The CPU is now at cycle 68. A dummy instruction fills the gap to cycle 70.
+    nop            ; 2 (70)
 
-    sta RESP0+.OBJECT_1_INDEX     ; 3 (74)
+    sta RESP0+.OBJECT_1_INDEX     ; 3 (73)
 
-    ; At cycle 74, there is no room for 'sta WSYNC' (which requires 3 cycles).
-    ; A 2-cycle instruction is used instead to complete the scanline.
-    nop           ; 2 (76)
-
-    ; 3rd scanline ============================================================
-    sta HMOVE
-    jmp .end_case_4
+    jmp .end_case_4               ; 3 (76)
 
 .case_5__both_obj1_and_obj2_fully_hidden:
     sta WSYNC      ; 3 (?)
@@ -735,9 +729,9 @@
                    ; scenario A will jump past this 'sta WSYNC' and below's
                    ; 'sta HMOVE' (scenario A will take care of the HMOVE)
     ; 3rd scanline ============================================================
+.end_case_4:
                    ; - (0)
     sta HMOVE      ; 3 (3)
-.end_case_4:
     ; Clear reg X to make sure no graphics are drawn in the first scanline of
     ; the sky_kernel
     ldx #0         ; 2 (5) - Do the fine offset in the next scanline, I'm
@@ -811,7 +805,7 @@
     sta HMOVE                       ; 3 (3)
     sta RESP0+.OBJECT_INDEX         ; 3 (6)
     sec                             ; 2 (8)
-    sbc #5+#15                      ; 2 (10)
+    sbc #2+#15                      ; 2 (10)
     jmp .end_of_cases_2_and_3       ; 3 (33)
 
 .case_4__obj_partially_visible_on_right_side_of_screen: ; - (16)
@@ -825,12 +819,10 @@
 .wait_until_cpu_is_at_cycle_71:         ; - (9) \
     dex                                 ; 2      > total: 59 cycles
     bne .wait_until_cpu_is_at_cycle_71  ; 2/3   /
-    sta $2D                         ; 3 (71)
-    sta RESP0+.OBJECT_INDEX         ; 3 (74)
-    nop                             ; 2 (76) - no WSYNC
-    ; 3rd scanline ============================================================
-    sta HMOVE
-    jmp .end_case_4
+    ;sta $2D                        ; 3 (71)
+    nop                             ; 2 (70)
+    sta RESP0+.OBJECT_INDEX         ; 3 (73)
+    jmp .end_case_4                 ; 3 (76) - No WSYNC
 
 .case_3__obj_fully_visible: ; - (24)
     sta WSYNC      ; 3 (27)
@@ -846,9 +838,9 @@
 .end_of_cases_2_and_3:
     sta WSYNC      ;
     ; 3rd scanline ============================================================
+.end_case_4:
                    ; - (0)
     sta HMOVE      ; 3 (3)
-.end_case_4:
     ldx #0         ; 2 (5)
 
     ; Offsets the remainder from [-14, 0] to [0, 14]

@@ -382,11 +382,18 @@ ___continue_next_cloud:
 update_obstacle:
 _update_obstacle_pos:
   ; update obstacle x
-  UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
+  lda #2
+  sta OBSTACLE_TYPE
+  lda #163
+  sta OBSTACLE_X_INT
+
+  ; DEBUG
+  ;UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
+ 
 
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
-  cmp #0 ; -3
+  cmp #0
   bne _update_obstacle_sprite
 
   jsr spawn_obstacle

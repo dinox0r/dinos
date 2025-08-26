@@ -580,7 +580,7 @@ STAR_2_SPRITE:
   .byte #%00010000  ;⏐   █
   .byte #%00101000  ;⏐  █ █
   .ds 1             ;⏐
-STAR_1_SPRITE_END = *
+STAR_2_SPRITE_END = *
 
 MOON_PHASE_SPRITE:
   .ds 1             ;⏐

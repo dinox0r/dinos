@@ -1,20 +1,20 @@
 FINE_POSITION_OFFSET:
-  .byte $70  ; offset -7
-  .byte $60  ; offset -6
-  .byte $50  ; offset -5
-  .byte $40  ; offset -4
-  .byte $30  ; offset -3
-  .byte $20  ; offset -2
-  .byte $10  ; offset -1
-  .byte $00  ; offset  0
-  .byte $F0  ; offset  1
-  .byte $E0  ; offset  2
-  .byte $D0  ; offset  3
-  .byte $C0  ; offset  4
-  .byte $B0  ; offset  5
-  .byte $A0  ; offset  6
-  .byte $90  ; offset  7
-  .byte $80  ; offset  8
+  .byte $70  ; offset -7 - index 0
+  .byte $60  ; offset -6 - index 1
+  .byte $50  ; offset -5 - index 2
+  .byte $40  ; offset -4 - index 3
+  .byte $30  ; offset -3 - index 4
+  .byte $20  ; offset -2 - index 5
+  .byte $10  ; offset -1 - index 6
+  .byte $00  ; offset  0 - index 7
+  .byte $F0  ; offset  1 - index 8
+  .byte $E0  ; offset  2 - index 9
+  .byte $D0  ; offset  3 - index 10
+  .byte $C0  ; offset  4 - index 11
+  .byte $B0  ; offset  5 - index 12
+  .byte $A0  ; offset  6 - index 13
+  .byte $90  ; offset  7 - index 14
+  .byte $80  ; offset  8 - index 15
 
 POWERS_OF_2_NEGATED:
   .byte #%11111110

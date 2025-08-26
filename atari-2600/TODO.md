@@ -22,3 +22,6 @@
     the leftmost one is out of screen swap to 1 sprite and set
     the x position to the one of the rightmost obstacle in the 
     2 sprite formation (might require some extra ROM)
+
+[ ] Check if the case 4 of the SET POS macro could be removed
+    using just more HMOVE
