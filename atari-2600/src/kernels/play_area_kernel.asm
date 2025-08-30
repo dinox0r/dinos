@@ -111,7 +111,7 @@ _set_obstacle_x_position:
   sta HMCLR        ; 3 (Worst case scenario CPU count at this point is 37)
 
   lda OBSTACLE_X_INT
-  SET_STITCHED_SPRITE_X_POS #PLAYER_1_INDEX, #MISSILE_1_INDEX, #DONT_USE_SEAMLESS_STITCHING
+  SET_STITCHED_SPRITE_X_POS #PLAYER_1_INDEX, #MISSILE_1_INDEX
   sta WSYNC      ; 3 (31)
 
 _last_setup_scanline:

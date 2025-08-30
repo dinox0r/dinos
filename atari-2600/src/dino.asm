@@ -47,65 +47,71 @@ PTR_OBSTACLE_OFFSET          .word   ; 2 bytes  (21)
 PTR_OBSTACLE_MISSILE_1_CONF  .word   ; 2 bytes  (23)
 
 ; Play area
-PLAY_AREA_MIN_Y              .byte   ; 1 byte   (24)
-FOREGROUND_COLOUR            .byte   ; 1 byte   (25)
-BACKGROUND_COLOUR            .byte   ; 1 byte   (26)
+PLAY_AREA_MIN_Y              .byte   ; 1 byte   (25)
+FOREGROUND_COLOUR            .byte   ; 1 byte   (26)
+BACKGROUND_COLOUR            .byte   ; 1 byte   (27)
 
-PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (28)
+PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (29)
 
 ; Sky area
 ;
 ; These variables are layed out this way (array form) so they can be indexed
 ; in a subroutine
-CLOUD_1_X_INT                .byte 
-CLOUD_2_X_INT                .byte 
-CLOUD_3_X_INT                .byte 
+CLOUD_1_X_INT                .byte   ; 1 byte   (31)
+CLOUD_2_X_INT                .byte   ; 1 byte   (32)
+CLOUD_3_X_INT                .byte   ; 1 byte   (33)
 
-CLOUD_1_X_FRACT              .byte
-CLOUD_2_X_FRACT              .byte
-CLOUD_3_X_FRACT              .byte
+CLOUD_1_X_FRACT              .byte   ; 1 byte   (34)
+CLOUD_2_X_FRACT              .byte   ; 1 byte   (35)
+CLOUD_3_X_FRACT              .byte   ; 1 byte   (36)
 
-CLOUD_1_TOP_Y                .byte
-CLOUD_2_TOP_Y                .byte
-CLOUD_3_TOP_Y                .byte
+CLOUD_1_TOP_Y                .byte   ; 1 byte   (37)
+; Clouds 2 and 3 have "0" for Y coordinate, there is no enough room
+; to place them randomly on the vertical space of the sky
 
-CURRENT_CLOUD_X              .byte
-CURRENT_CLOUD_TOP_Y          .byte
-CLOUD_LAYER_SCANLINES        .byte
+CURRENT_CLOUD_X              .byte   ; 1 byte   (38)
+CURRENT_CLOUD_TOP_Y          .byte   ; 1 byte   (39)
+CLOUD_LAYER_SCANLINES        .byte   ; 1 byte   (40)
+
+STAR_X_INT                   .byte   ; 1 byte   (41)
+STAR_X_FRACT                 .byte   ; 1 byte   (42)
+MOON_X_INT                   .byte   ; 1 byte   (43)
+MOON_X_FRACT                 .byte   ; 1 byte   (44)
+PTR_STAR_SPRITE              .word   ; 2 bytes  (46)
 
 ; Ground area
-FLOOR_PF0                    .byte   ; 1 byte   (29)
-FLOOR_PF1                    .byte   ; 1 byte   (30)
-FLOOR_PF2                    .byte   ; 1 byte   (31)
-FLOOR_PF3                    .byte   ; 1 byte   (32)
-FLOOR_PF4                    .byte   ; 1 byte   (33)
-FLOOR_PF5                    .byte   ; 1 byte   (34)
+FLOOR_PF0                    .byte   ; 1 byte   (48)
+FLOOR_PF1                    .byte   ; 1 byte   (49)
+FLOOR_PF2                    .byte   ; 1 byte   (50)
+FLOOR_PF3                    .byte   ; 1 byte   (51)
+FLOOR_PF4                    .byte   ; 1 byte   (52)
+FLOOR_PF5                    .byte   ; 1 byte   (53)
 
-PEBBLE_X_INT                 .byte   ; 1 byte   (35)
-PEBBLE_X_FRACT               .byte   ; 1 byte   (36)
-PEBBLE_CACHED_OBSTACLE_GRP1  .byte   ; 1 byte   (37)
-PEBBLE_CACHED_OBSTACLE_M1    .byte   ; 1 byte   (38)
+PEBBLE_X_INT                 .byte   ; 1 byte   (54)
+PEBBLE_X_FRACT               .byte   ; 1 byte   (55)
+PEBBLE_CACHED_OBSTACLE_GRP1  .byte   ; 1 byte   (56)
+PEBBLE_CACHED_OBSTACLE_M1    .byte   ; 1 byte   (57)
 
-PEBBLE_PF0                   .byte   ; 1 byte   (39)
-PEBBLE_PF1                   .byte   ; 1 byte   (40)
-PEBBLE_PF2                   .byte   ; 1 byte   (41)
-PEBBLE_PF3                   .byte   ; 1 byte   (42)
-PEBBLE_PF4                   .byte   ; 1 byte   (43)
-PEBBLE_PF5                   .byte   ; 1 byte   (44)
+PEBBLE_PF0                   .byte   ; 1 byte   (58)
+PEBBLE_PF1                   .byte   ; 1 byte   (59)
+PEBBLE_PF2                   .byte   ; 1 byte   (60)
+PEBBLE_PF3                   .byte   ; 1 byte   (61)
+PEBBLE_PF4                   .byte   ; 1 byte   (62)
+PEBBLE_PF5                   .byte   ; 1 byte   (63)
 
 ; Gameplay variables
-GAME_FLAGS                   .byte   ; 1 byte   (45)
-FRAME_COUNT                  .word   ; 2 bytes  (47)
-RANDOM                       .byte   ; 1 byte   (48)
-GAME_OVER_TIMER              .byte   ; 1 byte   (50)
+GAME_FLAGS                   .byte   ; 1 byte   (64)
+FRAME_COUNT                  .word   ; 2 bytes  (66)
+RANDOM                       .byte   ; 1 byte   (67)
+GAME_OVER_TIMER              .byte   ; 1 byte   (68)
 
 ; Sound
-SFX_TRACKER_1                .byte   ; 1 byte   (51)
-SFX_TRACKER_2                .byte   ; 1 byte   (52)
+SFX_TRACKER_1                .byte   ; 1 byte   (69)
+SFX_TRACKER_2                .byte   ; 1 byte   (70)
 
 ; To save the state of a register temporarily during tight situations
 ; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames
-TEMP                         .word   ; 2 bytes  (54)
+TEMP                         .word   ; 2 bytes  (72)
 
 ; This section is to include variables that share the same memory but are 
 ; referenced under different names, something like temporary variables that 
@@ -195,11 +201,11 @@ _init_cloud_conf:
   ldx #0
   jsr reset_cloud
 
-  lda #200
+  lda #190
   ldx #1
   jsr reset_cloud
 
-  lda #255
+  lda #230
   ldx #2
   jsr reset_cloud
 
@@ -373,7 +379,7 @@ __cloud_check_x_pos_loop:
   cmp #2
   bcs ___continue_next_cloud    ; if x > 1
 ___reset_cloud_pos:
-  lda #255
+  lda #230
   jsr reset_cloud
 ___continue_next_cloud:
   dex
@@ -382,13 +388,8 @@ ___continue_next_cloud:
 update_obstacle:
 _update_obstacle_pos:
   ; update obstacle x
-  lda #2
-  sta OBSTACLE_TYPE
-  lda #163
-  sta OBSTACLE_X_INT
 
-  ; DEBUG
-  ;UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
+  UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
  
 
 _check_obstacle_pos:
@@ -432,9 +433,11 @@ __no_ptero:
   stx TEMP ; Store a copy of reg X for later when loading the missile conf
 
   ; Check the obstacle x position and use empty data if it's offscreen
-  CHECK_IF_OBSTACLE_SPRITE_IS_OFFSCREEN __use_zero_for_obstacle_sprite
+  lda OBSTACLE_X_INT
+  cmp #OBSTACLE_GRP1_MIN_SCREEN_X
+  bcc __use_zero_for_obstacle_sprite
 
-  ; The next '.byte $2C' will turn the following 'ldx #0' (opcodes A2 00) into
+  ; The next '.byte $2C' will turn the following 'ldx #0' (opcodes A2 00)
   ; 'bit $A200' (opcodes 2C A2 00), effectively cancelling it
   .byte $2C
 __use_zero_for_obstacle_sprite:
@@ -445,8 +448,11 @@ __use_zero_for_obstacle_sprite:
   ldx #PTR_OBSTACLE_SPRITE
   jsr set_obstacle_data
 
-  ; Check the obstacle x position and use empty data if it's offscreen
-  CHECK_IF_OBSTACLE_MISSILE_IS_OFFSCREEN __use_zero_for_obstacle_missile
+  ; Similar to the obstacle sprite data, check the obstacle missile x position
+  ; and use empty data if it's offscreen
+  lda OBSTACLE_X_INT
+  cmp #OBSTACLE_M1_MAX_SCREEN_X
+  bcs __use_zero_for_obstacle_missile
 
   ldx TEMP
 

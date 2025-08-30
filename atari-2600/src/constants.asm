@@ -44,16 +44,12 @@ ENABLE_PAGE_CROSSING_CHECK = #0
 TREAT_SPEED_PARAMETER_AS_A_CONSTANT = #1
 TREAT_SPEED_PARAMETER_AS_A_VARIABLE = #0
 
-; SET_STITCHED_SPRITE_X_POS macro
-USE_SEAMLESS_STITCHING = #1
-DONT_USE_SEAMLESS_STITCHING = #0
-
 ; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro
 SET_CARRY = #1
 IGNORE_CARRY = #0
 
 OBSTACLE_M1_MAX_SCREEN_X = #160   ; if obstacle_x >= 160, m1 = 0
-OBSTACLE_GRP1_MIN_SCREEN_X = #9  ; if obstacle_x < 8, grp1 = 0
+OBSTACLE_GRP1_MIN_SCREEN_X = #8  ; if obstacle_x < 8, grp1 = 0
 
 USE_GRP0 = #1
 IGNORE_GRP0 = #0
@@ -64,6 +60,7 @@ IGNORE_GRP1 = #0
 ; -----------------------------------------------------------------------------
 SKY_SINGLE_CLOUD_SCANLINES = #31 ; Contrary to the play area, these
 SKY_2_CLOUDS_SCANLINES = #13     ; are 1x kernel lines
+SKY_CLOUDS_2_AND_3_TOP_Y = #CLOUD_HEIGHT+#2
 
 CLOUD_VX_INT = #0
 CLOUD_VX_FRACT = #100

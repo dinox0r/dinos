@@ -352,24 +352,8 @@
     sta NUSIZ1        ; 3 (13)
   ENDM
 
-  MACRO CHECK_IF_OBSTACLE_SPRITE_IS_OFFSCREEN
-.TARGET_BRANCH_IF_OFFSCREEN SET {1}
-    ; First, check if the obstacle sprite data is off-screen in which case
-    ; it doesn't matter the data for the sprite will be zeroed
-    lda OBSTACLE_X_INT
-    cmp #OBSTACLE_GRP1_MIN_SCREEN_X
-    bcc .TARGET_BRANCH_IF_OFFSCREEN
-  ENDM
-
-  MACRO CHECK_IF_OBSTACLE_MISSILE_IS_OFFSCREEN
-.TARGET_BRANCH_IF_OFFSCREEN SET {1}
-    lda OBSTACLE_X_INT
-    cmp #OBSTACLE_M1_MAX_SCREEN_X
-    bcs .TARGET_BRANCH_IF_OFFSCREEN
-  ENDM
-
   MACRO MULTIPLY_A_BY_4
-    asl
+  asl
     asl
   ENDM
 
@@ -520,7 +504,6 @@
   MACRO SET_STITCHED_SPRITE_X_POS
 .OBJECT_1_INDEX SET {1}
 .OBJECT_2_INDEX SET {2}
-.SEAMLESS_STITCHING SET {3}
     ; 1st (current) scanline ==================================================
     ;
     ; ⚠ IMPORTANT: This assumes the sprite X position is already in reg A
@@ -542,7 +525,7 @@
     ;   setup logic before invoking case 3
     ;   case 3: both object1 and object2 are fully visible
     ; }
-    cmp #9                                                  ; 2 (5)
+    cmp #8                                                  ; 2 (5)
     bcc .case_1__obj1_fully_hidden_obj2_partially_visible   ; 2/3 (7/8)
     cmp #17                                                 ; 2 (9)
     bcc .case_2__obj1_partially_visible_obj2_fully_visible  ; 2/3 (11/12)
@@ -606,7 +589,7 @@
     sta HMOVE      ; 3 (3)
     sta RESP0+.OBJECT_1_INDEX        ; 3 (6)
 
-    ; Strobing RESP1 at this point places the GRP1 coarse position at screen
+    ; Strobing RESPx at this point places the GRP1 coarse position at screen
     ; pixel 4 (the fifth pixel, zero-indexed). This was determined empirically
     ; using Stella screenshots.
     ;
@@ -630,19 +613,33 @@
     sec         ; 2 (8)
     sbc #5+#15  ; 2 (10)
 
-    pha      ; 12 (22) wait/waste 12 CPU cycles (in 4 bytes) until the CPU is at
-    pla      ;         cycle 22 so strobing RESM1 leaves it 8px from where GRP1
-    inc $2D  ;         was strobed
+    pha      ; 3 (13) wait/waste 12 CPU cycles (in 4 bytes) until the CPU is at
+    pla      ; 4 (17) cycle 22 so strobing RESM1 leaves it 8px from where GRP1
+    sta $2D  ; 3 (20)
+    ldx #$F0 ; 2 (22)
 
+    ; Strobing RESP0+.OBJECT_2_INDEX at CPU cycle 25 works well regardless
+    ; .OBJECT_2_INDEX refers to a GRPx or a MISSILE
     sta RESP0+.OBJECT_2_INDEX   ; 3 (25)
 
     ; At cycle 25, M1 appears 7px to the right of GRP1 instead of 8px. To fix
     ; this 1px misalignment, here a slight nudge to the right is applied to M1
     ; using HMM1
-    ldx #$F0                    ; 2 (27) - 1px to the right
-    stx HMP0+.OBJECT_2_INDEX    ; 3 (30)
 
-    jmp .end_of_cases_1_2_and_3 ; 3 (33)
+    ;--------------------------------------------------------------------------
+    ; [!] ROM space potential savings
+    ;--------------------------------------------------------------------------
+    ; Once ROM becomes critical, this offset code can be removed. In that
+    ; case, the 12-cycle setup before strobing RESP0+.OBJECT_2_INDEX could be
+    ; replaced with a cheaper 'inc $2D' instruction.
+    ;
+    ; Side effect: When the stitched sprite exits the screen on the left edge,
+    ; a small visual artifact will appear. The glitch is noticeable but minor,
+    ; and may be an acceptable trade-off for the ROM savings.
+    ;--------------------------------------------------------------------------
+    stx HMP0+.OBJECT_2_INDEX    ; 3 (28)
+
+    jmp .end_of_cases_1_2_and_3 ; 3 (31)
 
 .case_4__obj1_partially_visible_obj2_fully_hidden: ; - (16)
     sta WSYNC      ; 3 (19)
@@ -664,19 +661,18 @@
     ; from here, meaning the input x will be 163 onwards.
     ;
     ; For obstacle_x = 163, the obstacle should appear at screen pixel 155.
-    ; However, the coarse position after strobing RESP1 at cycle 74 results in
-    ; GRP1 being placed at screen pixel 159. This requires an offset of -4 pixels
+    ; However, the coarse position after strobing RESP1 at cycle 73 results in
+    ; GRP1 being placed at screen pixel 156. This requires an offset of -1 pixels
     ; to correct the position. Similarly:
-    ;   x = 164 → offset -3
-    ;   x = 165 → offset -2
+    ;   x = 164 → offset -2
+    ;   x = 165 → offset -3
     ;   ...
-    ;   x = 171 → offset +1
+    ;   x = 171 → offset +4
 
     sec             ; 2 (5)
     ; reg A contains x ∈ [163, 171]
-  ; x needs to be mapped to index ∈ [3, 8] (offsets from -4 to +1)
     ; x needs to be mapped to index ∈ [6, 11] (offsets from -1 to 4)
-    ; This is computed as: x - 163
+    ; This is computed as: x - 157
     ; But A will later be shared with case 1, 2 and 3 logic, which subtract 15.
     sbc #157+#15        ; 2 (7)
 
@@ -741,30 +737,23 @@
     ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
     clc            ; 2 (7)
     adc #15        ; 2 (9)
+
+    ;lda #7        ; For DEBUGing, overrides the offset entry index to the 0 offset
+
     tay            ; 2 (11)
 
-    ;lda #7 ; For DEBUGging, overrides the offset entry index to the 0 offset
 
-    IF .SEAMLESS_STITCHING 
-      LAX FINE_POSITION_OFFSET,y  ; 4 (15) - y should range between [-7, 7]
+    LAX FINE_POSITION_OFFSET,y  ; 4 (15) - y should range between [-7, 7]
 
-      ; Instead of using the same offset for both, use a +1 offset for 
-      ; object1, this will move it 1px to the right, stitching both objects
-      ; without a seam
-      iny                         ; 2 (17)
-      lda FINE_POSITION_OFFSET,y  ; 4 (21) - y should range between [-7, 7]
+    ; Instead of using the same offset for both, use a +1 offset for 
+    ; object1, this will move it 1px to the right, stitching both objects
+    ; without a seam
+    iny                         ; 2 (17)
+    lda FINE_POSITION_OFFSET,y  ; 4 (21) - y should range between [-7, 7]
 
-      inc $2D
-      stx HMP0+.OBJECT_2_INDEX    ; 3 (24)
-      sta HMP0+.OBJECT_1_INDEX    ; 3 (27)
-    ELSE
-      pha                         ; 4 (15) - Wait/waste 7 cycles (2 bytes)
-      pla                         ; 3 (18)
-
-      lda FINE_POSITION_OFFSET,y  ; 4 (22) - y should range between [-7, 7]
-      sta HMP0+.OBJECT_1_INDEX    ; 3 (25)
-      sta HMP0+.OBJECT_2_INDEX    ; 3 (28)
-    ENDIF
+    inc $2D
+    stx HMP0+.OBJECT_2_INDEX    ; 3 (24)
+    sta HMP0+.OBJECT_1_INDEX    ; 3 (27)
 .end_case_5:
     ;❗ IMPORTANT: Caller is responsible of invoking 'sta WSYNC'
   ENDM

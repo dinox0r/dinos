@@ -90,8 +90,13 @@ spawn_obstacle subroutine
 ; Sky related subroutines
 ;------------------------------------------------------------------------------
 reset_cloud subroutine
-  ; Assumes register A contains the new X integer position for the cloud.
-  ; The value is stored into the appropriate cloud slot (indexed by X).
+  ; Assumes register A contains the new desired X integer position for the 
+  ; cloud. The value is stored into the appropriate cloud slot (indexed by X).
+  sta CLOUD_1_X_INT,x
+  jsr rnd8
+  and #15
+  ; Add a small x random offset
+  adc CLOUD_1_X_INT,x
   sta CLOUD_1_X_INT,x
 
   jsr rnd8
@@ -100,28 +105,19 @@ reset_cloud subroutine
   ; If X == 0, this resets the cloud for the single-cloud sky.
   ; If X >= 1, this is one of the two clouds in the double-cloud sky.
   cpx #0
-  beq .single_cloud_layer
+  beq .end_reset_cloud
 
-  ; For a double-cloud sky, set the cloud Y to 0, there is no
-  ; room for vertical offset
-  lda #0
-
-  ; If the branch above is not taken (X > 0), skip the 'and #15'
-  ; below by turning it into a harmless 'bit'. 0x2c is the opcode for
-  ; 'bit', which turns the next two bytes into an ignored address
-  ; operand, effectively forming a 3-byte noop.
-  .byte #$2C
-
-.single_cloud_layer:
-  ; For the single-cloud sky (X == 0), allow a larger random vertical
+  ; For the single-cloud sky (reg X == 0), allow a random vertical
   ; placement by masking with AND #15 (i.e., range 0–15).
+  jsr rnd8
   and #15
-
   ; Add a base offset to the Y value, placing the cloud below the HUD
   ; or sky margin. The carry flag is not cleared, as the result doesn't
   ; need to be precise. Leaving the carry random adds slight variation.
   adc #CLOUD_HEIGHT+#2
-  sta CLOUD_1_TOP_Y,x
+  sta CLOUD_1_TOP_Y
+
+.end_reset_cloud
   rts
 
 set_star_pos_x subroutine
@@ -131,7 +127,7 @@ set_star_pos_x subroutine
 set_cloud_pos_x subroutine
   ; The macro adds 27 cycles to current scanline, then ends it
   ; and consumes a whole new scanline for the positioning
-  SET_STITCHED_SPRITE_X_POS #PLAYER_0_INDEX, #PLAYER_1_INDEX, #USE_SEAMLESS_STITCHING
+  SET_STITCHED_SPRITE_X_POS #PLAYER_0_INDEX, #PLAYER_1_INDEX
   ; Once is finished, it leaves the execution on a new (3rd) scanline
   ; with 27 cycles (when using SEAMLESS_STITCHING)
   rts ; 6 (33)
