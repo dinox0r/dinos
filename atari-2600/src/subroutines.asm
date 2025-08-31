@@ -120,10 +120,6 @@ reset_cloud subroutine
 .end_reset_cloud
   rts
 
-set_star_pos_x subroutine
-  SET_SPRITE_X_POS #PLAYER_0_INDEX
-  rts
-
 set_cloud_pos_x subroutine
   ; The macro adds 27 cycles to current scanline, then ends it
   ; and consumes a whole new scanline for the positioning

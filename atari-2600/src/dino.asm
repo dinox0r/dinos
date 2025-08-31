@@ -73,11 +73,16 @@ CURRENT_CLOUD_X              .byte   ; 1 byte   (38)
 CURRENT_CLOUD_TOP_Y          .byte   ; 1 byte   (39)
 CLOUD_LAYER_SCANLINES        .byte   ; 1 byte   (40)
 
-STAR_X_INT                   .byte   ; 1 byte   (41)
-STAR_X_FRACT                 .byte   ; 1 byte   (42)
-MOON_X_INT                   .byte   ; 1 byte   (43)
+; moon and star X's coordinates are also layed out in array form
+MOON_POS_X_INT               .byte   ; 1 byte   (41)
+STAR_POS_X_INT               .byte   ; 1 byte   (42)
+
+STAR_X_FRACT                 .byte   ; 1 byte   (43)
 MOON_X_FRACT                 .byte   ; 1 byte   (44)
-PTR_STAR_SPRITE              .word   ; 2 bytes  (46)
+
+STAR_POS_Y                   .byte   ; 1 byte   (45)
+PTR_STAR_SPRITE              .word   ; 2 bytes  (47)
+PTR_MOON_SPRITE              .word   ; 2 bytes  (47)
 
 ; Ground area
 FLOOR_PF0                    .byte   ; 1 byte   (48)

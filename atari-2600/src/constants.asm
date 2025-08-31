@@ -58,13 +58,20 @@ IGNORE_GRP1 = #0
 
 ; Sky kernel
 ; -----------------------------------------------------------------------------
-SKY_SINGLE_CLOUD_SCANLINES = #31 ; Contrary to the play area, these
-SKY_2_CLOUDS_SCANLINES = #13     ; are 1x kernel lines
+SKY_SCANLINES = #31      ; Contrary to the play area, these are 1x kernel lines
+
+MOON_AND_STARS_LAYER_SETUP_SCANLINES = #6
+SKY_SINGLE_CLOUD_SCANLINES = #SKY_SCANLINES 
+SKY_2_CLOUDS_SCANLINES = #13
 SKY_CLOUDS_2_AND_3_TOP_Y = #CLOUD_HEIGHT+#2
 
 CLOUD_VX_INT = #0
 CLOUD_VX_FRACT = #100
 CLOUD_HEIGHT = #11
+
+STAR_HEIGHT = #5
+MOON_HEIGHT = #14
+MOON_Y_POS = #7
 
 ; Crouching Kernel
 ; -----------------------------------------------------------------------------

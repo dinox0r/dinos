@@ -11,7 +11,7 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
   ;ora #FLAG_SKY_LAYER_1_ON  ; -
   sta GAME_FLAGS            ; 3 (10)
 
-  bpl double_cloud_layer    ; 2/3 (12/13)
+  bpl moon_and_stars_layer    ; 2/3 (12/13)
 
 ; -----------------------------------------------------------------------------
 ;
@@ -52,6 +52,76 @@ double_cloud_layer:                ; - (13)
   jmp end_of_sky_kernel
 
 moon_and_stars_layer:
-  
+_moon_and_stars_layer_setup:
+
+  ldx #1
+__setup_sprite_pos:
+   lda MOON_POS_X_INT,x
+
+  ;--------------------------------------------------------------------------
+  ; [!] Disclaimer
+  ;--------------------------------------------------------------------------
+  ; The following positioning code is copied almost verbatim from:
+  ; https://forums.atariage.com/topic/377268-strobing-resp0-in-hmove-blanking-area-gives-unexpected-result/
+  ;--------------------------------------------------------------------------
+
+  ; Works from 6..155 (as subroutine only until 140)
+   sec
+   sbc #6       ; correction for players (+1 if double/quad, -1 rest)
+   sta WSYNC
+   sta HMOVE
+___divide_loop:
+   sbc #15
+   bcs ___divide_loop
+   eor #7
+   asl
+   asl
+   asl
+   asl
+   sta HMP0,x   ; strobe at 7..142 (min: 7+5-6=6; max: 142+5+8=155 ; for subroutine skip WSYNC)
+   sta RESP0,x
+
+__end_setup_sprite_pos:
+  dex
+  bpl __setup_sprite_pos
+
+  lda #0
+  tax
+  ldy #SKY_SCANLINES-#MOON_AND_STARS_LAYER_SETUP_SCANLINES
+_moon_and_stars_layer_scanline:
+  sta WSYNC    ; 3 (47 -> 50 if coming from 'end_moon_and_stars_layer')
+               ; - (0)
+  sta HMOVE    ; 3 (3)
+  sta GRP0     ; 3 (6)
+  stx GRP1     ; 3 (9)
+
+__check_y_is_within_star:
+  tya              ; 2 (11)
+  sec              ; 2 (13)
+  sbc STAR_POS_Y   ; 3 (16)
+  adc #STAR_HEIGHT ; 2 (18)
+  bcs __y_is_within_star  ; 2/3 (20/21)
+__y_is_not_within_star:
+  ldx #0                       ; 2 (22)
+  jmp __check_y_is_within_moon ; 3 (25)
+__y_is_within_star:        ; - (21)
+  LAX (PTR_STAR_SPRITE),y  ; 5 (26)
+
+__check_y_is_within_moon:  ; - (25/26)
+  tya              ; 2 (28) 
+  sec              ; 2 (30) - can this 'sec' be removed?
+  sbc #MOON_Y_POS  ; 2 (32)
+  adc #STAR_HEIGHT ; 2 (34)
+  bcs __y_is_within_moon ; 2/3 (36/37)
+__y_is_not_within_moon:
+  lda #0                       ; 2 (38)
+  jmp end_moon_and_stars_layer ; 3 (41)
+
+__y_is_within_moon:
+  lda (PTR_MOON_SPRITE),y      ; 5 (42)
+
+end_moon_and_stars_layer:             ; - (41/42)
+  dey                                 ; 2 (44)
+  bne _moon_and_stars_layer_scanline  ; 2/3 (46/47)
 
 end_of_sky_kernel:
