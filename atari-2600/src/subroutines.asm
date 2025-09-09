@@ -187,10 +187,15 @@ render_cloud_layer subroutine
   rts                 ; 6 (9)
 
 set_stitched_sprite_x_pos subroutine
-  ; ldx something                  ; 3     - x index object 1
-  ; ldy something-else             ; 3 (6) - y index object 2
-  ; jsr set_stitched_sprite_x_pos  ; 6 (12)
+  ; sta HMOVE                      ; 3 
+  ; ldx something                  ; 3 (6) - x index object 1
+  ; ldy something-else             ; 3 (9) - y index object 2
+  ; jsr set_stitched_sprite_x_pos  ; 6 (15)
   ; 1st (current) scanline ==================================================
+
+  ; Save copies of the object indexes
+  stx TEMP        ; 3 (18 or more depending the caller state)
+  sty TEMP+1      ; 3 (21+)
   ;
   ; ⚠ IMPORTANT: This assumes the sprite X position is already in reg A
   ;
@@ -273,7 +278,7 @@ set_stitched_sprite_x_pos subroutine
     ; 2nd scanline ============================================================
                    ; - (0)
     sta HMOVE      ; 3 (3)
-    sta RESP0,x        ; 4 (7)
+    sta RESP0,x    ; 4 (7)
 
     ; Strobing RESPx at this point places the GRP1 coarse position at screen
     ; pixel 4 (the fifth pixel, zero-indexed). This was determined empirically
@@ -333,6 +338,19 @@ set_stitched_sprite_x_pos subroutine
                    ; - (0)
     sta HMOVE      ; 3 (3)
 
+
+    ; reg A now holds the correct offset index to be used later during
+    ; the 4th scanline. The CPU is currently at cycle 7 and must reach cycle 71,
+    ; leaving 64 cycles to waste.
+    ;
+    ; The following loop consumes 59 cycles:
+    ;   - 11 iterations × 5 cycles (DEY + BNE) = 55 cycles
+    ;   - Final iteration (DEY + BNE fails) = 4 cycles
+    ldy #12         ; 2 (5)
+.wait_until_cpu_is_at_cycle_68:         ; - (5) \
+    dey                                 ; 2      > total: 59 cycles
+    bne .wait_until_cpu_is_at_cycle_68  ; 2/3   /
+
     ; For case 4, RESP1 will be strobed at CPU cycle 70. The strobe completes
     ; at cycle 73.
     ;
@@ -354,27 +372,14 @@ set_stitched_sprite_x_pos subroutine
     ;   x = 165 → offset -3
     ;   ...
     ;   x = 171 → offset +4
-
-    sec             ; 2 (5)
+    sec             ; 2 (64 -> 66)
     ; reg A contains x ∈ [163, 171]
     ; x needs to be mapped to index ∈ [6, 11] (offsets from -1 to 4)
     ; This is computed as: x - 157
     ; But A will later be shared with case 1, 2 and 3 logic, which subtract 15.
-    sbc #157+#15        ; 2 (7)
+    sbc #157+#15        ; 2 (68)
 
-    ; reg A now holds the correct offset index to be used later during
-    ; the 4th scanline. The CPU is currently at cycle 7 and must reach cycle 71,
-    ; leaving 64 cycles to waste.
-    ;
-    ; The following loop consumes 59 cycles:
-    ;   - 11 iterations × 5 cycles (DEY + BNE) = 55 cycles
-    ;   - Final iteration (DEY + BNE fails) = 4 cycles
-    ldy #12         ; 2 (9)
-.wait_until_cpu_is_at_cycle_68:         ; - (9) \
-    dey                                 ; 2      > total: 59 cycles
-    bne .wait_until_cpu_is_at_cycle_68  ; 2/3   /
-
-    ; The CPU is now at cycle 68. A dummy instruction fills the gap to cycle 70.
+    ; The CPU is now at cycle 68
     sta RESP0,x     ; 4 (72)
 
     jmp .end_case_4               ; 3 (75)
@@ -412,36 +417,32 @@ set_stitched_sprite_x_pos subroutine
 .end_case_4:
                    ; - (0)
     sta HMOVE      ; 3 (3)
-    stx TEMP
-    sty TEMP+#1
-    ; Clear reg X to make sure no graphics are drawn in the first scanline of
-    ; the sky_kernel
-    ldx #0         ; 2 (5) - Do the fine offset in the next scanline, I'm
-                   ;         avoiding doing it in the
 
     ; Offsets the remainder from [-14, 0] to [0, 14]
     ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
-    clc            ; 2 (7)
-    adc #15        ; 2 (9)
+    clc            ; 2 (5)
+    adc #15        ; 2 (7)
 
     ;lda #7        ; For DEBUGing, overrides the offset entry index to the 0 offset
 
-    tay            ; 2 (11)
+    tay            ; 2 (9)
 
 
-    LAX FINE_POSITION_OFFSET,y  ; 4 (15) - y should range between [-7, 7]
+    LAX FINE_POSITION_OFFSET,y  ; 4 (13) - y should range between [-7, 7]
 
     ; Instead of using the same offset for both, use a +1 offset for 
     ; object1, this will move it 1px to the right, stitching both objects
     ; without a seam
-    iny                         ; 2 (17)
-    lda FINE_POSITION_OFFSET,y  ; 4 (21) - y should range between [-7, 7]
+    iny                         ; 2 (15)
 
-    ldx TEMP
-    ldy TEMP+#1
-    stx HMP0,y    ; 3 (24)
-    sta HMP0,x    ; 3 (27)
+    lda FINE_POSITION_OFFSET,y  ; 4 (19) - y should range between [-7, 7]
+
+    ; At this point, reg X has the offset for object1, and reg A has
+    ; the offset for object2
+    ldy TEMP+1                  ; 3 (22) - Load in reg Y the index of obj2
+    sta HMP0,y                  ; 4 (26) - Store object2's offset
+    ldy TEMP                    ; 3 (29) - Now load in reg Y the index of obj1
+    stx HMP0,y                  ; 4 (33) - Store object1's offset
 .end_case_5:
-    ;❗ IMPORTANT: Caller is responsible of invoking 'sta WSYNC'
-  ENDM
-  rts
+    ;❗ IMPORTANT: Caller is responsible of invoking 'sta WSYNC' / 'sta HMOVE'
+    rts           ; 6 (39)
