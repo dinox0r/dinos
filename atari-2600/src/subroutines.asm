@@ -216,16 +216,16 @@ set_stitched_sprite_x_pos subroutine
   ;   setup logic before invoking case 3
   ;   case 3: both object1 and object2 are fully visible
   ; }
-  cmp #8                                                  ; 2 (5)
-  bcc .case_1__obj1_fully_hidden_obj2_partially_visible   ; 2/3 (7/8)
-  cmp #17                                                 ; 2 (9)
-  bcc .case_2__obj1_partially_visible_obj2_fully_visible  ; 2/3 (11/12)
-  cmp #171
-  bcs .case_5__both_obj1_and_obj2_fully_hidden
-  cmp #163                                                ; 2 (13)
-  bcs .case_4__obj1_partially_visible_obj2_fully_hidden   ; 2/3 (15/16)
+  cmp #8                                                  ; 2 (23+)
+  bcc .case_1__obj1_fully_hidden_obj2_partially_visible   ; 2/3 (24+/25+)
+  cmp #17                                                 ; 2 (27+)
+  bcc .case_2__obj1_partially_visible_obj2_fully_visible  ; 2/3 (29+/30+)
+  cmp #171                                                ; 2 (31+)
+  bcs .case_5__both_obj1_and_obj2_fully_hidden            ; 2/3 (33+/34+)
+  cmp #163                                                ; 2 (35+)
+  bcs .case_4__obj1_partially_visible_obj2_fully_hidden   ; 2/3 (37+/38+)
 
-.prepare_before_invoking_case_3: ; - (15)
+.prepare_before_invoking_case_3: ; - (37+)
     ; Based on results from tools/simulate-coarse-pos-loop.py: Starting with an
     ; input value of #45, the coarse positioning algorithm sets the object's
     ; coarse location and leaves a remainder in register A within the range
@@ -245,18 +245,18 @@ set_stitched_sprite_x_pos subroutine
     ; To align with the algorithm's expected input range, obstacle_x = 16 must
     ; be translated to x = 3 (the value that places at pixel 8), so 13 is
     ; subtracted from the base input (#45).
-    clc          ; 2 (17)
-    adc #45-#13  ; 2 (19)
+    clc          ; 2 (39+)
+    adc #45-#13  ; 2 (41+)
 
-    sec   ; 2 (21) - Set carry to do subtraction. Remember SBC is
-          ;          actually an ADC with A2 complement
-          ;          A - B = A + ~B + 1
-          ;                           ^this is the carry set by sec
+    sec   ; 2 (43+) - Set carry to do subtraction. Remember SBC is
+          ;           actually an ADC with A2 complement
+          ;           A - B = A + ~B + 1
+          ;                            ^this is the carry set by sec
 
-    jmp .case_3__obj1_and_obj2_fully_visible       ; 3 (24)
+    jmp .case_3__obj1_and_obj2_fully_visible       ; 3 (44+)
 
-.case_1__obj1_fully_hidden_obj2_partially_visible: ; - (8)
-    sta WSYNC      ; 3 (11)
+.case_1__obj1_fully_hidden_obj2_partially_visible: ; - (25+)
+    sta WSYNC      ; 3 (28+)
     ; 2nd scanline ============================================================
                    ; - (0)
     sta HMOVE      ; 3 (3)
@@ -273,8 +273,8 @@ set_stitched_sprite_x_pos subroutine
     sbc #15-#4
     jmp .end_of_cases_1_2_and_3
 
-.case_2__obj1_partially_visible_obj2_fully_visible: ; - (12)
-    sta WSYNC      ; 3 (15)
+.case_2__obj1_partially_visible_obj2_fully_visible: ; - (29+)
+    sta WSYNC      ; 3 (32+)
     ; 2nd scanline ============================================================
                    ; - (0)
     sta HMOVE      ; 3 (3)
@@ -332,8 +332,8 @@ set_stitched_sprite_x_pos subroutine
 
     jmp .end_of_cases_1_2_and_3 ; 3 (32)
 
-.case_4__obj1_partially_visible_obj2_fully_hidden: ; - (16)
-    sta WSYNC      ; 3 (19)
+.case_4__obj1_partially_visible_obj2_fully_hidden: ; - (38+)
+    sta WSYNC      ; 3 (41+)
     ; 2nd scanline ============================================================
                    ; - (0)
     sta HMOVE      ; 3 (3)
@@ -384,8 +384,8 @@ set_stitched_sprite_x_pos subroutine
 
     jmp .end_case_4               ; 3 (75)
 
-.case_5__both_obj1_and_obj2_fully_hidden:
-    sta WSYNC      ; 3 (?)
+.case_5__both_obj1_and_obj2_fully_hidden:  ; - (34+)
+    sta WSYNC      ; 3 (37+)
     ; 2nd scanline ============================================================
     sta HMOVE      ; 3 (3)
     sta RESP0,x
@@ -395,8 +395,8 @@ set_stitched_sprite_x_pos subroutine
     jmp .end_case_5
 
 
-.case_3__obj1_and_obj2_fully_visible: ; - (24)
-    sta WSYNC      ; 3 (27)
+.case_3__obj1_and_obj2_fully_visible: ; - (44+)
+    sta WSYNC      ; 3 (47+)
     ; 2nd scanline ============================================================
                    ; - (0)
     sta HMOVE      ; 3 (3)
