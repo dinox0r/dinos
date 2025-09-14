@@ -95,30 +95,36 @@ PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
 ;=============================================================================
 ; GAME_FLAGS
 ;=============================================================================
-; bit 0: 1 -> splash screen mode / 0 -> game mode
+
+; bit 1: 1 -> splash screen mode / 0 -> game mode
 FLAG_SPLASH_SCREEN =  #%00000001
+
+; When in game mode:
+;   bit 2: dino left/right leg up sprite
+;   bit 3: dino jumping ON / OFF
+;   bit 4: dino crouching ON / OFF
+;   bit 5,6: Moon phase
+;          00 -> No moon / daylight sky
+;          01 -> Waxing crescent / night sky
+;          10 -> Full moon / night sky
+;          11 -> Waning crescent / night sky
+;   bit 7: game over ON / OFF
+;   bit 8: The current sky frame is layer 1 (out of the 2)
+FLAG_DINO_LEFT_LEG  = #%00000010
+FLAG_DINO_JUMPING   = #%00000100
+FLAG_DINO_CROUCHING = #%00001000
+FLAG_DINO_MOONPHASE = #%00110000
+FLAG_GAME_OVER      = #%01000000
+FLAG_SKY_LAYER_1_ON = #%10000000
 
 ; When in splash screen mode:
 ;   bit 7: dino blinking ON / OFF
 FLAG_DINO_BLINKING =  #%10000000
 
-; When in game screen mode:
-;   bit 7: The current sky frame is layer 1 (out of the 2)
-FLAG_SKY_LAYER_1_ON = #%10000000
-
-; When in game mode:
-;   bit 1: dino left/right leg up sprite
-;   bit 2: dino jumping ON / OFF
-;   bit 4: dino crouching ON / OFF
-FLAG_DINO_LEFT_LEG =  #%00000010
-FLAG_DINO_JUMPING =   #%00000100
-FLAG_DINO_CROUCHING = #%00010000
-
-FLAG_GAME_OVER = #%01000000
-
 FLAG_DINO_CROUCHING_OR_JUMPING = FLAG_DINO_CROUCHING | FLAG_DINO_JUMPING
 
-TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
-TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11101111
+TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11110111
 TOGGLE_FLAG_GAME_OVER_OFF      = #%10111111
+
+TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111

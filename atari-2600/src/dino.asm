@@ -78,7 +78,6 @@ MOON_POS_X_INT               .byte   ; 1 byte   (41)
 STAR_POS_X_INT               .byte   ; 1 byte   (42)
 
 STAR_X_FRACT                 .byte   ; 1 byte   (43)
-MOON_X_FRACT                 .byte   ; 1 byte   (44)
 
 STAR_POS_Y                   .byte   ; 1 byte   (45)
 PTR_STAR_SPRITE              .word   ; 2 bytes  (47)
@@ -117,6 +116,9 @@ SFX_TRACKER_2                .byte   ; 1 byte   (70)
 ; To save the state of a register temporarily during tight situations
 ; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames
 TEMP                         .word   ; 2 bytes  (72)
+
+; Alias for TEMP+1 used by the 'set_sprite_data' subroutine
+PARAM_SPRITE_Y = TEMP+1
 
 ; This section is to include variables that share the same memory but are 
 ; referenced under different names, something like temporary variables that 
@@ -201,7 +203,7 @@ _init_obstacle_conf:
   lda #0
   sta OBSTACLE_VX_INT
 
-_init_cloud_conf:
+_init_sky_conf:
   lda #168
   ldx #0
   jsr reset_cloud
@@ -213,6 +215,11 @@ _init_cloud_conf:
   lda #230
   ldx #2
   jsr reset_cloud
+
+  lda #50
+  sta MOON_POS_X_INT
+  lda #27
+  sta STAR_POS_X_INT
 
 ;=============================================================================
 ; FRAME
@@ -367,6 +374,11 @@ in_game_screen:
 
 update_sky:
 
+# OFFSET_SPRITE_POINTER_BY_Y_COORD STAR_POS_X_INT, PTR_STAR_SPRITE, DINO_SPRITE_1_END
+# OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_OFFSET, DINO_SPRITE_OFFSETS_END
+
+_update_moon_and_stars:
+
 _update_cloud_pos:
   UPDATE_X_POS CLOUD_1_X_INT, CLOUD_1_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
   UPDATE_X_POS CLOUD_2_X_INT, CLOUD_2_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
@@ -396,7 +408,6 @@ _update_obstacle_pos:
 
   UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
  
-
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
   cmp #0
@@ -405,6 +416,10 @@ _check_obstacle_pos:
   jsr spawn_obstacle
 
 _update_obstacle_sprite:
+  ; For the 'set_sprite_data' subroutine
+  lda OBSTACLE_Y
+  sta TEMP+1
+
   lda OBSTACLE_TYPE
   ; obstacle_type == 0 is the empty obstacle
   beq __no_ptero
@@ -451,7 +466,8 @@ __use_zero_for_obstacle_sprite:
   ldy OBSTACLES_SPRITES_TABLE+#1,x
   lda OBSTACLES_SPRITES_TABLE,x
   ldx #PTR_OBSTACLE_SPRITE
-  jsr set_obstacle_data
+  ;jsr set_obstacle_data
+  jsr set_sprite_data
 
   ; Similar to the obstacle sprite data, check the obstacle missile x position
   ; and use empty data if it's offscreen
@@ -471,7 +487,8 @@ __use_zero_for_obstacle_missile:
   ldy OBSTACLES_MISSILE_1_CONF_TABLE+#1,x
   lda OBSTACLES_MISSILE_1_CONF_TABLE,x
   ldx #PTR_OBSTACLE_MISSILE_1_CONF
-  jsr set_obstacle_data
+  ;jsr set_obstacle_data
+  jsr set_sprite_data
 end_update_obstacle:
 
 update_floor:

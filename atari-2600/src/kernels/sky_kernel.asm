@@ -6,12 +6,13 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
   lda #$FC       ; 5 cycles - For debugging - paints the sky yellow
   sta COLUBK     ; can be ignored for total CPU cycles count
 
-  lda GAME_FLAGS            ; 3 (6)
-  eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
-  ;ora #FLAG_SKY_LAYER_1_ON  ; -
-  sta GAME_FLAGS            ; 3 (10)
+     jmp moon_and_stars_layer    ; 2/3 (12/13)
+  ;lda GAME_FLAGS            ; 3 (6)
+  ;eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
+  ;;ora #FLAG_SKY_LAYER_1_ON  ; -
+  ;sta GAME_FLAGS            ; 3 (10)
 
-  bpl moon_and_stars_layer    ; 2/3 (12/13)
+  ;bpl moon_and_stars_layer    ; 2/3 (12/13)
 
 ; -----------------------------------------------------------------------------
 ;
@@ -56,7 +57,7 @@ _moon_and_stars_layer_setup:
 
   ldx #1
 __setup_sprite_pos:
-   lda MOON_POS_X_INT,x
+   lda MOON_POS_X_INT,x  ; 4 (_/12)
 
   ;--------------------------------------------------------------------------
   ; [!] Disclaimer
@@ -66,8 +67,8 @@ __setup_sprite_pos:
   ;--------------------------------------------------------------------------
 
   ; Works from 6..155 (as subroutine only until 140)
-   sec
-   sbc #6       ; correction for players (+1 if double/quad, -1 rest)
+   sec          ; 2 (14)
+   sbc #6       ; 2 (16) - correction for players (+1 if double/quad, -1 rest)
    sta WSYNC
    sta HMOVE
 ___divide_loop:
@@ -82,12 +83,23 @@ ___divide_loop:
    sta RESP0,x
 
 __end_setup_sprite_pos:
-  dex
-  bpl __setup_sprite_pos
+  sta WSYNC  ;
+             ; - (0)
+  sta HMOVE  ; 3 (3)
+  pha        ; \
+  pla        ; |
+  pha        ; | 16 cycles (19) - 5 bytes
+  pla        ; |
+  nop        ; /
+  lda #0     ; 2 (21)
+  sta HMP0,x ; 4 (25)
 
-  lda #0
-  tax
-  ldy #SKY_SCANLINES-#MOON_AND_STARS_LAYER_SETUP_SCANLINES
+  dex        ; 2 (27)
+  bpl __setup_sprite_pos ; 2/3 (29/30)
+
+  lda #0     ; 2 (31)
+  tax        ; 2 (33)
+  ldy #SKY_SCANLINES-#MOON_AND_STARS_LAYER_SETUP_SCANLINES ; 2 (35)
 _moon_and_stars_layer_scanline:
   sta WSYNC    ; 3 (47 -> 50 if coming from 'end_moon_and_stars_layer')
                ; - (0)
@@ -111,7 +123,7 @@ __check_y_is_within_moon:  ; - (25/26)
   tya              ; 2 (28) 
   sec              ; 2 (30) - can this 'sec' be removed?
   sbc #MOON_Y_POS  ; 2 (32)
-  adc #STAR_HEIGHT ; 2 (34)
+  adc #MOON_HEIGHT ; 2 (34)
   bcs __y_is_within_moon ; 2/3 (36/37)
 __y_is_not_within_moon:
   lda #0                       ; 2 (38)

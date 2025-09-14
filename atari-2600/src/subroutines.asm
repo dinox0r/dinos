@@ -13,18 +13,19 @@ rnd8 subroutine
 ;------------------------------------------------------------------------------
 ; Obstacle related subroutines
 ;------------------------------------------------------------------------------
-; set_obstacle_data: Computes a ROM address offset by OBSTACLE_Y and
-;                    stores the result in a zero-page pointer.
+; set_sprite_data: Computes a ROM address offset by the y coordinate in 
+;                  PARAM_SPRITE_Y (alias for TEMP+1) and stores the result in a
+;                  zero-page pointer.
 ;
 ; Description:
-;   This subroutine adjusts a given ROM address by subtracting OBSTACLE_Y
+;   This subroutine adjusts a given ROM address by subtracting PARAM_SPRITE_Y
 ;   and stores the resulting address in a zero-page pointer.
 ;
 ;   The operation is equivalent to:
 ;
-;      sec                     ; Set carry for subtraction
+;      sec                      ; Set carry for subtraction
 ;      lda #<SOME_ROM_ADDRESS   ; Load low byte of base address
-;      sbc OBSTACLE_Y           ; Subtract Y offset
+;      sbc PARAM_SPRITE_Y       ; Subtract Y offset
 ;      sta ZERO_PAGE_ADDRESS    ; Store low byte of result
 ;      lda #>SOME_ROM_ADDRESS   ; Load high byte of base address
 ;      sbc #0                   ; Subtract carry (propagating from low byte)
@@ -40,18 +41,19 @@ rnd8 subroutine
 ;   (X+1) = High byte of adjusted address
 ;
 ; Example:
-;   If SOME_ROM_ADDRESS = $F252 and OBSTACLE_Y = 10:
+;   If SOME_ROM_ADDRESS = $F252 and PARAM_SPRITE_Y = 10:
 ;     Adjusted address = $F252 - 10 = $F248
 ;     ZERO_PAGE_ADDRESS (at X) now holds $F248.
 ;
-set_obstacle_data subroutine
-  sec             ; 2 (2) Ensure subtraction works correctly
-  sbc OBSTACLE_Y  ; 3 (5) Subtract Y offset from low byte
-  sta $00,x       ; 4 (9) Store adjusted low byte at pointer X
-  tya             ; 2 (11) Load high byte of original address
-  sbc #0          ; 2 (13) Subtract carry from high byte
-  sta $01,x       ; 4 (17) Store adjusted high byte at pointer X+1
-  rts             ; 6 (23) Return from subroutine
+set_sprite_data subroutine
+  sec                ; 2 (2) Ensure subtraction works correctly
+  ; The subroutine assumes sprite Y coord in PARA_SPRITE_Y before the call
+  sbc PARAM_SPRITE_Y ; 3 (5) Subtract Y offset from low byte
+  sta $00,x          ; 4 (9) Store adjusted low byte at pointer X
+  tya                ; 2 (11) Load high byte of original address
+  sbc #0             ; 2 (13) Subtract carry from high byte
+  sta $01,x          ; 4 (17) Store adjusted high byte at pointer X+1
+  rts                ; 6 (23) Return from subroutine
 
 spawn_obstacle subroutine
   jsr rnd8
