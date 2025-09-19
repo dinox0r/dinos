@@ -3,16 +3,16 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
                  ; - (0)
   sta HMOVE      ; 3 (3)
 
-  lda #$FC       ; 5 cycles - For debugging - paints the sky yellow
+  lda BACKGROUND_COLOUR    ; 5 cycles - For debugging - paints the sky yellow
   sta COLUBK     ; can be ignored for total CPU cycles count
 
      jmp moon_and_stars_layer    ; 2/3 (12/13)
-  ;lda GAME_FLAGS            ; 3 (6)
-  ;eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
-  ;;ora #FLAG_SKY_LAYER_1_ON  ; -
-  ;sta GAME_FLAGS            ; 3 (10)
+  lda GAME_FLAGS            ; 3 (6)
+  eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
+  ;ora #FLAG_SKY_LAYER_1_ON  ; -
+  sta GAME_FLAGS            ; 3 (10)
 
-  ;bpl moon_and_stars_layer    ; 2/3 (12/13)
+  bpl double_cloud_layer    ; 2/3 (12/13)
 
 ; -----------------------------------------------------------------------------
 ;
@@ -122,7 +122,7 @@ __y_is_within_star:        ; - (21)
 __check_y_is_within_moon:  ; - (25/26)
   tya              ; 2 (28) 
   sec              ; 2 (30) - can this 'sec' be removed?
-  sbc #MOON_Y_POS  ; 2 (32)
+  sbc #MOON_POS_Y  ; 2 (32)
   adc #MOON_HEIGHT ; 2 (34)
   bcs __y_is_within_moon ; 2/3 (36/37)
 __y_is_not_within_moon:

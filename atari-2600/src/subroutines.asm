@@ -32,9 +32,13 @@ rnd8 subroutine
 ;      sta ZERO_PAGE_ADDRESS+1  ; Store high byte of result
 ;
 ; Parameters:
-;   A  - Low byte of SOME_ROM_ADDRESS
-;   Y  - High byte of SOME_ROM_ADDRESS
-;   X  - Zero-page pointer location (i.e., ZERO_PAGE_ADDRESS)
+;   In the form of Zero Page memory:
+;     PARAM_SPRITE_Y - Sprite's Y pos
+;
+;   In the form of registers:
+;     A  - Low byte of SOME_ROM_ADDRESS
+;     Y  - High byte of SOME_ROM_ADDRESS
+;     X  - Zero-page pointer location (i.e., ZERO_PAGE_ADDRESS)
 ;
 ; Result:
 ;   (X)   = Low byte of adjusted address

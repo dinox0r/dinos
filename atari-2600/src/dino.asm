@@ -61,6 +61,12 @@ CLOUD_1_X_INT                .byte   ; 1 byte   (31)
 CLOUD_2_X_INT                .byte   ; 1 byte   (32)
 CLOUD_3_X_INT                .byte   ; 1 byte   (33)
 
+;--------------------------------------------------------------------------
+; [!] VARIABLE potential savings
+;--------------------------------------------------------------------------
+; These cloud fractional positions could be removed by fixing their speeds
+; to a single pixel every N frames
+;--------------------------------------------------------------------------
 CLOUD_1_X_FRACT              .byte   ; 1 byte   (34)
 CLOUD_2_X_FRACT              .byte   ; 1 byte   (35)
 CLOUD_3_X_FRACT              .byte   ; 1 byte   (36)
@@ -216,6 +222,8 @@ _init_sky_conf:
   ldx #2
   jsr reset_cloud
 
+  lda #14
+  sta STAR_POS_Y
   lda #50
   sta MOON_POS_X_INT
   lda #27
@@ -374,10 +382,20 @@ in_game_screen:
 
 update_sky:
 
-# OFFSET_SPRITE_POINTER_BY_Y_COORD STAR_POS_X_INT, PTR_STAR_SPRITE, DINO_SPRITE_1_END
-# OFFSET_SPRITE_POINTER_BY_Y_COORD DINO_TOP_Y_INT, PTR_DINO_OFFSET, DINO_SPRITE_OFFSETS_END
-
 _update_moon_and_stars:
+  lda STAR_POS_Y
+  sta PARAM_SPRITE_Y
+  lda #<STAR_1_SPRITE_END
+  ldy #>STAR_1_SPRITE_END
+  ldx #PTR_STAR_SPRITE
+  jsr set_sprite_data
+
+  lda #MOON_POS_Y
+  sta PARAM_SPRITE_Y
+  lda #<MOON_PHASE_SPRITE_END
+  ldy #>MOON_PHASE_SPRITE_END
+  ldx #PTR_MOON_SPRITE
+  jsr set_sprite_data
 
 _update_cloud_pos:
   UPDATE_X_POS CLOUD_1_X_INT, CLOUD_1_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
@@ -466,7 +484,6 @@ __use_zero_for_obstacle_sprite:
   ldy OBSTACLES_SPRITES_TABLE+#1,x
   lda OBSTACLES_SPRITES_TABLE,x
   ldx #PTR_OBSTACLE_SPRITE
-  ;jsr set_obstacle_data
   jsr set_sprite_data
 
   ; Similar to the obstacle sprite data, check the obstacle missile x position
@@ -487,7 +504,6 @@ __use_zero_for_obstacle_missile:
   ldy OBSTACLES_MISSILE_1_CONF_TABLE+#1,x
   lda OBSTACLES_MISSILE_1_CONF_TABLE,x
   ldx #PTR_OBSTACLE_MISSILE_1_CONF
-  ;jsr set_obstacle_data
   jsr set_sprite_data
 end_update_obstacle:
 

@@ -71,7 +71,7 @@ CLOUD_HEIGHT = #11
 
 STAR_HEIGHT = #5
 MOON_HEIGHT = #14
-MOON_Y_POS = #7
+MOON_POS_Y = #20
 
 ; Crouching Kernel
 ; -----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ DINO_JUMP_ACCEL_INT = #0
 DINO_JUMP_ACCEL_FRACT = #78
 
 PTERO_HEIGHT = #20
-; To save a cycle per scanline, all the obstacles are to have the max obstacle
+; To save a cycle per scan/line, all the obstacles are to have the max obstacle
 ; height, it wastes some rom though
 OBSTACLE_HEIGHT = #PTERO_HEIGHT
 
