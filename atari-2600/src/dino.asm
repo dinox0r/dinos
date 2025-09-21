@@ -57,19 +57,9 @@ PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (29)
 ;
 ; These variables are layed out this way (array form) so they can be indexed
 ; in a subroutine
-CLOUD_1_X_INT                .byte   ; 1 byte   (31)
-CLOUD_2_X_INT                .byte   ; 1 byte   (32)
-CLOUD_3_X_INT                .byte   ; 1 byte   (33)
-
-;--------------------------------------------------------------------------
-; [!] VARIABLE potential savings
-;--------------------------------------------------------------------------
-; These cloud fractional positions could be removed by fixing their speeds
-; to a single pixel every N frames
-;--------------------------------------------------------------------------
-CLOUD_1_X_FRACT              .byte   ; 1 byte   (34)
-CLOUD_2_X_FRACT              .byte   ; 1 byte   (35)
-CLOUD_3_X_FRACT              .byte   ; 1 byte   (36)
+CLOUD_1_X                    .byte   ; 1 byte   (31)
+CLOUD_2_X                    .byte   ; 1 byte   (32)
+CLOUD_3_X                    .byte   ; 1 byte   (33)
 
 CLOUD_1_TOP_Y                .byte   ; 1 byte   (37)
 ; Clouds 2 and 3 have "0" for Y coordinate, there is no enough room
@@ -398,19 +388,27 @@ _update_moon_and_stars:
   jsr set_sprite_data
 
 _update_cloud_pos:
-  UPDATE_X_POS CLOUD_1_X_INT, CLOUD_1_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
-  UPDATE_X_POS CLOUD_2_X_INT, CLOUD_2_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
-  UPDATE_X_POS CLOUD_3_X_INT, CLOUD_3_X_FRACT, #CLOUD_VX_INT, #CLOUD_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_CONSTANT
 
   ; The following is equivalent to:
   ; for (x = 2; x >= 0; x--) 
+  ;   if frame_count mod 4 == 0 // every 4 frames
+  ;     cloud_x_pos[x]--
+  ; 
   ;   if cloud_x_pos[x] > 1
   ;     continue
   ;   else
   ;     call reset_cloud(new_x_pos=255, cloud_index=x)
   ldx #2
-__cloud_check_x_pos_loop:
-  lda CLOUD_1_X_INT,x
+__update_cloud_x_pos_loop:
+  lda FRAME_COUNT
+  and #3
+  cmp #3
+  beq ___decrement_x_pos
+  .byte $2C
+___decrement_x_pos:
+  dec CLOUD_1_X,x
+
+  lda CLOUD_1_X,x
   cmp #2
   bcs ___continue_next_cloud    ; if x > 1
 ___reset_cloud_pos:
@@ -418,7 +416,7 @@ ___reset_cloud_pos:
   jsr reset_cloud
 ___continue_next_cloud:
   dex
-  bpl __cloud_check_x_pos_loop
+  bpl __update_cloud_x_pos_loop
 
 update_obstacle:
 _update_obstacle_pos:

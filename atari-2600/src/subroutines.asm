@@ -98,15 +98,12 @@ spawn_obstacle subroutine
 reset_cloud subroutine
   ; Assumes register A contains the new desired X integer position for the 
   ; cloud. The value is stored into the appropriate cloud slot (indexed by X).
-  sta CLOUD_1_X_INT,x
+  sta CLOUD_1_X,x
   jsr rnd8
   and #15
   ; Add a small x random offset
-  adc CLOUD_1_X_INT,x
-  sta CLOUD_1_X_INT,x
-
-  jsr rnd8
-  sta CLOUD_1_X_FRACT,x
+  adc CLOUD_1_X,x
+  sta CLOUD_1_X,x
 
   ; If X == 0, this resets the cloud for the single-cloud sky.
   ; If X >= 1, this is one of the two clouds in the double-cloud sky.

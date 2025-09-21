@@ -6,7 +6,7 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
   lda BACKGROUND_COLOUR    ; 5 cycles - For debugging - paints the sky yellow
   sta COLUBK     ; can be ignored for total CPU cycles count
 
-     jmp moon_and_stars_layer    ; 2/3 (12/13)
+     ;jmp moon_and_stars_layer    ; 2/3 (12/13)
   lda GAME_FLAGS            ; 3 (6)
   eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
   ;ora #FLAG_SKY_LAYER_1_ON  ; -
@@ -23,7 +23,7 @@ single_cloud_layer:                ; - (12)
   sta CLOUD_LAYER_SCANLINES        ; 3 (17)
   lda CLOUD_1_TOP_Y                ; 3 (20)
   sta CURRENT_CLOUD_TOP_Y          ; 3 (23)
-  lda CLOUD_1_X_INT                ; 3 (26)
+  lda CLOUD_1_X                    ; 3 (26)
   sta CURRENT_CLOUD_X              ; 3 (29)
   jsr render_cloud_layer
 
@@ -38,13 +38,13 @@ double_cloud_layer:                ; - (13)
   sta CLOUD_LAYER_SCANLINES        ; 3 (17)
   lda #SKY_CLOUDS_2_AND_3_TOP_Y    ; 2 (19)
   sta CURRENT_CLOUD_TOP_Y          ; 3 (22)
-  lda CLOUD_2_X_INT                ; 3 (25)
+  lda CLOUD_2_X                    ; 3 (25)
   sta CURRENT_CLOUD_X              ; 3 (28)
   jsr render_cloud_layer           ; 6 (?)
 
   lda #SKY_CLOUDS_2_AND_3_TOP_Y    ; 2 (?)
   sta CURRENT_CLOUD_TOP_Y          ; 3 (?)
-  lda CLOUD_3_X_INT                ; 3 (?)
+  lda CLOUD_3_X                    ; 3 (?)
   sta CURRENT_CLOUD_X              ; 3 (?)
   jsr render_cloud_layer           ; 6 (?)
 
