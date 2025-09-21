@@ -208,7 +208,7 @@ _init_sky_conf:
   ldx #1
   jsr reset_cloud
 
-  lda #230
+  lda #220
   ldx #2
   jsr reset_cloud
 

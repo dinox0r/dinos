@@ -100,7 +100,7 @@ reset_cloud subroutine
   ; cloud. The value is stored into the appropriate cloud slot (indexed by X).
   sta CLOUD_1_X,x
   jsr rnd8
-  and #15
+  and #31
   ; Add a small x random offset
   adc CLOUD_1_X,x
   sta CLOUD_1_X,x
@@ -108,7 +108,7 @@ reset_cloud subroutine
   ; If X == 0, this resets the cloud for the single-cloud sky.
   ; If X >= 1, this is one of the two clouds in the double-cloud sky.
   cpx #0
-  beq .end_reset_cloud
+  bne .end_reset_cloud
 
   ; For the single-cloud sky (reg X == 0), allow a random vertical
   ; placement by masking with AND #15 (i.e., range 0–15).
