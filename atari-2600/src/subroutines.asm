@@ -117,7 +117,7 @@ reset_cloud subroutine
   ; Add a base offset to the Y value, placing the cloud below the HUD
   ; or sky margin. The carry flag is not cleared, as the result doesn't
   ; need to be precise. Leaving the carry random adds slight variation.
-  adc #CLOUD_HEIGHT+#2
+  adc #CLOUD_HEIGHT+#3
   sta CLOUD_1_TOP_Y
 
 .end_reset_cloud

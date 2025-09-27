@@ -73,8 +73,6 @@ CLOUD_LAYER_SCANLINES        .byte   ; 1 byte   (40)
 MOON_POS_X_INT               .byte   ; 1 byte   (41)
 STAR_POS_X_INT               .byte   ; 1 byte   (42)
 
-STAR_X_FRACT                 .byte   ; 1 byte   (43)
-
 STAR_POS_Y                   .byte   ; 1 byte   (45)
 PTR_STAR_SPRITE              .word   ; 2 bytes  (47)
 PTR_MOON_SPRITE              .word   ; 2 bytes  (47)
@@ -200,15 +198,15 @@ _init_obstacle_conf:
   sta OBSTACLE_VX_INT
 
 _init_sky_conf:
-  lda #168
+  lda #167
   ldx #0
   jsr reset_cloud
 
-  lda #190
+  lda #200
   ldx #1
   jsr reset_cloud
 
-  lda #220
+  lda #224
   ldx #2
   jsr reset_cloud
 

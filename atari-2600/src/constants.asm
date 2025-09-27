@@ -1,6 +1,28 @@
+;------------------------
+; MACRO constants
+;------------------------
 
-RND_MEM_LOC_1 = $c1  ; "random" memory locations to sample the upper/lower
-RND_MEM_LOC_2 = $e5  ; bytes when the machine starts. Hopefully this finds
+ENABLE_PAGE_CROSSING_CHECK = #0
+
+; UPDATE_X_POS macro
+TREAT_SPEED_PARAMETER_AS_A_CONSTANT = #1
+TREAT_SPEED_PARAMETER_AS_A_VARIABLE = #0
+
+; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro
+SET_CARRY = #1
+IGNORE_CARRY = #0
+
+OBSTACLE_M1_MAX_SCREEN_X = #160   ; if obstacle_x >= 160, m1 = 0
+OBSTACLE_GRP1_MIN_SCREEN_X = #8  ; if obstacle_x < 8, grp1 = 0
+
+USE_GRP0 = #1
+IGNORE_GRP0 = #0
+USE_GRP1 = #1
+IGNORE_GRP1 = #0
+
+
+RND_MEM_LOC_1 = $f1  ; "random" memory locations to sample the upper/lower
+RND_MEM_LOC_2 = $35  ; bytes when the machine starts. Hopefully this finds
                      ; some garbage values that can be used as seed
 
 
@@ -34,40 +56,18 @@ PLAYER_1_INDEX = #1
 MISSILE_0_INDEX = #2
 MISSILE_1_INDEX = #3
 
-;------------------------
-; MACRO constants
-;------------------------
-
-ENABLE_PAGE_CROSSING_CHECK = #0
-
-; UPDATE_X_POS macro
-TREAT_SPEED_PARAMETER_AS_A_CONSTANT = #1
-TREAT_SPEED_PARAMETER_AS_A_VARIABLE = #0
-
-; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE macro
-SET_CARRY = #1
-IGNORE_CARRY = #0
-
-OBSTACLE_M1_MAX_SCREEN_X = #160   ; if obstacle_x >= 160, m1 = 0
-OBSTACLE_GRP1_MIN_SCREEN_X = #8  ; if obstacle_x < 8, grp1 = 0
-
-USE_GRP0 = #1
-IGNORE_GRP0 = #0
-USE_GRP1 = #1
-IGNORE_GRP1 = #0
-
 ; Sky kernel
 ; -----------------------------------------------------------------------------
 SKY_SCANLINES = #31      ; Contrary to the play area, these are 1x kernel lines
+
+CLOUD_HEIGHT = #11
+CLOUD_VX_INT = #0
+CLOUD_VX_FRACT = #100
 
 MOON_AND_STARS_LAYER_SETUP_SCANLINES = #6
 SKY_SINGLE_CLOUD_SCANLINES = #SKY_SCANLINES 
 SKY_2_CLOUDS_SCANLINES = #13
 SKY_CLOUDS_2_AND_3_TOP_Y = #CLOUD_HEIGHT+#2
-
-CLOUD_VX_INT = #0
-CLOUD_VX_FRACT = #100
-CLOUD_HEIGHT = #11
 
 STAR_HEIGHT = #5
 MOON_HEIGHT = #14

@@ -868,6 +868,11 @@
       sbc CURRENT_CLOUD_TOP_Y    ; 3 (16)
       adc #CLOUD_HEIGHT          ; 2 (18)
       bcs .cloud_y_within_range  ; 2/3 (20/21)
+
+      IF ENABLE_PAGE_CROSSING_CHECK && (* ^ .cloud_y_within_range) & $FF00
+        ECHO "PAGE CROSSING IN CLOUD KERNEL MACRO (.cloud_y_within_range branch)","ERROR ",.cloud_y_within_range," at ",*
+        ERR
+      ENDIF
 .cloud_y_outside_range:          ; - (18)
       lda #0                     ; 2 (20)
       tax                        ; 2 (22)
@@ -896,6 +901,10 @@
 .end_of_scanline:
     dey                ; 2 (max CPU count here would be 67)
     bne .start_of_scanline ; 2/3 (69/70)
+    IF ENABLE_PAGE_CROSSING_CHECK && (* ^ .start_of_scanline) & $FF00
+      ECHO "PAGE CROSSING IN CLOUD KERNEL MACRO (.start_of_scanline branch)","ERROR ",.start_of_scanline," at ",*
+      ERR
+    ENDIF
   ENDM
 
   MACRO OFFSET_SPRITE_POINTER_BY_Y_COORD ; 17 CPU cycles

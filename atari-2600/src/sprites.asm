@@ -1,5 +1,43 @@
   ECHO "ROM for sprites starts at: ", *, "(", [*]d, ")"
 
+CLOUD_PART_1: ; fb00
+  .ds 1             ;⏐
+  .byte #%10001111  ;⏐█   ████
+  .byte #%01010000  ;⏐ █ █
+  .byte #%01000000  ;⏐ █
+  .byte #%00110000  ;⏐  ██
+  .byte #%00001100  ;⏐    ██
+  .byte #%00000010  ;⏐      █
+  .byte #%00000010  ;⏐      █
+  .byte #%00000001  ;⏐       █
+  .byte #%00000000  ;⏐
+  .ds 1             ;⏐
+CLOUD_PART_1_END = *
+
+CLOUD_PART_2:
+  .ds 1             ;⏐
+  .byte #%11111111  ;⏐████████
+  .byte #%00000001  ;⏐       █
+  .byte #%00000010  ;⏐      █
+  .byte #%00100100  ;⏐  █ ██
+  .byte #%00011100  ;⏐   ██
+  .byte #%00010000  ;⏐   █
+  .byte #%00010000  ;⏐   █
+  .byte #%10100000  ;⏐█ █
+  .byte #%01000000  ;⏐ █         fb14
+  .ds 1             ;⏐
+CLOUD_PART_2_END = *
+
+  ; Make sure that both CLOUD_PART_1 and CLOUD_PART_2_END (the whole cloud
+  ; sprite) lies within the same page, this helps reduce the cycle count in
+  ; the cloud kernel
+  IF >CLOUD_PART_1 != >CLOUD_PART_2_END
+    ECHO "CLOUD_PART_1 and CLOUD_PART_2_END are in different pages"
+    ECHO "CLOUD_PART_1:     ",CLOUD_PART_1 
+    ECHO "CLOUD_PART_2_END: ",CLOUD_PART_2_END
+    ERR
+  ENDIF
+
 DINO_SPRITE_1:
 ;      full sprite                     franke-sprite (GRP0 + M0)
 ;  /----- 17 px -----\
@@ -526,45 +564,6 @@ PTERO_WINGS_CLOSED_MISSILE_1_CONF:
   ;                            ↑
   ;                    initial M1 position (cycle 25)
 PTERO_WINGS_CLOSED_MISSILE_1_CONF_END = *
-
-  ALIGN 256
-CLOUD_PART_1: ; fb00
-  .ds 1             ;⏐
-  .byte #%10001111  ;⏐█   ████
-  .byte #%01010000  ;⏐ █ █
-  .byte #%01000000  ;⏐ █
-  .byte #%00110000  ;⏐  ██
-  .byte #%00001100  ;⏐    ██
-  .byte #%00000010  ;⏐      █
-  .byte #%00000010  ;⏐      █
-  .byte #%00000001  ;⏐       █
-  .byte #%00000000  ;⏐
-  .ds 1             ;⏐
-CLOUD_PART_1_END = *
-
-CLOUD_PART_2:
-  .ds 1             ;⏐
-  .byte #%11111111  ;⏐████████
-  .byte #%00000001  ;⏐       █
-  .byte #%00000010  ;⏐      █
-  .byte #%00100100  ;⏐  █ ██
-  .byte #%00011100  ;⏐   ██
-  .byte #%00010000  ;⏐   █
-  .byte #%00010000  ;⏐   █
-  .byte #%10100000  ;⏐█ █
-  .byte #%01000000  ;⏐ █         fb14
-  .ds 1             ;⏐
-CLOUD_PART_2_END = *
-
-  ; Make sure that both CLOUD_PART_1 and CLOUD_PART_2_END (the whole cloud
-  ; sprite) lies within the same page, this helps reduce the cycle count in
-  ; the cloud kernel
-  IF >CLOUD_PART_1 != >CLOUD_PART_2_END
-    ECHO "CLOUD_PART_1 and CLOUD_PART_2_END are in different pages"
-    ECHO "CLOUD_PART_1:     ",CLOUD_PART_1 
-    ECHO "CLOUD_PART_2_END: ",CLOUD_PART_2_END
-    ERR
-  ENDIF
 
 STAR_1_SPRITE:
   .ds 1             ;⏐
