@@ -1,5 +1,4 @@
   ECHO "ROM for sprites starts at: ", *, "(", [*]d, ")"
-
 CLOUD_PART_1: ; fb00
   .ds 1             ;⏐
   .byte #%10001111  ;⏐█   ████
@@ -35,7 +34,7 @@ CLOUD_PART_2_END = *
     ECHO "CLOUD_PART_1 and CLOUD_PART_2_END are in different pages"
     ECHO "CLOUD_PART_1:     ",CLOUD_PART_1 
     ECHO "CLOUD_PART_2_END: ",CLOUD_PART_2_END
-    ERR
+    ;ERR
   ENDIF
 
 DINO_SPRITE_1:

@@ -70,8 +70,8 @@ CURRENT_CLOUD_TOP_Y          .byte   ; 1 byte   (39)
 CLOUD_LAYER_SCANLINES        .byte   ; 1 byte   (40)
 
 ; moon and star X's coordinates are also layed out in array form
-MOON_POS_X_INT               .byte   ; 1 byte   (41)
-STAR_POS_X_INT               .byte   ; 1 byte   (42)
+MOON_POS_X                   .byte   ; 1 byte   (41)
+STAR_POS_X                   .byte   ; 1 byte   (42)
 
 STAR_POS_Y                   .byte   ; 1 byte   (45)
 PTR_STAR_SPRITE              .word   ; 2 bytes  (47)
@@ -213,9 +213,9 @@ _init_sky_conf:
   lda #14
   sta STAR_POS_Y
   lda #50
-  sta MOON_POS_X_INT
+  sta MOON_POS_X
   lda #27
-  sta STAR_POS_X_INT
+  sta STAR_POS_X
 
 ;=============================================================================
 ; FRAME
@@ -371,6 +371,22 @@ in_game_screen:
 update_sky:
 
 _update_moon_and_stars:
+;__update_star_x_pos:
+;  lda FRAME_COUNT
+;  and #3
+;  cmp #3
+;  bne __check_star_x_pos
+;  dec STAR_POS_X
+;
+;__check_star_x_pos:
+;  lda STAR_POS_X
+;  cmp #3
+;  bcs __update_star_x_pos
+;  lda #157
+;  sta STAR_POS_X
+;
+;__update_moon_x_pos:
+
   lda STAR_POS_Y
   sta PARAM_SPRITE_Y
   lda #<STAR_1_SPRITE_END
@@ -400,7 +416,7 @@ _update_cloud_pos:
 __update_cloud_x_pos_loop:
   lda FRAME_COUNT
   and #3
-  cmp #3
+  cmp #2
   beq ___decrement_x_pos
   .byte $2C
 ___decrement_x_pos:
@@ -950,9 +966,9 @@ _remaining_overscan:
   INCLUDE "subroutines.asm"
 
 ;=============================================================================
-; SPRITE GRAPHICS DATA
+; UTILITY TABLES
 ;=============================================================================
-  INCLUDE "sprites.asm"
+  INCLUDE "tables.asm"
 
 ;=============================================================================
 ; SOUND DATA
@@ -960,9 +976,9 @@ _remaining_overscan:
   INCLUDE "sounds.asm"
 
 ;=============================================================================
-; UTILITY TABLES
+; SPRITE GRAPHICS DATA
 ;=============================================================================
-  INCLUDE "tables.asm"
+  INCLUDE "sprites.asm"
 
   ECHO "ROM at:", *, "(", [*]d, ")"
   ECHO "Remaining: ", [$fffc - *]d, "bytes"

@@ -133,7 +133,10 @@ set_cloud_pos_x subroutine
 
 render_cloud_layer subroutine
   ; Assumes reg A contains the x position of the cloud
-  jsr set_cloud_pos_x       ; 6 for jsr + 27 of the subroutine (+33)
+  ;ldx #0
+  ;ldy #1
+  ;jsr set_stitched_sprite_x_pos        ; 6 for jsr + 27 of the subroutine (+33)
+  jsr set_cloud_pos_x        ; 6 for jsr + 27 of the subroutine (+33)
                             ; consumes a whole scanline and then resumes 
                             ; execution on cycle 27 of the next one
 

@@ -1,8 +1,5 @@
 play_area_setup_kernel:;----->>> 5 scanlines <<<-----
-  ; From the DEBUG_SUB_KERNEL macro:
-  ;  sta HMOVE   3 cycles (3 so far in this scanline)
-  ;  bne .loop   not taken, so 2 cycles (5)
-
+  ; From the sky_kernel
   sta WSYNC     ; 3 (8)
 
   ; 1st scanline ==============================================================
@@ -77,36 +74,6 @@ _dino_is_not_crouching_2: ; - (18)
 
 _end_m0_coarse_position: ; (25/34)
 
-; Coarse positioning setup for the obstacle. The obstacle graphics are stored in
-; GRP1, with optional detail added using M1. Positioning is handled by four 
-; routines (or cases). Three of these cover situations where the obstacle is 
-; partially or fully obscured by the left or right edges of the screen. 
-; The third routine (case 3) handles most visible, on-screen placements but 
-; cannot accommodate those edge cases.
-;
-; To simplify positioning logic and avoid signed arithmetic, obstacle_x values 
-; are treated as unsigned integers in the range 0–168. The visible Atari 2600 
-; screen is 160 pixels wide, with the first 8 pixels of each scanline obscured 
-; by the HMOVE blanking interval.
-;
-; ┌ obstacle pos (obstacle_x)
-; │┌ screen pixel
-; ││                                           obstacle_x = screen_x + 8
-; ││                                                      |
-; │└→ -8 -7 ... -1 0     ...     8           ...          |  █    160 161 ...
-; └──→ 0  1 ...  7 8     ...    16           ...          ↓  █ █  168 169 ...
-;                ↓ ↓             ↓                         █ █ █   ↓ ↓
-;      ____ ... __│▓▓▓ HMOVE ▓▓▓|_____       ...            ███_____│______
-;                 │▓▓▓ black ▓▓▓|                            █      │
-;                 │▓▓▓ area  ▓▓▓|                            █      │
-;                 ↑                                                 ↑
-;       left edge of the screen                        right edge of the screen
-;
-;  ┌→ │ 0 ≤ x ≤ 8 │  8 < x ≤ 16 │        16 < x ≤ 162        │ x > 162 │
-;  │  ├───────────┼─────────────┼────────────────────────────┼─────────┤
-;  │  │   case 1  │    case 2   │          case 3            │  case 4 │
-;  │  └───────────┴─────────────┴────────────────────────────┴─────────┘
-;  └─── "x" refers to obstacle position (obstacle_x)
 _set_obstacle_x_position:
   sta HMCLR        ; 3 (Worst case scenario CPU count at this point is 37)
 
