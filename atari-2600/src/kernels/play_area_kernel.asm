@@ -120,7 +120,7 @@ __end_middle_section_kernel_setup:
   sta HMCLR   ; 3 (35/33) 
 
   ; We are assuming that reg A has the obstacle graphics, which go to GRP1
-  ; and that reg X has the BALL state for the obstacle additional graphics, 
+  ; and that reg X has the M1 state for the obstacle additional graphics, 
   ; so we have to 0 both before the first scanline of the sky kernel
   lda #0
   tax

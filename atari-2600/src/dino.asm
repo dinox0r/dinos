@@ -68,6 +68,7 @@ CLOUD_1_TOP_Y                .byte   ; 1 byte   (37)
 CURRENT_CLOUD_X              .byte   ; 1 byte   (38)
 CURRENT_CLOUD_TOP_Y          .byte   ; 1 byte   (39)
 CLOUD_LAYER_SCANLINES        .byte   ; 1 byte   (40)
+SKY_FLAGS                    .byte   ; 1 byte
 
 ; moon and star X's coordinates are also layed out in array form
 MOON_POS_X                   .byte   ; 1 byte   (41)
@@ -682,9 +683,8 @@ _check_if_dino_is_jumping:
   bne _jumping
 
 _check_if_dino_is_crouching:
-  lda #FLAG_DINO_CROUCHING
-  bit GAME_FLAGS
-  bne _crouching
+  lda GAME_FLAGS
+  bmi _crouching
 
   ; If the dino is neither jumping nor crouching, restore its standing Y
   ; position. This ensures the dino is drawn correctly after the player
@@ -898,9 +898,8 @@ _set_game_over:
   sta DINO_VY_FRACT   ; dino vertical movement (in case it was jumping)
 
   ; Remove the crouching flag in case it was crouching
-  lda #FLAG_DINO_CROUCHING
-  bit GAME_FLAGS
-  beq __set_dino_game_over_sprite
+  lda GAME_FLAGS
+  bpl __set_dino_game_over_sprite
   lda #TOGGLE_FLAG_DINO_CROUCHING_OFF
   and GAME_FLAGS
   sta GAME_FLAGS

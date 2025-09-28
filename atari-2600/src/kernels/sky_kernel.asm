@@ -7,10 +7,10 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
   sta COLUBK     ; can be ignored for total CPU cycles count
 
      ;jmp moon_and_stars_layer    ; 2/3 (12/13)
-  lda GAME_FLAGS            ; 3 (6)
-  eor #FLAG_SKY_LAYER_1_ON ; 2 (8)
+  lda SKY_FLAGS            ; 3 (6)
+  eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON ; 2 (8)
   ;ora #FLAG_SKY_LAYER_1_ON  ; -
-  sta GAME_FLAGS            ; 3 (10)
+  sta SKY_FLAGS            ; 3 (10)
 
   bpl double_cloud_layer    ; 2/3 (12/13)
 
