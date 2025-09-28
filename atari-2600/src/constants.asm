@@ -128,4 +128,5 @@ TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 ;          10 -> Full moon / night sky
 ;          11 -> Waning crescent / night sky
 SKY_FLAG_SINGLE_CLOUD_LAYER_ON = #%10000000
-
+; If 0, use one sprite 1, else uses sprite 2
+SKY_FLAG_STAR_SPRITE           = #%01000000

@@ -34,7 +34,7 @@ CLOUD_PART_2_END = *
     ECHO "CLOUD_PART_1 and CLOUD_PART_2_END are in different pages"
     ECHO "CLOUD_PART_1:     ",CLOUD_PART_1 
     ECHO "CLOUD_PART_2_END: ",CLOUD_PART_2_END
-    ;ERR
+    ERR
   ENDIF
 
 DINO_SPRITE_1:
@@ -571,6 +571,7 @@ STAR_1_SPRITE:
   .byte #%00010000  ;⏐   █
   .ds 1             ;⏐
 STAR_1_SPRITE_END = *
+  ECHO "Address of STAR_1_SPRITE_END ",*
 
 STAR_2_SPRITE:
   .ds 1             ;⏐
@@ -579,7 +580,16 @@ STAR_2_SPRITE:
   .byte #%00101000  ;⏐  █ █
   .ds 1             ;⏐
 STAR_2_SPRITE_END = *
+  ECHO "Address of STAR_2_SPRITE_END ",*
 
+
+  ; Make sure that both STAR_1_SPRITE_END and STAR_2_SPRITE_END 
+  ; have the same upper byte. Assuming this simplifies the reset_star 
+  ; subroutine
+  IF >STAR_1_SPRITE_END != >STAR_2_SPRITE_END
+    ECHO "STAR_1_SPRITE_END and STAR_2_SPRITE_END have differnt upper byte"
+    ERR
+  ENDIF
 MOON_PHASE_SPRITE:
   .ds 1             ;⏐
   .byte #%00011100  ;⏐    ███  

@@ -211,12 +211,12 @@ _init_sky_conf:
   ldx #2
   jsr reset_cloud
 
-  lda #14
-  sta STAR_POS_Y
-  lda #50
+  ; moon and star range [6, 155]
+  jsr reset_star
+  ;lda #14
+  ;sta STAR_POS_Y
+  lda #6
   sta MOON_POS_X
-  lda #27
-  sta STAR_POS_X
 
 ;=============================================================================
 ; FRAME
@@ -372,28 +372,28 @@ in_game_screen:
 update_sky:
 
 _update_moon_and_stars:
-;__update_star_x_pos:
-;  lda FRAME_COUNT
-;  and #3
-;  cmp #3
-;  bne __check_star_x_pos
-;  dec STAR_POS_X
-;
-;__check_star_x_pos:
-;  lda STAR_POS_X
-;  cmp #3
-;  bcs __update_star_x_pos
-;  lda #157
-;  sta STAR_POS_X
-;
-;__update_moon_x_pos:
+__update_star_x_pos:
+  lda FRAME_COUNT
+  and #3
+  cmp #2
+  bne __check_star_x_pos
+  dec STAR_POS_X
 
-  lda STAR_POS_Y
-  sta PARAM_SPRITE_Y
-  lda #<STAR_1_SPRITE_END
-  ldy #>STAR_1_SPRITE_END
-  ldx #PTR_STAR_SPRITE
-  jsr set_sprite_data
+__check_star_x_pos:
+  lda STAR_POS_X
+  ; x range for both the star and moon is [6, 155]
+  cmp #7
+  bcs __update_moon_x_pos
+  jsr reset_star
+
+__update_moon_x_pos:
+
+  ;lda STAR_POS_Y
+  ;sta PARAM_SPRITE_Y
+  ;lda #<STAR_1_SPRITE_END
+  ;ldy #>STAR_1_SPRITE_END
+  ;ldx #PTR_STAR_SPRITE
+  ;jsr set_sprite_data
 
   lda #MOON_POS_Y
   sta PARAM_SPRITE_Y

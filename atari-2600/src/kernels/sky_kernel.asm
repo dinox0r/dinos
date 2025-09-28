@@ -6,7 +6,7 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
   lda BACKGROUND_COLOUR    ; 5 cycles - For debugging - paints the sky yellow
   sta COLUBK     ; can be ignored for total CPU cycles count
 
-     ;jmp moon_and_stars_layer    ; 2/3 (12/13)
+     jmp moon_and_stars_layer    ; 2/3 (12/13)
   lda SKY_FLAGS            ; 3 (6)
   eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON ; 2 (8)
   ;ora #FLAG_SKY_LAYER_1_ON  ; -

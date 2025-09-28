@@ -133,9 +133,6 @@ set_cloud_pos_x subroutine
 
 render_cloud_layer subroutine
   ; Assumes reg A contains the x position of the cloud
-  ;ldx #0
-  ;ldy #1
-  ;jsr set_stitched_sprite_x_pos        ; 6 for jsr + 27 of the subroutine (+33)
   jsr set_cloud_pos_x        ; 6 for jsr + 27 of the subroutine (+33)
                             ; consumes a whole scanline and then resumes 
                             ; execution on cycle 27 of the next one
@@ -191,3 +188,35 @@ render_cloud_layer subroutine
                       ; - (0)
   sta HMOVE           ; 3 (3)
   rts                 ; 6 (9)
+
+reset_star subroutine
+  lda #155
+  sta STAR_POS_X
+
+  jsr rnd8
+  and #15
+  adc #6
+  sta STAR_POS_Y
+
+  sta PARAM_SPRITE_Y
+
+  lda SKY_FLAGS
+  bit SKY_FLAG_STAR_SPRITE
+  bne .use_star_2_sprite
+.use_star_1_sprite:
+  lda #<STAR_1_SPRITE_END
+  .byte $2C
+.use_star_2_sprite:  
+  lda #<STAR_2_SPRITE_END
+
+  ; Both sprites share the same upper byte value
+  ldy #>STAR_1_SPRITE_END
+  ldx #PTR_STAR_SPRITE
+  jsr set_sprite_data
+
+  ; Flip the sprite flag for the next reset
+  lda SKY_FLAGS
+  eor #SKY_FLAG_STAR_SPRITE
+  sta SKY_FLAGS
+
+  rts
