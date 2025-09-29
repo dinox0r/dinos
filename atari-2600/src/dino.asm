@@ -126,6 +126,7 @@ PARAM_SPRITE_Y = TEMP+1
 ;=============================================================================
   SEG code
   ORG $F000
+CARTRIDGE_ROM_START = *
 
   ; -----------------------
   ; RESET
@@ -958,29 +959,50 @@ _remaining_overscan:
   sta WSYNC
   jmp start_of_frame
 
+  ECHO "Total bytes used in cartridge ROM (before includes): ",[* - CARTRIDGE_ROM_START]d
 
 ;=============================================================================
 ; SUBROUTINES
 ;=============================================================================
+  ECHO "--------------------------------------"
+  ECHO "Subroutines ROM code starts at: ", *
+SUBROUTINES_ROM_START = *
   INCLUDE "subroutines.asm"
+  ECHO "Subroutines ROM code ends at: ", *
+  ECHO "Total bytes in subroutines: ",[* - SUBROUTINES_ROM_START]d
 
 ;=============================================================================
 ; UTILITY TABLES
 ;=============================================================================
+  ECHO "--------------------------------------"
+  ECHO "Utility tables ROM code starts at: ", *
+UTILITY_TABLES_ROM_START = *
   INCLUDE "tables.asm"
+  ECHO "Utility tables ROM code ends at: ", *
+  ECHO "Total bytes in utility tables: ",[* - UTILITY_TABLES_ROM_START]d
 
 ;=============================================================================
 ; SOUND DATA
 ;=============================================================================
+  ECHO "--------------------------------------"
+  ECHO "Sound data ROM code starts at: ", *
+SOUND_DATA_ROM_START = *
+  ECHO "Sound data ROM code ends at: ", *
   INCLUDE "sounds.asm"
+  ECHO "Total bytes in sound data: ",[* - SOUND_DATA_ROM_START]d
 
 ;=============================================================================
 ; SPRITE GRAPHICS DATA
 ;=============================================================================
+  ECHO "--------------------------------------"
+  ECHO "Sprite data ROM code starts at: ", *
+SPRITE_DATA_ROM_START = *
   INCLUDE "sprites.asm"
+  ECHO "Sprite data ROM code ends at: ", *
+  ECHO "Total bytes in sprite data: ",[* - SPRITE_DATA_ROM_START]d
 
-  ECHO "ROM at:", *, "(", [*]d, ")"
-  ECHO "Remaining: ", [$fffc - *]d, "bytes"
+  ECHO "--------------------------------------"
+  ECHO "Available ROM: ", [$fffc - *]d, "bytes"
 
 ;=============================================================================
 ; ROM SETUP

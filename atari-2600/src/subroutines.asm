@@ -190,7 +190,7 @@ render_cloud_layer subroutine
   rts                 ; 6 (9)
 
 reset_star subroutine
-  lda #155
+  lda #MAX_MOON_AND_STAR_POS_X
   sta STAR_POS_X
 
   jsr rnd8
@@ -218,5 +218,12 @@ reset_star subroutine
   lda SKY_FLAGS
   eor #SKY_FLAG_STAR_SPRITE
   sta SKY_FLAGS
+
+  rts
+
+reset_moon subroutine
+  lda #MAX_MOON_AND_STAR_POS_X
+  sta MOON_POS_X
+
 
   rts

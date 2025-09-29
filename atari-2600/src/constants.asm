@@ -73,6 +73,9 @@ STAR_HEIGHT = #5
 MOON_HEIGHT = #14
 MOON_POS_Y = #20
 
+MIN_MOON_AND_STAR_POS_X = #6
+MAX_MOON_AND_STAR_POS_X = #155
+
 ; Crouching Kernel
 ; -----------------------------------------------------------------------------
 CROUCHING_2X_SCANLINES = #8
@@ -123,7 +126,7 @@ TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 
 ; Day nigth cycle
 ;   bit 1,0: Moon phase
-;          00 -> No moon / daylight sky
+;          00 -> No moon / daylight sk
 ;          01 -> Waxing crescent / night sky
 ;          10 -> Full moon / night sky
 ;          11 -> Waning crescent / night sky
