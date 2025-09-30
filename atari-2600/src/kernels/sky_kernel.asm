@@ -6,13 +6,14 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
   lda BACKGROUND_COLOUR    ; 5 cycles - For debugging - paints the sky yellow
   sta COLUBK     ; can be ignored for total CPU cycles count
 
-     jmp moon_and_stars_layer    ; 2/3 (12/13)
+  ;   jmp moon_and_stars_layer    ; 2/3 (12/13)
   lda SKY_FLAGS            ; 3 (6)
   eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON ; 2 (8)
   ;ora #FLAG_SKY_LAYER_1_ON  ; -
   sta SKY_FLAGS            ; 3 (10)
 
   bpl double_cloud_layer    ; 2/3 (12/13)
+  jmp moon_and_stars_layer
 
 ; -----------------------------------------------------------------------------
 ;
@@ -97,9 +98,20 @@ __end_setup_sprite_pos:
   dex        ; 2 (27)
   bpl __setup_sprite_pos ; 2/3 (29/30)
 
-  lda #0     ; 2 (31)
-  tax        ; 2 (33)
-  ldy #SKY_SCANLINES-#MOON_AND_STARS_LAYER_SETUP_SCANLINES ; 2 (35)
+  lda SKY_FLAGS             ; 3 (32)
+  and #3                    ; 2 (34)
+  bne _prepare_for_scanline ; 2/3 (36/37)
+__reflect_moon_sprite:      ; - (36)
+  lda #%00001000            ; 2 (38)
+  sta REFP0                 ; 3 (41)
+
+_prepare_for_scanline:      ; - (41/37)
+  lda #0     ; 2 (43)
+  tax        ; 2 (45)
+  ldy #SKY_SCANLINES ; 2 (47)
+  ;ldy #SKY_SCANLINES-#MOON_AND_STARS_LAYER_SETUP_SCANLINES ; 2 (47)
+
+
 _moon_and_stars_layer_scanline:
   sta WSYNC    ; 3 (47 -> 50 if coming from 'end_moon_and_stars_layer')
                ; - (0)
@@ -137,3 +149,5 @@ end_moon_and_stars_layer:             ; - (41/42)
   bne _moon_and_stars_layer_scanline  ; 2/3 (46/47)
 
 end_of_sky_kernel:
+  lda #0
+  sta REFP0

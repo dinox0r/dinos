@@ -212,12 +212,9 @@ _init_sky_conf:
   ldx #2
   jsr reset_cloud
 
-  ; moon and star range [6, 155]
   jsr reset_star
-  ;lda #14
-  ;sta STAR_POS_Y
-  lda #6
-  sta MOON_POS_X
+
+  jsr reset_moon
 
 ;=============================================================================
 ; FRAME
@@ -388,20 +385,17 @@ __check_star_x_pos:
   jsr reset_star
 
 __update_moon_x_pos:
+  lda FRAME_COUNT
+  and #15
+  cmp #15
+  bne __check_moon_x_pos
+  dec MOON_POS_X
 
-  ;lda STAR_POS_Y
-  ;sta PARAM_SPRITE_Y
-  ;lda #<STAR_1_SPRITE_END
-  ;ldy #>STAR_1_SPRITE_END
-  ;ldx #PTR_STAR_SPRITE
-  ;jsr set_sprite_data
-
-  lda #MOON_POS_Y
-  sta PARAM_SPRITE_Y
-  lda #<MOON_PHASE_SPRITE_END
-  ldy #>MOON_PHASE_SPRITE_END
-  ldx #PTR_MOON_SPRITE
-  jsr set_sprite_data
+__check_moon_x_pos:
+  lda MOON_POS_X
+  cmp #7
+  bcs _update_cloud_pos
+  jsr reset_moon
 
 _update_cloud_pos:
 

@@ -1,5 +1,17 @@
-CLOUD_PART_1: ; fb00
+CLOUD_PART_2:
   .ds 1             ;⏐
+  .byte #%11111111  ;⏐████████
+  .byte #%00000001  ;⏐       █
+  .byte #%00000010  ;⏐      █
+  .byte #%00100100  ;⏐  █ ██
+  .byte #%00011100  ;⏐   ██
+  .byte #%00010000  ;⏐   █
+  .byte #%00010000  ;⏐   █
+  .byte #%10100000  ;⏐█ █
+  .byte #%01000000  ;⏐ █
+CLOUD_PART_1:
+  .ds 1             ;⏐
+CLOUD_PART_2_END = *
   .byte #%10001111  ;⏐█   ████
   .byte #%01010000  ;⏐ █ █
   .byte #%01000000  ;⏐ █
@@ -12,19 +24,6 @@ CLOUD_PART_1: ; fb00
   .ds 1             ;⏐
 CLOUD_PART_1_END = *
 
-CLOUD_PART_2:
-  .ds 1             ;⏐
-  .byte #%11111111  ;⏐████████
-  .byte #%00000001  ;⏐       █
-  .byte #%00000010  ;⏐      █
-  .byte #%00100100  ;⏐  █ ██
-  .byte #%00011100  ;⏐   ██
-  .byte #%00010000  ;⏐   █
-  .byte #%00010000  ;⏐   █
-  .byte #%10100000  ;⏐█ █
-  .byte #%01000000  ;⏐ █         fb14
-  .ds 1             ;⏐
-CLOUD_PART_2_END = *
 
   ; Make sure that both CLOUD_PART_1 and CLOUD_PART_2_END (the whole cloud
   ; sprite) lies within the same page, this helps reduce the cycle count in
@@ -558,25 +557,24 @@ PTERO_WINGS_CLOSED_MISSILE_1_CONF:
   .byte #%00000000 ; ⏐        ⏐        |         0              0
   .byte #%00000000 ; ⏐        ⏐        |         0              0
   .byte #%00000000 ; ⏐        ⏐        |         0              0
+STAR_1_SPRITE:
   .ds 1            ; ⏐        ⏐        |
   ;                            ↑
   ;                    initial M1 position (cycle 25)
 PTERO_WINGS_CLOSED_MISSILE_1_CONF_END = *
 
-STAR_1_SPRITE:
-  .ds 1             ;⏐
   .byte #%00010000  ;⏐   █
   .byte #%00111000  ;⏐  ███
   .byte #%00010000  ;⏐   █
+STAR_2_SPRITE:
   .ds 1             ;⏐
 STAR_1_SPRITE_END = *
   ECHO "  Address of STAR_1_SPRITE_END ",*
 
-STAR_2_SPRITE:
-  .ds 1             ;⏐
   .byte #%00101000  ;⏐  █ █
   .byte #%00010000  ;⏐   █
   .byte #%00101000  ;⏐  █ █
+MOON_PHASE_SPRITE:
   .ds 1             ;⏐
 STAR_2_SPRITE_END = *
   ECHO "  Address of STAR_2_SPRITE_END ",*
@@ -589,8 +587,6 @@ STAR_2_SPRITE_END = *
     ECHO "  STAR_1_SPRITE_END and STAR_2_SPRITE_END have differnt upper byte"
     ERR
   ENDIF
-MOON_PHASE_SPRITE:
-  .ds 1             ;⏐
   .byte #%00011100  ;⏐    ███  
   .byte #%00000110  ;⏐      ██ 
   .byte #%00000110  ;⏐      ██ 
@@ -603,11 +599,10 @@ MOON_PHASE_SPRITE:
   .byte #%00000110  ;⏐      ██ 
   .byte #%00000110  ;⏐      ██ 
   .byte #%00011100  ;⏐    ███  
+FULL_MOON_SPRITE:
   .ds 1             ;⏐
 MOON_PHASE_SPRITE_END = *
 
-FULL_MOON_SPRITE:
-  .ds 1             ;⏐
   .byte #%00011100  ;⏐    ███  
   .byte #%00111110  ;⏐   █████ 
   .byte #%00111110  ;⏐   █████ 

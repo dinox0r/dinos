@@ -225,5 +225,39 @@ reset_moon subroutine
   lda #MAX_MOON_AND_STAR_POS_X
   sta MOON_POS_X
 
+  lda #MOON_POS_Y
+  sta PARAM_SPRITE_Y
+
+  jsr change_moon_phase
+  rts
+
+change_moon_phase subroutine
+  inc SKY_FLAGS
+  lda SKY_FLAGS
+  and #3
+  cmp #3
+  bne .update_moon_phase_flags
+.reset_moon_phase_back_to_zero:
+  lda #%11111100
+  and SKY_FLAGS
+
+.update_moon_phase_flags:
+  sta SKY_FLAGS
+
+  and #%00000010
+  bne .full_moon_phase
+.waning_or_waxing_creasent_phase:
+
+  lda #<MOON_PHASE_SPRITE_END
+  ldy #>MOON_PHASE_SPRITE_END
+  jmp .load_moon_sprite_data
+
+.full_moon_phase:
+  lda #<FULL_MOON_SPRITE_END
+  ldy #>FULL_MOON_SPRITE_END
+
+.load_moon_sprite_data:
+  ldx #PTR_MOON_SPRITE
+  jsr set_sprite_data
 
   rts

@@ -126,10 +126,9 @@ TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 
 ; Day nigth cycle
 ;   bit 1,0: Moon phase
-;          00 -> No moon / daylight sk
-;          01 -> Waxing crescent / night sky
-;          10 -> Full moon / night sky
-;          11 -> Waning crescent / night sky
+;          00 -> Waning crescent
+;          01 -> Waxing crescent
+;          10 -> Full moon
 SKY_FLAG_SINGLE_CLOUD_LAYER_ON = #%10000000
 ; If 0, use one sprite 1, else uses sprite 2
 SKY_FLAG_STAR_SPRITE           = #%01000000
