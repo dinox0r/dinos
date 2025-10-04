@@ -1,7 +1,7 @@
 # TODO
 ======
 
-[ ] Stars and moon layer
+[x] Stars and moon layer
     [-] ~Write a set x position macro for a single sprite (Px)
         (cp/paste/update the current `SET_STITCHED_SPRITE_X_POS`)~
         discarded. Using the routine from AtariAge forum
@@ -30,7 +30,7 @@
     using just more HMOVE
 
 [ ] Move to 8K ROM format?
-[ ] Add log messages measuring the size of each section
+[x] Add log messages measuring the size of each section
 
 ## Features
 

@@ -367,7 +367,22 @@ in_game_screen:
   bvc update_sky        ; hence can directly check bit 6
   jmp end_frame_setup
 
-update_sky:
+update_sky: 
+  ; Check if there's an ongoing transition
+  lda SKY_FLAGS
+  and #SKY_FLAG_TRANSITION_COUNTER
+
+  ; Check if it's an ongoing day/night or night/day transition
+
+
+  ; Flip the sky layer on each frame
+  lda SKY_FLAGS
+  eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON
+  sta SKY_FLAGS
+
+  lda SKY_FLAGS
+  ; If it's daytime, ignore updating the moon and star
+  bpl _update_cloud_pos
 
 _update_moon_and_stars:
 __update_star_x_pos:

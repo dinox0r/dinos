@@ -129,6 +129,8 @@ TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 ;          00 -> Waning crescent
 ;          01 -> Waxing crescent
 ;          10 -> Full moon
-SKY_FLAG_SINGLE_CLOUD_LAYER_ON = #%10000000
-; If 0, use one sprite 1, else uses sprite 2
-SKY_FLAG_STAR_SPRITE           = #%01000000
+SKY_FLAG_DAYTIME               = #%10000000 ; 0 day / 1 night
+SKY_FLAG_SINGLE_CLOUD_LAYER_ON = #%01000000
+SKY_FLAG_STAR_SPRITE           = #%00100000 ; If 0, use sprite 1, else sprite 2
+SKY_FLAG_MOON_PHASE            = #%00000011
+SKY_FLAG_TRANSITION_COUNTER    = #%00011100

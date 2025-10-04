@@ -3,30 +3,26 @@ sky_setup_kernel:;-->>> 4 scanlines <<<-----
                  ; - (0)
   sta HMOVE      ; 3 (3)
 
-  lda BACKGROUND_COLOUR    ; 5 cycles - For debugging - paints the sky yellow
-  sta COLUBK     ; can be ignored for total CPU cycles count
+  lda #SKY_FLAG_SINGLE_CLOUD_LAYER_ON ; 2 (13)
+  bit SKY_FLAGS                       ; 3 (16)
+  bne double_cloud_layer              ; 2/3 (18/19)
 
-  ;   jmp moon_and_stars_layer    ; 2/3 (12/13)
-  lda SKY_FLAGS            ; 3 (6)
-  eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON ; 2 (8)
-  ;ora #FLAG_SKY_LAYER_1_ON  ; -
-  sta SKY_FLAGS            ; 3 (10)
-
-  bpl double_cloud_layer    ; 2/3 (12/13)
-  jmp moon_and_stars_layer
+  lda SKY_FLAGS                       ; 3 (21)
+  ; If is nightime, then show moon and stars, otherwise the single cloud layer
+  bmi moon_and_stars_layer            ; 2/3 (23/24)
 
 ; -----------------------------------------------------------------------------
 ;
 ; -----------------------------------------------------------------------------
-single_cloud_layer:                ; - (12)
+single_cloud_layer:                ; - (22)
 
-  lda #SKY_SINGLE_CLOUD_SCANLINES  ; 2 (14)
-  sta CLOUD_LAYER_SCANLINES        ; 3 (17)
-  lda CLOUD_1_TOP_Y                ; 3 (20)
-  sta CURRENT_CLOUD_TOP_Y          ; 3 (23)
-  lda CLOUD_1_X                    ; 3 (26)
-  sta CURRENT_CLOUD_X              ; 3 (29)
-  jsr render_cloud_layer
+  lda #SKY_SINGLE_CLOUD_SCANLINES  ; 2 (24)
+  sta CLOUD_LAYER_SCANLINES        ; 3 (25)
+  lda CLOUD_1_TOP_Y                ; 3 (28)
+  sta CURRENT_CLOUD_TOP_Y          ; 3 (31)
+  lda CLOUD_1_X                    ; 3 (34)
+  sta CURRENT_CLOUD_X              ; 3 (37)
+  jsr render_cloud_layer           ; 6 (43) + 33 (render_cloud_layer)
 
   jmp end_of_sky_kernel            ; 3 (12)
 
