@@ -164,7 +164,7 @@ on_game_init:
   lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
 
-  lda #3
+  lda #FRG_DARK_GRAY
   sta FOREGROUND_COLOUR
   lda #BKG_LIGHT_GRAY
   sta BACKGROUND_COLOUR
@@ -367,14 +367,77 @@ in_game_screen:
   bvc update_sky        ; hence can directly check bit 6
   jmp end_frame_setup
 
-update_sky: 
+update_sky:
+  ; Only check/update the transition from day to night (or night to day)
+  ; if the frame count is even
+  lda #1
+  bit FRAME_COUNT
+  beq _update_sky_layers
+
   ; Check if there's an ongoing transition
   lda SKY_FLAGS
-  and #SKY_FLAG_TRANSITION_COUNTER
+  and #SKY_FLAG_TRANSITION_COUNTER ; isolate the transition counter
+  beq _update_sky_layers           ; if is 0 then there's no transition
+                                   ; taking place
+
+  asr  ; The previous bitwise AND and these 2 shifts together compute:
+  asr  ; (SKY_FLAGS & b00011100) >> 2
+
+  ; The day ↔ night transition counter starts at 2 and ends at 7. The following
+  ; describes the transition values for the counter and its corresponding 
+  ; background colour (flipped for foreground)
+  ;
+  ; for day to night transition | for night to day transition
+  ; ---------------------------------------------------------
+  ;     counter     |  colour   |    counter      |  colour
+  ;     2 -> (010)₂ => 0x02     |     2 -> (010)₂ => 0x0C
+  ;     3 -> (011)₂ => 0x04     |     3 -> (011)₂ => 0x0A
+  ;     4 -> (100)₂ => 0x06     |     4 -> (100)₂ => 0x08
+  ;             ...             |             ...
+  ;     7 -> (111)₂ => 0x0C     |     7 -> (111)₂ => 0x02
+  ;
+  ; Background colour for day to night is given by (counter - 1) << 1
+  ; and foreground is 14 - background colour
 
   ; Check if it's an ongoing day/night or night/day transition
+  ; if the game is currently in daylight, then it's transitioning to night time
+  ; here the calculation of the background and foreground colours is done like
+  ; if the transition was from day to night, if the transition is supposed to 
+  ; be from night to day, then the background and foreground colours are swapped
+  sec    ; \
+  sbc #1 ;  > (counter - 1) << 1
+  asl    ; /
+
+  tax    ; Copy the result in both reg X and reg Y (the value in y
+  tay    ; will be used later to update the counter)
+
+  eor #14 ; Computes 14 - A (taking the xor of an even number with an even 
+          ; constant A is equivalent to computing the complement to A, e.g., 
+          ; 14 xor 2 = 12, 14 xor 6 = 8, 14 xor 8 = 6
+
+  ; At this point, reg X holds the background colour, and reg A the foreground
+  ; If the transition is going from night to day, then swapping the value 
+  ; for background with the foreground will achieve the same effect
+
+  ; The transition background colour is in reg X, and the foreground colour in 
+  ; reg A. If the transition is night to day, then swapping both these colours
+  ; will achieve the effect
+  bit SKY_FLAGS
+  bpl _update_transition_colours
+  ; Do the colour swapping for the case of the transition night to day
+  sta TEMP
+  txa
+  ldx TEMP
+
+_update_transition_colours:
+  stx BACKGROUND_COLOUR
+  sta FOREGROUND_COLOUR
+
+  ; Now increment and update the counter, and if it overflows, change the 
+  ; daytime state
 
 
+_update_sky_layers:
   ; Flip the sky layer on each frame
   lda SKY_FLAGS
   eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON

@@ -25,8 +25,9 @@ RND_MEM_LOC_1 = $f1  ; "random" memory locations to sample the upper/lower
 RND_MEM_LOC_2 = $35  ; bytes when the machine starts. Hopefully this finds
                      ; some garbage values that can be used as seed
 
-
+FRG_DARK_GRAY = #2
 BKG_LIGHT_GRAY = #13
+
 DINO_HEIGHT = #20
 INIT_DINO_POS_Y = #8
 INIT_DINO_TOP_Y = #INIT_DINO_POS_Y + #DINO_HEIGHT

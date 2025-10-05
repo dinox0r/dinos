@@ -232,17 +232,19 @@ reset_moon subroutine
   rts
 
 change_moon_phase subroutine
+
   inc SKY_FLAGS
+
   lda SKY_FLAGS
   and #3
   cmp #3
-  bne .update_moon_phase_flags
+  bne .update_moon_phase_sprite_data
 .reset_moon_phase_back_to_zero:
-  lda #%11111100
-  and SKY_FLAGS
-
-.update_moon_phase_flags:
+  ; A has 00000011
+  eor SKY_FLAGS
   sta SKY_FLAGS
+
+.update_moon_phase_sprite_data:
 
   and #%00000010
   bne .full_moon_phase
