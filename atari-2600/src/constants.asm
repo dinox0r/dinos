@@ -135,3 +135,7 @@ SKY_FLAG_SINGLE_CLOUD_LAYER_ON = #%01000000
 SKY_FLAG_STAR_SPRITE           = #%00100000 ; If 0, use sprite 1, else sprite 2
 SKY_FLAG_MOON_PHASE            = #%00000011
 SKY_FLAG_TRANSITION_COUNTER    = #%00011100
+
+; For debugging set to 1, set to a more complicated patter to delay the transition
+;DAY_TIME_TRANSITION_MARK = #%00011001
+DAY_TIME_TRANSITION_MARK = #1

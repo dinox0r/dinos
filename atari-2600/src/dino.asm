@@ -132,7 +132,7 @@ CARTRIDGE_ROM_START = *
   ; RESET
   ; -----------------------
 reset:
-  sei     ; SEt Interruption disable
+  ;sei     ; SEt Interruption disable (save 1 byte by ignoring this)
   cld     ; (CLear Decimal) disable BCD math
 
   ; At the start, the machine memory could be in any state, and that's good!
@@ -254,12 +254,6 @@ vsync:
 ; BEGIN FRAME SETUP (VBLANK TIME)
 ;==============================================================================
 start_frame_setup:
-  lda #BKG_LIGHT_GRAY   ;
-  sta COLUBK            ; Set initial background
-
-  lda FOREGROUND_COLOUR       ; dino sprite colour
-  sta COLUP0
-  sta COLUP1
 
   ; Check Joystick for Jump
 check_joystick:
@@ -369,19 +363,20 @@ in_game_screen:
 
 update_sky:
   ; Only check/update the transition from day to night (or night to day)
-  ; if the frame count is even
-  lda #1
-  bit FRAME_COUNT
-  beq _update_sky_layers
+  ; if the frame count is 
+  lda FRAME_COUNT
+  and #%00001111
+  cmp #15
+  bne _update_sky_layers
 
   ; Check if there's an ongoing transition
   lda SKY_FLAGS
-  and #SKY_FLAG_TRANSITION_COUNTER ; isolate the transition counter
+  and #SKY_FLAG_TRANSITION_COUNTER ; isolate the transition counter (3 bits)
   beq _update_sky_layers           ; if is 0 then there's no transition
                                    ; taking place
 
-  asr  ; The previous bitwise AND and these 2 shifts together compute:
-  asr  ; (SKY_FLAGS & b00011100) >> 2
+  lsr  ; The previous bitwise AND and these 2 shifts together compute:
+  lsr  ; (SKY_FLAGS & b00011100) >> 2
 
   ; The day ↔ night transition counter starts at 2 and ends at 7. The following
   ; describes the transition values for the counter and its corresponding 
@@ -396,16 +391,15 @@ update_sky:
   ;             ...             |             ...
   ;     7 -> (111)₂ => 0x0C     |     7 -> (111)₂ => 0x02
   ;
-  ; Background colour for day to night is given by (counter - 1) << 1
-  ; and foreground is 14 - background colour
+  ; 'background colour' for day to night is given by (counter - 1) * 2
+  ; and 'foreground colour' = 14 - 'background colour'
 
-  ; Check if it's an ongoing day/night or night/day transition
-  ; if the game is currently in daylight, then it's transitioning to night time
+  ; If the game is currently in daylight, then it's transitioning to night time
   ; here the calculation of the background and foreground colours is done like
   ; if the transition was from day to night, if the transition is supposed to 
   ; be from night to day, then the background and foreground colours are swapped
   sec    ; \
-  sbc #1 ;  > (counter - 1) << 1
+  sbc #1 ;  > (counter - 1) * 2
   asl    ; /
 
   tax    ; Copy the result in both reg X and reg Y (the value in y
@@ -417,11 +411,7 @@ update_sky:
 
   ; At this point, reg X holds the background colour, and reg A the foreground
   ; If the transition is going from night to day, then swapping the value 
-  ; for background with the foreground will achieve the same effect
-
-  ; The transition background colour is in reg X, and the foreground colour in 
-  ; reg A. If the transition is night to day, then swapping both these colours
-  ; will achieve the effect
+  ; for background with the foreground will achieve the effect
   bit SKY_FLAGS
   bpl _update_transition_colours
   ; Do the colour swapping for the case of the transition night to day
@@ -434,10 +424,52 @@ _update_transition_colours:
   sta FOREGROUND_COLOUR
 
   ; Now increment and update the counter, and if it overflows, change the 
-  ; daytime state
+  ; daytime state. A copy of the counter was stored in reg Y
+  tya
+  clc
+  adc #1
+  and #7   ; Make sure it stays in 3 bits
+  asl      ; Place the counter 2 bits to the left (after the moon phase bits)
+  asl      ; reg A = 000xxx00 (x are the counter bits)
 
+  ; if it overflowed (it wrapped around back to 0), then time to flip the 
+  ; bit of daytime, (from day to night or the other way) otherwise, combine 
+  ; replace the previous counter with the new one in the sky flags
+  bne _update_sky_flags
+
+_reset_transition_counter_and_flip_daytime:
+  lda SKY_FLAGS
+  ; For the following, the breakdown of the mask:
+  ;                        1001110
+  ;                        ↑  └┬┘
+  ; The xor with this      │   └ If the counter is 0, means that it was 7 prior
+  ; bit will flip the ─────┘     to the increment (so SKY_FLAGS still has them
+  ;      daytime flag            as 7), so to zero these bits, they can be
+  ;                              xor-ed with themselves, that is 7 = (111)₂
+  ;
+  eor #%10011100
+  jmp _store_sky_flags
+
+_update_sky_flags:
+  ; In this case the counter has not overflowed (is not 0), here the purpose
+  ; of the following instructions is to put the counter bits into the sky flags
+  ; variable
+  sta TEMP           ; Moves the counter to TEMP
+  lda SKY_FLAGS      ; Load the current sky flags into reg A
+  and #%11100011     ; Zero the previous counter bits in the sky flags
+  ora TEMP           ; Or the new counter to place it in
+
+_store_sky_flags:
+  sta SKY_FLAGS
 
 _update_sky_layers:
+  lda BACKGROUND_COLOUR ;
+  sta COLUBK            ; Set initial background
+
+  lda FOREGROUND_COLOUR ; dino sprite colour
+  sta COLUP0
+  sta COLUP1
+
   ; Flip the sky layer on each frame
   lda SKY_FLAGS
   eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON
@@ -1007,13 +1039,24 @@ _update_random:
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
   ; Continue to '_update_frame_count' if not jumping
-  beq _update_frame_count
+  beq _check_if_should_kickoff_daytime_transition
   ; Also check if not game over, in which, the game over sound has priority
-  lda #FLAG_GAME_OVER
   bit GAME_FLAGS
-  bne _update_frame_count
+  bvc _check_if_should_kickoff_daytime_transition
 
   SFX_UPDATE_PLAYING JUMP_SOUND
+
+_check_if_should_kickoff_daytime_transition:
+  ; if *FRAME_COUNT == 0 && *(FRAME_COUNT+1) == DAY_TIME_TRANSITION_MARK then
+  ; set the transition counter in the SKY_FLAGS to 1
+  lda FRAME_COUNT
+  bne _update_frame_count
+  lda FRAME_COUNT+1
+  cmp #DAY_TIME_TRANSITION_MARK
+  bne _update_frame_count
+  lda #%00001000 ; sets the transition counter to 2, the initial value
+  ora SKY_FLAGS
+  sta SKY_FLAGS
 
 _update_frame_count:
   inc FRAME_COUNT
