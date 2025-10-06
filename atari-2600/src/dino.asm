@@ -363,24 +363,21 @@ in_game_screen:
 
 update_sky:
   ; Only check/update the transition from day to night (or night to day)
-  ; if the frame count is 
+  ; evey 15 frames
   lda FRAME_COUNT
   and #%00001111
   cmp #15
-  bne _update_sky_layers
+  bne _update_bg_and_fg_colours
 
   ; Check if there's an ongoing transition
   lda SKY_FLAGS
   and #SKY_FLAG_TRANSITION_COUNTER ; isolate the transition counter (3 bits)
-  beq _update_sky_layers           ; if is 0 then there's no transition
+  beq _update_bg_and_fg_colours    ; if is 0 then there's no transition
                                    ; taking place
-
-  lsr  ; The previous bitwise AND and these 2 shifts together compute:
-  lsr  ; (SKY_FLAGS & b00011100) >> 2
 
   ; The day ↔ night transition counter starts at 2 and ends at 7. The following
   ; describes the transition values for the counter and its corresponding 
-  ; background colour (flipped for foreground)
+  ; foreground colour (flipped for background)
   ;
   ; for day to night transition | for night to day transition
   ; ---------------------------------------------------------
@@ -391,27 +388,44 @@ update_sky:
   ;             ...             |             ...
   ;     7 -> (111)₂ => 0x0C     |     7 -> (111)₂ => 0x02
   ;
-  ; 'background colour' for day to night is given by (counter - 1) * 2
-  ; and 'foreground colour' = 14 - 'background colour'
+  ; 'foreground colour' for day to night is given by (counter - 1) * 2
+  ; and 'background colour' = 14 - 'foreground colour'
 
   ; If the game is currently in daylight, then it's transitioning to night time
   ; here the calculation of the background and foreground colours is done like
   ; if the transition was from day to night, if the transition is supposed to 
   ; be from night to day, then the background and foreground colours are swapped
-  sec    ; \
-  sbc #1 ;  > (counter - 1) * 2
-  asl    ; /
 
-  tax    ; Copy the result in both reg X and reg Y (the value in y
-  tay    ; will be used later to update the counter)
+  tay ; Copy the counter in reg Y, it will be used later to apply the update
+
+  ; OPTIMIZATION here, instead of doing the following:
+  ;
+  ; lsr  ; The previous bitwise AND and these 2 shifts together compute:
+  ; lsr  ; (SKY_FLAGS & b00011100) >> 2
+  ;
+  ; and then doing:
+  ;
+  ; sec    ; \
+  ; sbc #1 ;  > (counter - 1) * 2
+  ; asl    ; /
+  ;
+  ; The original expression  ((SKY_FLAGS & b00011100) >> 2) - 1) << 1
+  ; could be reworked  as: ((SKY_FLAGS & b00011100) / 4) - 1) * 2
+  ; Calling SKY_FLAGS & b00011100 = S
+  ; ((S / 4) - 1) * 2 => ((S - 4) / 4) * 2 => (S - 4) / 2 = (S - 4) >> 1
+  sec
+  sbc #4
+  lsr
+
+  tax    ; Copy the result in reg X
 
   eor #14 ; Computes 14 - A (taking the xor of an even number with an even 
           ; constant A is equivalent to computing the complement to A, e.g., 
           ; 14 xor 2 = 12, 14 xor 6 = 8, 14 xor 8 = 6
 
-  ; At this point, reg X holds the background colour, and reg A the foreground
+  ; At this point, reg X holds the foreground colour, and reg A the background
   ; If the transition is going from night to day, then swapping the value 
-  ; for background with the foreground will achieve the effect
+  ; for foreground with the background will achieve the effect
   bit SKY_FLAGS
   bpl _update_transition_colours
   ; Do the colour swapping for the case of the transition night to day
@@ -420,14 +434,14 @@ update_sky:
   ldx TEMP
 
 _update_transition_colours:
-  stx BACKGROUND_COLOUR
-  sta FOREGROUND_COLOUR
+  sta BACKGROUND_COLOUR
+  stx FOREGROUND_COLOUR
 
+_update_transition_counter:
   ; Now increment and update the counter, and if it overflows, change the 
   ; daytime state. A copy of the counter was stored in reg Y
+  iny
   tya
-  clc
-  adc #1
   and #7   ; Make sure it stays in 3 bits
   asl      ; Place the counter 2 bits to the left (after the moon phase bits)
   asl      ; reg A = 000xxx00 (x are the counter bits)
@@ -462,7 +476,7 @@ _update_sky_flags:
 _store_sky_flags:
   sta SKY_FLAGS
 
-_update_sky_layers:
+_update_bg_and_fg_colours:
   lda BACKGROUND_COLOUR ;
   sta COLUBK            ; Set initial background
 
@@ -470,6 +484,7 @@ _update_sky_layers:
   sta COLUP0
   sta COLUP1
 
+_update_sky_layers:
   ; Flip the sky layer on each frame
   lda SKY_FLAGS
   eor #SKY_FLAG_SINGLE_CLOUD_LAYER_ON
