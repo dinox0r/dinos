@@ -365,8 +365,8 @@ update_sky:
   ; Only check/update the transition from day to night (or night to day)
   ; evey 15 frames
   lda FRAME_COUNT
-  and #%00001111
-  cmp #15
+  and #%00000011
+  cmp #3
   bne _update_bg_and_fg_colours
 
   ; Check if there's an ongoing transition
@@ -398,24 +398,17 @@ update_sky:
 
   tay ; Copy the counter in reg Y, it will be used later to apply the update
 
-  ; OPTIMIZATION here, instead of doing the following:
-  ;
-  ; lsr  ; The previous bitwise AND and these 2 shifts together compute:
-  ; lsr  ; (SKY_FLAGS & b00011100) >> 2
-  ;
-  ; and then doing:
-  ;
-  ; sec    ; \
-  ; sbc #1 ;  > (counter - 1) * 2
-  ; asl    ; /
-  ;
-  ; The original expression  ((SKY_FLAGS & b00011100) >> 2) - 1) << 1
-  ; could be reworked  as: ((SKY_FLAGS & b00011100) / 4) - 1) * 2
-  ; Calling SKY_FLAGS & b00011100 = S
-  ; ((S / 4) - 1) * 2 => ((S - 4) / 4) * 2 => (S - 4) / 2 = (S - 4) >> 1
-  sec
-  sbc #4
-  lsr
+  lsr  ; The previous bitwise AND and these 2 shifts together compute:
+  lsr  ; (SKY_FLAGS & b00011100) >> 2
+
+  ; Store counter in reg Y, so it can be incremented and stored back 
+  ; in SKY_FLAGS. This holts optimizing the previous 2 `lsr` by simplifying
+  ; the expression ((S / 4) - 1) * 2
+  tay
+
+  sec    ; \
+  sbc #1 ;  > (counter - 1) * 2
+  asl    ; /
 
   tax    ; Copy the result in reg X
 
