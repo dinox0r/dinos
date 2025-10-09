@@ -463,6 +463,7 @@ _reset_transition_counter_and_flip_daytime:
   ; flips the daytime ──┘
   ; flag while resetting the counter bits (which were 111₂ = 7).
   eor #%10011100
+  jmp _store_sky_flags
 
 _update_sky_flags:
   ; Update SKY_FLAGS with the new counter value (no overflow).
@@ -1011,6 +1012,7 @@ _set_game_over:
 
   ; Set the speed of the obstacles and dino to 0
   lda #0
+  sta SKY_FLAGS
   sta OBSTACLE_VX_FRACT
   sta OBSTACLE_VX_INT
   sta DINO_VY_INT     ; Clearing the vertical speed will stop the
@@ -1062,10 +1064,11 @@ _update_random:
 
 _check_if_should_kickoff_daytime_transition:
   ; if *FRAME_COUNT == 0 && *(FRAME_COUNT+1) == DAY_TIME_TRANSITION_MARK then
-  ; set the transition counter in the SKY_FLAGS to 1
+  ; set the transition counter in the SKY_FLAGS to 2
   lda FRAME_COUNT
   bne _update_frame_count
   lda FRAME_COUNT+1
+  and #00001111
   cmp #DAY_TIME_TRANSITION_MARK
   bne _update_frame_count
   lda #%00001000 ; sets the transition counter to 2, the initial value
