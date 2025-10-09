@@ -1017,6 +1017,8 @@ _set_game_over:
   sta OBSTACLE_VX_INT
   sta DINO_VY_INT     ; Clearing the vertical speed will stop the
   sta DINO_VY_FRACT   ; dino vertical movement (in case it was jumping)
+  sta FRAME_COUNT
+  sta FRAME_COUNT+1
 
   ; Remove the crouching flag in case it was crouching
   lda GAME_FLAGS
