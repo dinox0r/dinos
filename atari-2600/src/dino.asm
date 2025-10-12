@@ -158,7 +158,7 @@ on_game_init:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  ; lda #FLAG_SPLASH_SCREEN  ; 2 enable splash screen
+  ; lda #FLAG_SPLASH_SCREEN  ; 1 enable splash screen
   lda #0  ; disable splash screen 
   sta GAME_FLAGS
   lda #INIT_DINO_TOP_Y
@@ -959,13 +959,13 @@ remaining_vblank:
 ; GAME KERNELs
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 draw_game:
-  INCLUDE "kernels/score_kernel.asm"
-  INCLUDE "kernels/sky_kernel.asm"
-  INCLUDE "kernels/play_area_kernel.asm"
-  INCLUDE "kernels/dino_crouching_kernel.asm"
-  INCLUDE "kernels/legs_and_floor_kernel.asm"
-  INCLUDE "kernels/ground_area_kernel.asm"
-  INCLUDE "kernels/gravel_area_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/score_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/sky_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/play_area_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/dino_crouching_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/legs_and_floor_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/ground_area_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/gravel_area_kernel.asm"
 
   jmp end_of_frame  ; 3 ()
 
@@ -977,7 +977,7 @@ draw_game:
 ; SPLASH SCREEN KERNEL
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 draw_splash_screen:
-  INCLUDE "kernels/splash_screen_kernel.asm"
+  INCLUDE_AND_LOG_SIZE "kernels/splash_screen_kernel.asm"
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; END SPLASH SCREEN KERNEL
@@ -1070,7 +1070,7 @@ _check_if_should_kickoff_daytime_transition:
   lda FRAME_COUNT
   bne _update_frame_count
   lda FRAME_COUNT+1
-  and #00001111
+  and #%00001111
   cmp #DAY_TIME_TRANSITION_MARK
   bne _update_frame_count
   lda #%00001000 ; sets the transition counter to 2, the initial value
@@ -1098,44 +1098,24 @@ _remaining_overscan:
 ;=============================================================================
 ; SUBROUTINES
 ;=============================================================================
-  ECHO "--------------------------------------"
-  ECHO "Subroutines ROM code starts at: ", *
-SUBROUTINES_ROM_START = *
-  INCLUDE "subroutines.asm"
-  ECHO "Subroutines ROM code ends at: ", *
-  ECHO "Total bytes in subroutines: ",[* - SUBROUTINES_ROM_START]d
+  INCLUDE_AND_LOG_SIZE "subroutines.asm"
 
 ;=============================================================================
 ; UTILITY TABLES
 ;=============================================================================
-  ECHO "--------------------------------------"
-  ECHO "Utility tables ROM code starts at: ", *
-UTILITY_TABLES_ROM_START = *
-  INCLUDE "tables.asm"
-  ECHO "Utility tables ROM code ends at: ", *
-  ECHO "Total bytes in utility tables: ",[* - UTILITY_TABLES_ROM_START]d
+  INCLUDE_AND_LOG_SIZE "tables.asm"
 
 ;=============================================================================
 ; SOUND DATA
 ;=============================================================================
-  ECHO "--------------------------------------"
-  ECHO "Sound data ROM code starts at: ", *
-SOUND_DATA_ROM_START = *
-  ECHO "Sound data ROM code ends at: ", *
-  INCLUDE "sounds.asm"
-  ECHO "Total bytes in sound data: ",[* - SOUND_DATA_ROM_START]d
+  INCLUDE_AND_LOG_SIZE "sounds.asm"
 
 ;=============================================================================
 ; SPRITE GRAPHICS DATA
 ;=============================================================================
-  ECHO "--------------------------------------"
-  ECHO "Sprite data ROM code starts at: ", *
-SPRITE_DATA_ROM_START = *
-  INCLUDE "sprites.asm"
-  ECHO "Sprite data ROM code ends at: ", *
-  ECHO "Total bytes in sprite data: ",[* - SPRITE_DATA_ROM_START]d
+  INCLUDE_AND_LOG_SIZE "sprites.asm"
 
-  ECHO "--------------------------------------"
+  ECHO "========================================="
   ECHO "Available ROM: ", [$fffc - *]d, "bytes"
 
 ;=============================================================================

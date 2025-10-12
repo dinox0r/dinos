@@ -14,6 +14,17 @@
     bne .loop
   ENDM
 
+  MACRO INCLUDE_AND_LOG_SIZE
+  ECHO "---------------------------------------------------------"
+ROM_START SET *
+  ECHO {1}, "code starts at:", ROM_START, "(", [ROM_START]d, ")"
+  INCLUDE {1}
+.ROM_END SET *
+  ECHO {1}, "code ends at:", .ROM_END, "(", [.ROM_END]d, ")"
+.SIZE SET (.ROM_END - ROM_START)
+  ECHO "Total:", [.SIZE]d, "bytes"
+  ENDM
+
   ; Loads a 16 bit value from ROM into 2 consecutive bytes in zero page RAM
   ; --------------------------------------------------------------------
   MACRO LOAD_ADDRESS_TO_PTR  ; 12 cycles
