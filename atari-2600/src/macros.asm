@@ -120,8 +120,8 @@ ROM_START SET *
     jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (24)
 
 .dino_y_within_range:         ; - (15)
-    ; By the moment this macro is call and the execution reaches this point, it
-    ; is assumed that 24+ CPU cycles have passed since this scanline's HMOVE,
+    ; Betwee this macro's call and execution reaching this point, it
+    ; is assumed that 24+ CPU cycles have passed since the last HMOVE,
     ; meaning it is safe to modify HMMx registers without triggering unwanted
     ; shifts.  First, we use HMCLR to reset HMP1 and HMM1. It also clears all
     ; HMMx regs, which is fine — HMM0 and HMP0 are about to be updated anyway.
@@ -739,32 +739,41 @@ ROM_START SET *
 .end_case_4:
                    ; - (0)
     sta HMOVE      ; 3 (3)
-    ; Clear reg X to make sure no graphics are drawn in the first scanline of
-    ; the sky_kernel
-    ldx #0         ; 2 (5) - Do the fine offset in the next scanline, I'm
-                   ;         avoiding doing it in the
 
-    ; Offsets the remainder from [-14, 0] to [0, 14]
-    ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
-    clc            ; 2 (7)
-    adc #15        ; 2 (9)
-
-    ;lda #7        ; For DEBUGing, overrides the offset entry index to the 0 offset
-
-    tay            ; 2 (11)
+    sta TEMP       ; 3 (6)
+    lda #8         ; 2 (8)
+    sec            ; 2 (10)
+    sbc TEMP       ; 3 (13)
+    asl            ; 2 
+    asl            ; 2
+    asl            ; 2
+    asl            ; 2x4 = 8 (21)
 
 
-    LAX FINE_POSITION_OFFSET,y  ; 4 (15) - y should range between [-7, 7]
-
-    ; Instead of using the same offset for both, use a +1 offset for 
-    ; object1, this will move it 1px to the right, stitching both objects
-    ; without a seam
-    iny                         ; 2 (17)
-    lda FINE_POSITION_OFFSET,y  ; 4 (21) - y should range between [-7, 7]
-
-    inc $2D
-    stx HMP0+.OBJECT_2_INDEX    ; 3 (24)
-    sta HMP0+.OBJECT_1_INDEX    ; 3 (27)
+;    nop
+;                   ;         avoiding doing it in the
+;
+;    ; Offsets the remainder from [-14, 0] to [0, 14]
+;    ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
+;    clc            ; 2 (7)
+;    adc #15        ; 2 (9)
+;
+;    ;lda #7        ; For DEBUGing, overrides the offset entry index to the 0 offset
+;
+;    tay            ; 2 (11)
+;
+;
+;    LAX FINE_POSITION_OFFSET,y  ; 4 (15) - y should range between [-7, 7]
+;
+;    ; Instead of using the same offset for both, use a +1 offset for 
+;    ; object1, this will move it 1px to the right, stitching both objects
+;    ; without a seam
+;    iny                         ; 2 (17)
+;    lda FINE_POSITION_OFFSET,y  ; 4 (21) - y should range between [-7, 7]
+;
+;    inc $2D
+;    stx HMP0+.OBJECT_2_INDEX    ; 3 (24)
+;    sta HMP0+.OBJECT_1_INDEX    ; 3 (27)
 .end_case_5:
     ;❗ IMPORTANT: Caller is responsible of invoking 'sta WSYNC'
   ENDM

@@ -1,5 +1,5 @@
 play_area_setup_kernel:;----->>> 5 scanlines <<<-----
-  ; From the sky_kernel
+  ; End the last scanline from the previous kernel (sky kernel)
   sta WSYNC     ; 3 (8)
 
   ; 1st scanline ==============================================================
@@ -97,7 +97,7 @@ _last_setup_scanline:
 
   lda #PLAY_AREA_BOTTOM_Y          ; 2 (22)
 
-  jmp __end_middle_section_kernel_setup ; 3 (25)
+  jmp __end_setting_up_middle_section_kernel ; 3 (25)
 
 __assign_crouching_kernel:         ; - (11)
   lda  #<dino_crouching_kernel     ; 2 (13)
@@ -107,7 +107,7 @@ __assign_crouching_kernel:         ; - (11)
 
   lda #CROUCHING_REGION_TOP_Y      ; 2 (23)
 
-__end_middle_section_kernel_setup:
+__end_setting_up_middle_section_kernel:
 
   sta PLAY_AREA_MIN_Y  ; 3 (26/28) - If crouching, the play area min y is changed
 

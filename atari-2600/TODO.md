@@ -34,7 +34,7 @@
 
 ## Features
 
-[ ] Day/night cycle
+[x] Day/night cycle
 [ ] Gravel
 [ ] Score (EPIC)
 [ ] Splash screen
