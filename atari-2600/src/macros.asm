@@ -740,6 +740,14 @@ ROM_START SET *
                    ; - (0)
     sta HMOVE      ; 3 (3)
 
+    ; This part might look a bit like magic, but before there 
+    ; was a table of offsets with 15 entries (15 bytes in total)
+    ; plus some logic to compute the index to that table given
+    ; the reminder. But that proved to be too much rom, so the 
+    ; following aimed to replaced that approach. Basically, the
+    ; the remainder will be a negative number (stored as an unsiged
+    ; 8 bit number), the range of the remainder is [-1, -15], where
+    ; -1 maps to applying an offset of -7 pixels, 
     sta TEMP       ; 3 (6)
     lda #8         ; 2 (8)
     sec            ; 2 (10)
@@ -749,31 +757,12 @@ ROM_START SET *
     asl            ; 2
     asl            ; 2x4 = 8 (21)
 
+    tax            ; 2 (23)
+    sec
+    sbc #$10
 
-;    nop
-;                   ;         avoiding doing it in the
-;
-;    ; Offsets the remainder from [-14, 0] to [0, 14]
-;    ; where A = 0 aligns with FINE_POSITION_OFFSET[0] = -7
-;    clc            ; 2 (7)
-;    adc #15        ; 2 (9)
-;
-;    ;lda #7        ; For DEBUGing, overrides the offset entry index to the 0 offset
-;
-;    tay            ; 2 (11)
-;
-;
-;    LAX FINE_POSITION_OFFSET,y  ; 4 (15) - y should range between [-7, 7]
-;
-;    ; Instead of using the same offset for both, use a +1 offset for 
-;    ; object1, this will move it 1px to the right, stitching both objects
-;    ; without a seam
-;    iny                         ; 2 (17)
-;    lda FINE_POSITION_OFFSET,y  ; 4 (21) - y should range between [-7, 7]
-;
-;    inc $2D
-;    stx HMP0+.OBJECT_2_INDEX    ; 3 (24)
-;    sta HMP0+.OBJECT_1_INDEX    ; 3 (27)
+    sta HMP0+.OBJECT_1_INDEX  ; 3 (28)
+    stx HMP0+.OBJECT_2_INDEX  ; 3 (31)
 .end_case_5:
     ;❗ IMPORTANT: Caller is responsible of invoking 'sta WSYNC'
   ENDM
