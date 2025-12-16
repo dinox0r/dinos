@@ -740,23 +740,69 @@ ROM_START SET *
                    ; - (0)
     sta HMOVE      ; 3 (3)
 
-    ; This part might look a bit like magic, but before there 
-    ; was a table of offsets with 15 entries (15 bytes in total)
-    ; plus some logic to compute the index to that table given
-    ; the reminder. But that proved to be too much rom, so the 
-    ; following aimed to replaced that approach. Basically, the
-    ; the remainder will be a negative number (stored as an unsiged
-    ; 8 bit number), the range of the remainder is [-1, -15], where
-    ; -1 maps to applying an offset of -7 pixels, 
+    ; This section may look a bit like magic at first glance. Originally, this
+    ; logic used a lookup table with 16 entries (16 bytes total) plus
+    ; additional code to compute the index from the remainder. However, that
+    ; approach consumed too much ROM, so it was replaced by the arithmetic
+    ; below.
+    ;
+    ; The remainder here is a negative value in the range [-15 .. -1], stored
+    ; as an unsigned 8-bit number. Conceptually, +15 was added to this
+    ; remainder to map it into a table index:
+    ;
+    ;   -15 + 15 = index 0  -> HMMx $70 (-7 pixels)
+    ;   -14 + 15 = index 1  -> HMMx $60 (-6 pixels)
+    ;   -13 + 15 = index 2  -> HMMx $50 (-5 pixels)
+    ;     ...
+    ;    -8 + 15 = index 7  -> HMMx $00 (no offset)
+    ;     ...
+    ;    -1 + 15 = index 14 -> HMMx $E0 (+7 pixels)
+    ;
+    ; Shown below are the unsigned representations of these negative
+    ; values, along with their expected HMMx offsets:
+    ;
+    ;     unsigned
+    ;         ↓            expected offset (HMMx)
+    ;  -15 = 241 = 11110001 | $70 = 01110000
+    ;  -14 = 242 = 11110010 | $60 = 01100000
+    ;  -13 = 243 = 11110011 | $50 = 01010000
+    ;    ...
+    ;   -8 = 248 = 11111000 | $00 = 00000000
+    ;   -7 = 249 = 11111001 | $F0 = 11110000
+    ;   -6 = 250 = 11111010 | $E0 = 11100000
+    ;    ...
+    ;   -1 = 255 = 11111111 | $90 = 10010000
+    ;
+    ; The original table also had a 16th entry ($80, +8 pixels), used to
+    ; eliminate the 1-pixel gap between the two "sprite" objects. Object 2 was
+    ; offset using the computed index, and object 1 (to the left) used index+1,
+    ; effectively shifting it one pixel to the right and closing the gap.
+    ;
+    ; Observing the bit patterns above, we want to transform:
+    ;   241 (11110001) -> $70 (01110000)
+    ;   242 (11110010) -> $60 (01100000)
+    ;   etc.
+    ;
+    ; If we focus only on the lower 4 bits (e.g. 0001 for 241), converting them
+    ; to 0111 (7) and then shifting left by 4 bits yields the desired HMMx
+    ; value.
+    ;
+    ; This conversion can be expressed as: (8 - input) << 4
+    ;
+    ; The upper 4 bits do not matter, since the left shift discards them
+    ; entirely. This formula holds for the full range of values.
+    ;
     sta TEMP       ; 3 (6)
     lda #8         ; 2 (8)
     sec            ; 2 (10)
     sbc TEMP       ; 3 (13)
-    asl            ; 2 
     asl            ; 2
     asl            ; 2
-    asl            ; 2x4 = 8 (21)
+    asl            ; 2
+    asl            ; 2  ; 4 ASLs = << 4 (21)
 
+    ; Subtract $10 from the HMMx value computed above, effectively shifting the
+    ; horizontal offset 1 pixel to the right (e.g. $70 -> $60, $00 -> $F0).
     tax            ; 2 (23)
     sec
     sbc #$10
