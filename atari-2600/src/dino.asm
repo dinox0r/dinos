@@ -270,8 +270,9 @@ check_joystick:
   ;    2   | #%00000100  | lef       | 1
   ;    1   | #%00000010  | down      | 1
   ;    0   | #%00000001  | up        | 1
-  bit GAME_FLAGS           ; #FLAG_GAME_OVER = %#01000000
-  bvc _check_joystick_down ; hence can directly check bit 6
+  lda #FLAG_GAME_OVER
+  bit GAME_FLAGS
+  beq _check_joystick_down
   ; If the game over timer is still going, ignore any input, this is to 
   ; give the player a brief pause so they get to see the game over screen 
   ; and don't skip it by an accidental button press
@@ -357,8 +358,9 @@ _end_check_joystick:
 ; GAME SCREEN SETUP
 ; -----------------------------------------------------------------------------
 in_game_screen:
-  bit GAME_FLAGS        ; #FLAG_GAME_OVER = %#01000000
-  bvc update_sky        ; hence can directly check bit 6
+  lda #FLAG_GAME_OVER
+  bit GAME_FLAGS
+  beq update_sky
   jmp end_frame_setup
 
 update_sky:
@@ -993,8 +995,9 @@ end_of_frame:
   lda #2
   sta VBLANK
 
-  bit GAME_FLAGS         ; Remember: #FLAG_GAME_OVER = %#01000000
-  bvs _already_game_over ; Skip the collision detection if the game over 
+  lda #FLAG_GAME_OVER
+  bit GAME_FLAGS
+  bne _already_game_over ; Skip the collision detection if the game over 
                          ; flag is already set, otherwise the game over timer
                          ; is reset
 
@@ -1027,6 +1030,7 @@ _set_game_over:
   and GAME_FLAGS
   sta GAME_FLAGS
   ; Restore the Y position to the standing default position
+  ; TODO: This could be a constant, thus reducing 1 cycle
   lda DINO_TOP_Y_INT
   bne __set_dino_game_over_sprite
   lda #INIT_DINO_TOP_Y
@@ -1059,8 +1063,9 @@ _update_random:
   ; Continue to '_update_frame_count' if not jumping
   beq _check_if_should_kickoff_daytime_transition
   ; Also check if not game over, in which, the game over sound has priority
+  lda #FLAG_GAME_OVER
   bit GAME_FLAGS
-  bvs _update_frame_count
+  bne _update_frame_count
 
   SFX_UPDATE_PLAYING JUMP_SOUND
 

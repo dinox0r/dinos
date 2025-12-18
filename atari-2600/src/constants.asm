@@ -100,17 +100,17 @@ PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
 ; GAME_FLAGS
 ;=============================================================================
 
-; bit 1: 1 -> splash screen mode / 0 -> game mode
-FLAG_SPLASH_SCREEN =  #%00000001
+; bit 6: 1 -> splash screen mode / 0 -> game mode
+FLAG_SPLASH_SCREEN =  #%01000000
 
 ; When in game mode:
+;   bit 0: game over ON / OFF
 ;   bit 1: dino left/right leg up sprite
 ;   bit 2: dino jumping ON / OFF
-;   bit 6: game over ON / OFF
 ;   bit 7: dino crouching ON / OFF
 FLAG_DINO_LEFT_LEG  = #%00000010
 FLAG_DINO_JUMPING   = #%00000100
-FLAG_GAME_OVER      = #%01000000
+FLAG_GAME_OVER      = #%00000001
 FLAG_DINO_CROUCHING = #%10000000
 
 ; When in splash screen mode:
@@ -121,7 +121,7 @@ FLAG_DINO_CROUCHING_OR_JUMPING = FLAG_DINO_CROUCHING | FLAG_DINO_JUMPING
 
 TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
 TOGGLE_FLAG_DINO_CROUCHING_OFF = #%01111111
-TOGGLE_FLAG_GAME_OVER_OFF      = #%10111111
+TOGGLE_FLAG_GAME_OVER_OFF      = #%11111110
 
 TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
 
