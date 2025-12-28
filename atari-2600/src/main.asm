@@ -158,8 +158,8 @@ on_game_init:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  ; lda #FLAG_SPLASH_SCREEN  ; 1 enable splash screen
-  lda #0  ; disable splash screen 
+  lda #FLAG_SPLASH_SCREEN  ; enable splash screen
+  ;lda #0                  ; disable splash screen
   sta GAME_FLAGS
   lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
@@ -247,9 +247,6 @@ vsync:
   lda #43
   sta TIM64T
 
-  ; TODO: Can this be removed?
-  sta HMCLR             ; Clear horizontal motion registers
-
 ;==============================================================================
 ; BEGIN FRAME SETUP (VBLANK TIME)
 ;==============================================================================
@@ -272,6 +269,9 @@ check_joystick:
   ;    0   | #%00000001  | up        | 1
   lda #FLAG_GAME_OVER
   bit GAME_FLAGS
+  ; If in splash screen mode (6th bit of game flags), jump straight into check
+  ; if any button has been pressed
+  bvs _check_for_any_button
   beq _check_joystick_down
   ; If the game over timer is still going, ignore any input, this is to 
   ; give the player a brief pause so they get to see the game over screen 
@@ -349,17 +349,14 @@ _on_joystick_down:
 
 _end_check_joystick:
 
-  lda #FLAG_SPLASH_SCREEN
-  bit GAME_FLAGS
-  beq in_game_screen
-  jmp in_splash_screen
-
 ; -----------------------------------------------------------------------------
 ; GAME SCREEN SETUP
 ; -----------------------------------------------------------------------------
 in_game_screen:
-  lda #FLAG_GAME_OVER
+  lda #FLAG_GAME_OVER_OR_SPLASH_SCREEN_MODE
   bit GAME_FLAGS
+  ; If is in splash screen mode (flag 6th bit from left to right) or game over 
+  ; skip updating the sky
   beq update_sky
   jmp end_frame_setup
 
@@ -903,39 +900,6 @@ _end_legs_anim:
 end_update_dino:
   jmp end_frame_setup
 
-; -----------------------------------------------------------------------------
-; SPLASH SCREEN SETUP
-; -----------------------------------------------------------------------------
-in_splash_screen:
-  lda FRAME_COUNT+1
-  and #%00000001
-  beq _skip_blink
-
-  ; do the dino blinking
-  lda GAME_FLAGS
-  ora #FLAG_DINO_BLINKING  ; Remember, the Enable Ball bit is in the 7th-bit
-                            ; hence the flag for blinking is in the 7th bit
-
-  dec FRAME_COUNT+1         ; Turn the 0-bit of FRAME_COUNT+1 off, so the
-                            ; next frame does not enable blinking again
-  sta GAME_FLAGS
-  jmp _skip_opening_eyes
-
-_skip_blink:
-  ; if dino's eyes are closed then check if we should open them
-  lda FRAME_COUNT
-  cmp #14                    ; 14 frames (actually 15 because is 0 index)
-                             ; or ~250 milliseconds (assuming 60 FPS) is the
-                             ; pause that looked better for the blinking. After
-                             ; these 15 frames has passed, the eyes are then
-                             ; opened
-  bcc _skip_opening_eyes
-  lda GAME_FLAGS
-  and #TOGGLE_FLAG_DINO_BLINKING_OFF
-  sta GAME_FLAGS
-
-_skip_opening_eyes:
-
 end_frame_setup:
 
 ;==============================================================================
@@ -951,12 +915,6 @@ remaining_vblank:
   sta WSYNC
   sta VBLANK   ; Disables VBLANK (A=0)
 
-  lda GAME_FLAGS           ; if the splash screen is enabled then jump to the
-  and #FLAG_SPLASH_SCREEN  ; splash screen kernel after disabling VBLANK
-
-  beq draw_game
-  jmp draw_splash_screen
-
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; GAME KERNELs
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -971,18 +929,6 @@ draw_game:
 
   jmp end_of_frame  ; 3 ()
 
-;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-; END GAME KERNEL
-;=============================================================================
-
-;=============================================================================
-; SPLASH SCREEN KERNEL
-;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-draw_splash_screen:
-  INCLUDE_AND_LOG_SIZE "kernels/splash_screen_kernel.asm"
-
-;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-; END SPLASH SCREEN KERNEL
 ;=============================================================================
 
 end_of_frame:
