@@ -10,7 +10,6 @@
 ;=============================================================================
 ; MACROS
 ;=============================================================================
-
   INCLUDE "macros.asm"
 
 ;=============================================================================
@@ -73,6 +72,11 @@ SKY_FLAGS                    .byte   ; 1 byte
 ; moon and star X's coordinates are also layed out in array form
 MOON_POS_X                   .byte   ; 1 byte   (41)
 STAR_POS_X                   .byte   ; 1 byte   (42)
+
+; In Splash Screen mode, this variable (STAR_POS_X) is used as the timer for
+; the dino blinking (during splash screen mode, there are no clouds so is safe
+; to repurpose it this way)
+SPLASH_SCREEN_DINO_BLINK_TIMER = STAR_POS_X
 
 STAR_POS_Y                   .byte   ; 1 byte   (45)
 PTR_STAR_SPRITE              .word   ; 2 bytes  (47)
@@ -154,20 +158,36 @@ clear_zero_page_memory:
   pha  ; the stack and ZP RAM are the very same 128 bytes
   bne clear_zero_page_memory
 
+; Set the splash screen on power on/reset
+set_splash_screen_flag:
+  lda #FLAG_SPLASH_SCREEN  ; enable splash screen
+  ;lda #0                  ; disable splash screen
+  sta GAME_FLAGS
+  ; Skip the clearing flags during initialization, doing this
+  ; preserves the splash screen flag
+  jmp _reset_dino_y_pos
+
 on_game_init:
   ; -----------------------
   ; GAME INITIALIZATION
   ; -----------------------
-  lda #FLAG_SPLASH_SCREEN  ; enable splash screen
-  ;lda #0                  ; disable splash screen
+_clear_game_flags:
+  lda #0
   sta GAME_FLAGS
+
+_reset_dino_y_pos:
   lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
 
   lda #FRG_DARK_GRAY
   sta FOREGROUND_COLOUR
+  ; Setting both the colour of the player and the background here
+  ; in  case the game is in "splash screen" mode, in which case the 
+  ; branch that updates these colours during frame setup will be skipped
+  sta COLUP0
   lda #BKG_LIGHT_GRAY
   sta BACKGROUND_COLOUR
+  sta COLUBK
 
 _init_dino_conf:
   lda #<[DINO_SPRITE_1 - INIT_DINO_POS_Y]
@@ -191,7 +211,13 @@ _init_pebble_conf:
   lda #0
   sta PEBBLE_X_FRACT
 
+  ; If the game is in "splash screen" mode (6th bit of game flags) then skip
+  ; these sections and jump to the start of the frame
+  bit GAME_FLAGS
+  bvs start_of_frame
+
 _init_obstacle_conf:
+
   jsr spawn_obstacle
 
   lda #OBSTACLE_INITIAL_SPEED
@@ -213,7 +239,6 @@ _init_sky_conf:
   jsr reset_cloud
 
   jsr reset_star
-
   jsr reset_moon
 
 ;=============================================================================
@@ -222,7 +247,7 @@ _init_sky_conf:
 start_of_frame:
 
 vsync_and_vblank:
-  lda #2     ;
+  lda #ENABLE_VBLANK
   sta VBLANK ; Enables VBLANK (and turns video signal off)
 
   ; last line of overscan
@@ -927,8 +952,6 @@ draw_game:
   INCLUDE_AND_LOG_SIZE "kernels/ground_area_kernel.asm"
   INCLUDE_AND_LOG_SIZE "kernels/gravel_area_kernel.asm"
 
-  jmp end_of_frame  ; 3 ()
-
 ;=============================================================================
 
 end_of_frame:
@@ -938,11 +961,22 @@ end_of_frame:
   ; 30 lines of OVERSCAN, 30 * 76 / 64 = 35
   lda #35
   sta TIM64T
-  lda #2
+  lda #ENABLE_VBLANK
   sta VBLANK
 
   lda #FLAG_GAME_OVER
   bit GAME_FLAGS
+  ; If the game is in splash screen mode (6th bit of flags), increment the 
+  ; blinking counter, update the blinking state, and skip the rest of the 
+  ; overscan code by jumping to the update RNG
+  bvc _resume_game_over_check
+  inc SPLASH_SCREEN_DINO_BLINK_TIMER
+  lda #%00001111
+  and SPLASH_SCREEN_DINO_BLINK_TIMER
+  bne __
+  jmp _update_random
+
+_resume_game_over_check:
   bne _already_game_over ; Skip the collision detection if the game over 
                          ; flag is already set, otherwise the game over timer
                          ; is reset
@@ -994,16 +1028,13 @@ _already_game_over:
   SFX_UPDATE_PLAYING GAME_OVER_SOUND
 
   lda GAME_OVER_TIMER
-  beq _update_random
+  beq _check_play_jumping_sound
   dec GAME_OVER_TIMER
 
 _no_collision:
-  ; Increment the score
+  ; TODO: Increment the score
 
-_update_random:
-  inc RANDOM
-  jsr rnd8
-
+_check_play_jumping_sound:
   lda #FLAG_DINO_JUMPING
   bit GAME_FLAGS
   ; Continue to '_update_frame_count' if not jumping
@@ -1033,6 +1064,10 @@ _update_frame_count:
   bne __skip_inc_frame_count_upper_byte
   inc FRAME_COUNT+1
 __skip_inc_frame_count_upper_byte:
+
+_update_random:
+  inc RANDOM
+  jsr rnd8
 
 _remaining_overscan:
   lda INTIM
