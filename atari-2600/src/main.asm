@@ -966,14 +966,39 @@ end_of_frame:
 
   lda #FLAG_GAME_OVER
   bit GAME_FLAGS
-  ; If the game is in splash screen mode (6th bit of flags), increment the 
-  ; blinking counter, update the blinking state, and skip the rest of the 
-  ; overscan code by jumping to the update RNG
+  ; If the game is in splash screen mode (6th bit of flags), update the dino
+  ; blinking state. Otherwise, continue with the game over check
   bvc _resume_game_over_check
+
+__update_dino_blinking_state:
   inc SPLASH_SCREEN_DINO_BLINK_TIMER
-  lda #%00001111
-  and SPLASH_SCREEN_DINO_BLINK_TIMER
-  bne __
+
+  lda GAME_FLAGS
+  bpl __dino_eyes_are_closed
+__dino_eyes_are_open:
+  ldx #50
+  ; This '.byte $2C' will turn the following 'ldx #15' (opcodes A2 15) into
+  ; 'bit $A215' (opcodes 2C A2 15), effectively cancelling it
+  .byte $2C
+
+__dino_eyes_are_closed:
+  ldx #15
+
+  ; Assumes x contains the expected time to do the state change
+__check_and_update_dino_eyes_state:
+  cpx SPLASH_SCREEN_DINO_BLINK_TIMER
+  bcc __end_update_dino_blinking_state
+
+  ; Reset the blinking timer
+  lda #0
+  sta SPLASH_SCREEN_DINO_BLINK_TIMER
+
+  ; Flip the blinking state
+  lda #FLAG_DINO_BLINKING
+  eor GAME_FLAGS
+  sta GAME_FLAGS
+
+__end_update_dino_blinking_state:
   jmp _update_random
 
 _resume_game_over_check:
