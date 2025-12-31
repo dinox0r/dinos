@@ -87,47 +87,48 @@ _last_setup_scanline:
   sta HMOVE        ; 3 (3)
   ldy #PLAY_AREA_TOP_Y   ; 2 (5)
 
-  lda GAME_FLAGS             ; 3 (8)
-  bmi __assign_crouching_kernel  ; 2/3 (10/11)
+  lda #FLAG_DINO_CROUCHING       ; 2 (7)
+  bit GAME_FLAGS                 ; 3 (10)
+  bne __assign_crouching_kernel  ; 2/3 (12/13)
 
-  lda #<legs_and_floor_kernel      ; 2 (12)
-  sta PTR_AFTER_PLAY_AREA_KERNEL   ; 3 (15)
-  lda #>legs_and_floor_kernel      ; 2 (17)
-  sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (20)
+  lda #<legs_and_floor_kernel      ; 2 (14)
+  sta PTR_AFTER_PLAY_AREA_KERNEL   ; 3 (17)
+  lda #>legs_and_floor_kernel      ; 2 (19)
+  sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (22)
 
-  lda #PLAY_AREA_BOTTOM_Y          ; 2 (22)
+  lda #PLAY_AREA_BOTTOM_Y          ; 2 (24)
 
-  jmp __end_setting_up_middle_section_kernel ; 3 (25)
+  jmp __end_setting_up_middle_section_kernel ; 3 (27)
 
-__assign_crouching_kernel:         ; - (11)
-  lda  #<dino_crouching_kernel     ; 2 (13)
-  sta PTR_AFTER_PLAY_AREA_KERNEL   ; 3 (16)
-  lda  #>dino_crouching_kernel     ; 2 (18)
-  sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (21)
+__assign_crouching_kernel:         ; - (13)
+  lda  #<dino_crouching_kernel     ; 2 (15)
+  sta PTR_AFTER_PLAY_AREA_KERNEL   ; 3 (18)
+  lda  #>dino_crouching_kernel     ; 2 (20)
+  sta PTR_AFTER_PLAY_AREA_KERNEL+1 ; 3 (23)
 
-  lda #CROUCHING_REGION_TOP_Y      ; 2 (23)
+  lda #CROUCHING_REGION_TOP_Y      ; 2 (26)
 
 __end_setting_up_middle_section_kernel:
 
-  sta PLAY_AREA_MIN_Y  ; 3 (26/28) - If crouching, the play area min y is changed
+  sta PLAY_AREA_MIN_Y  ; 3 (27/29) - If crouching, the play area min y is changed
 
   ; TODO can remove this sec?
-  sec         ; 2 (30) Set the carry ahead of time for the next scanline
+  sec         ; 2 (31) Set the carry ahead of time for the next scanline
 
   ; Remove the fine offsets applied to the obstacles before going to the next 
   ; scanline, also leave the other motion registers in a clear state
-  sta HMCLR   ; 3 (33)
+  sta HMCLR   ; 3 (34)
 
   ; We are assuming that reg A has the obstacle graphics, which go to GRP1
   ; and that reg X has the M1 state for the obstacle additional graphics, 
   ; so we have to 0 both before the first scanline of the sky kernel
-  lda #0      ; 2 (35)
-  tax         ; 2 (37)
+  lda #0      ; 2 (36)
+  tax         ; 2 (38)
 
-  sta CXCLR   ; 3 (40) Clear all collisions
+  sta CXCLR   ; 3 (41) Clear all collisions
 
 play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
-  sta WSYNC      ; 3 (43)
+  sta WSYNC      ; 3 (44)
 
   ; 1st scanline ==============================================================
                  ; - (0)
