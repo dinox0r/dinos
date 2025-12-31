@@ -102,19 +102,17 @@ PTERO_CLOSED_WINGS_TABLE_ENTRY_INDEX = #2
 ; GAME_FLAGS
 ;=============================================================================
 
-; bit 6: 1 -> splash screen mode / 0 -> game mode
-FLAG_SPLASH_SCREEN =  #%01000000
-
 ; When in game mode:
 ;   bit 0: game over ON / OFF
 ;   bit 1: dino left/right leg up sprite
 ;   bit 2: dino jumping ON / OFF
-;   bit 7: dino crouching ON / OFF
+;   bit 3: dino crouching ON / OFF
+FLAG_GAME_OVER      = #%00000001
 FLAG_DINO_LEFT_LEG  = #%00000010
 FLAG_DINO_JUMPING   = #%00000100
-FLAG_GAME_OVER      = #%00000001
-FLAG_DINO_CROUCHING = #%10000000
-
+FLAG_DINO_CROUCHING = #%00001000
+; bit 6: 1 -> splash screen mode / 0 -> game mode
+FLAG_SPLASH_SCREEN =  #%01000000
 ; When in splash screen mode:
 ;   bit 7: dino blinking ON / OFF
 FLAG_DINO_BLINKING =  #%10000000
@@ -123,14 +121,12 @@ FLAG_DINO_CROUCHING_OR_JUMPING = #FLAG_DINO_CROUCHING | #FLAG_DINO_JUMPING
 
 FLAG_GAME_OVER_OR_SPLASH_SCREEN_MODE = #FLAG_GAME_OVER | #FLAG_SPLASH_SCREEN
 
-TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
-TOGGLE_FLAG_DINO_CROUCHING_OFF = #%01111111
 TOGGLE_FLAG_GAME_OVER_OFF      = #%11111110
-
-TOGGLE_FLAG_DINO_BLINKING_OFF  = #%01111111
-TOGGLE_FLAG_DINO_BLINKING_ON   = #%10000000
+TOGGLE_FLAG_DINO_JUMPING_OFF   = #%11111011
+TOGGLE_FLAG_DINO_CROUCHING_OFF = #%11110111
 
 TOGLLE_OFF_FLAGS_BUT_SPLASH_SCREEN = #%01000000
+
 ; Day nigth cycle
 ;   bit 1,0: Moon phase
 ;          00 -> Waning crescent

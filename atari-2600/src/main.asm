@@ -549,10 +549,10 @@ __check_moon_x_pos:
 _update_cloud_pos:
 
   ; The following is equivalent to:
-  ; for (x = 2; x >= 0; x--) 
+  ; for (x = 2; x >= 0; x--)
   ;   if frame_count mod 4 == 0 // every 4 frames
   ;     cloud_x_pos[x]--
-  ; 
+  ;
   ;   if cloud_x_pos[x] > 1
   ;     continue
   ;   else
@@ -582,7 +582,7 @@ _update_obstacle_pos:
   ; update obstacle x
 
   UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
- 
+
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
   cmp #0
@@ -827,8 +827,9 @@ _check_if_dino_is_jumping:
   bne _jumping
 
 _check_if_dino_is_crouching:
-  lda GAME_FLAGS
-  bmi _crouching
+  lda #FLAG_DINO_CROUCHING
+  bit GAME_FLAGS
+  bne _crouching
 
   ; If the dino is neither jumping nor crouching, restore its standing Y
   ; position. This ensures the dino is drawn correctly after the player
@@ -974,9 +975,9 @@ __update_dino_blinking_state:
   inc SPLASH_SCREEN_DINO_BLINK_TIMER
 
   lda GAME_FLAGS
-  bpl __dino_eyes_are_closed
+  bmi __dino_eyes_are_closed
 __dino_eyes_are_open:
-  ldx #50
+  ldx #255
   ; This '.byte $2C' will turn the following 'ldx #15' (opcodes A2 15) into
   ; 'bit $A215' (opcodes 2C A2 15), effectively cancelling it
   .byte $2C
@@ -987,7 +988,7 @@ __dino_eyes_are_closed:
   ; Assumes x contains the expected time to do the state change
 __check_and_update_dino_eyes_state:
   cpx SPLASH_SCREEN_DINO_BLINK_TIMER
-  bcc __end_update_dino_blinking_state
+  bne __end_update_dino_blinking_state
 
   ; Reset the blinking timer
   lda #0
