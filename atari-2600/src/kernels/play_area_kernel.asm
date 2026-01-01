@@ -139,10 +139,16 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
 
   ; 44 (60)
   LOAD_DINO_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _play_area__end_of_1st_scanline
-  ;cpy #
+
+  cpy #DINO_EYE_SCANLINE_Y            ; 2 (62)
+  bne _play_area__end_of_1st_scanline ; 2/3 (64/65)
+  bit GAME_FLAGS                      ; 3 (67)
+  bpl _play_area__end_of_1st_scanline ; 2/3 (69/70)
+  bvc _play_area__end_of_1st_scanline ; 2/3 (71/72)
+  ldx #255                            ; 2 (73)
 
 _play_area__end_of_1st_scanline: ; - (60)
-  sta WSYNC                      ; 3 (63)
+  sta WSYNC                      ; 3 (worst case 65 -> 68)
 
   ; 2nd scanline ==============================================================
                            ; - (0)
