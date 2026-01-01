@@ -128,7 +128,7 @@ __end_setting_up_middle_section_kernel:
   sta CXCLR   ; 3 (41) Clear all collisions
 
 play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
-  sta WSYNC      ; 3 (44)
+  sta WSYNC      ; 3 (43)
 
   ; 1st scanline ==============================================================
                  ; - (0)
@@ -137,11 +137,12 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ; Draw the obstacle first then load dino's data for the next scanline
   DRAW_OBSTACLE  ; 13 (16)
 
-  ; 46 (62)
-  LOAD_DINO_GRAPHICS_IF_IN_RANGE #SET_CARRY, _play_area__end_of_1st_scanline
+  ; 44 (60)
+  LOAD_DINO_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _play_area__end_of_1st_scanline
+  ;cpy #
 
-_play_area__end_of_1st_scanline: ; - (62)
-  sta WSYNC                      ; 3 (65)
+_play_area__end_of_1st_scanline: ; - (60)
+  sta WSYNC                      ; 3 (63)
 
   ; 2nd scanline ==============================================================
                            ; - (0)
@@ -155,10 +156,11 @@ _play_area__end_of_2nd_scanline:  ; - (35)
 
   dey                      ; 2 (37)
   cpy PLAY_AREA_MIN_Y      ; 3 (40)
-  bne play_area_kernel     ; 2/3 (42/43)
+  sec                      ; 2 (42) Set the carry for the dino scanline
+  bne play_area_kernel     ; 2/3 (44/45)
 
   ; At the final scanline of the play area, and just before the next scanline
   ; begins, jump to the next kernel. The destination depends on the dino's
   ; state—either the crouching kernel (if the dino is crouching) or the floor
   ; kernel (if it's not).
-  jmp (PTR_AFTER_PLAY_AREA_KERNEL)  ; 5 (47)
+  jmp (PTR_AFTER_PLAY_AREA_KERNEL)  ; 5 (50)
