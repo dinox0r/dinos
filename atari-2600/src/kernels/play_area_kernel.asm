@@ -140,15 +140,47 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ; 44 (60)
   LOAD_DINO_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _play_area__end_of_1st_scanline
 
+  ; --- Dino eye blink override (splash screen only) -------------------------
+  ;
+  ; When the kernel reaches the scanline corresponding to the dino's eye
+  ; position, this logic conditionally overrides the sprite data so the
+  ; eyes appear closed, producing a simple blinking animation.
+  ;
+  ; Visual effect (per scanline):
+  ;
+  ;     eyes open             eyes closed
+  ;      ▒▒▒▒▒▒▒▒              ▒▒▒▒▒▒▒▒       <-- previous scanline
+  ;     ██ ███████            ██████████      <-- current (eye) scanline
+  ;     ▒▒▒▒▒▒▒▒▒▒            ▒▒▒▒▒▒▒▒▒▒      <-- next scanline
+  ;
+  ; This behavior is enabled only during the splash screen, where the
+  ; dino is rendered at a fixed Y position. This constraint allows the
+  ; blink effect to be implemented by modifying a single scanline rather
+  ; than introducing a dedicated "eyes closed" sprite, saving
+  ; approximately 20 bytes of ROM.
+  ;
+  ; The sprite override occurs only when all of the following conditions
+  ; are met:
+  ;   - The current scanline equals DINO_EYE_SCANLINE_Y
+  ;   - Splash screen mode is active
+  ;   - The blink flag is set
+  ;
+  ; When these conditions are satisfied, register X is forced to $FF,
+  ; selecting the "eyes closed" sprite data for this scanline only.
+  ;
   cpy #DINO_EYE_SCANLINE_Y            ; 2 (62)
   bne _play_area__end_of_1st_scanline ; 2/3 (64/65)
   bit GAME_FLAGS                      ; 3 (67)
-  bpl _play_area__end_of_1st_scanline ; 2/3 (69/70)
-  bvc _play_area__end_of_1st_scanline ; 2/3 (71/72)
-  ldx #255                            ; 2 (73)
+  ; GAME_FLAGS bit usage:
+  ;   bit 7 = blink active
+  ;   bit 6 = splash screen mode
+  bpl _play_area__end_of_1st_scanline ; 2/3 (69/70) - blink not active
+  bvc _play_area__end_of_1st_scanline ; 2/3 (71/72) - not in splash screen
+  ; Override sprite index for this scanline (eyes closed)
+  ldx #$FF                            ; 2 (73)
 
-_play_area__end_of_1st_scanline: ; - (60)
-  sta WSYNC                      ; 3 (worst case 65 -> 68)
+_play_area__end_of_1st_scanline: ; -
+  sta WSYNC                      ; 3 (worst case 73 -> 76)
 
   ; 2nd scanline ==============================================================
                            ; - (0)
