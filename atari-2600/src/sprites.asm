@@ -24,7 +24,6 @@ CLOUD_PART_2_END = *
   .ds 1             ;⏐
 CLOUD_PART_1_END = *
 
-
   ; Make sure that both CLOUD_PART_1 and CLOUD_PART_2_END (the whole cloud
   ; sprite) lies within the same page, this helps reduce the cycle count in
   ; the cloud kernel
@@ -34,6 +33,68 @@ CLOUD_PART_1_END = *
     ECHO "  CLOUD_PART_2_END: ",CLOUD_PART_2_END
     ERR
   ENDIF
+
+; Crouching sprite diagram:
+;
+; Legend:
+;    █ GRP0 pixels
+;    ▒ missile 0
+;    ░ missile 1
+;    X overlapping pixels
+;    ▯ Non drawn by the current kernel
+;
+;                       ________████████ <-- this is drawn by a single scanline
+;                 ░   ▒▒▒X███  ██ ░██████
+;                 ███████████████████████
+;                 ███████████████████████
+;                  ██████████████████████
+;                  █████████████████     
+;                   ██████████  ███████  
+;                    ███ ██  ██
+;                    ▯▯   ▯▯
+;                    ▯
+;                    ▯▯
+;                               ████████
+;                 █   ███████  ██ ███████
+;                 ███████████████████████
+;                 ███████████████████████
+;                  ██████████████████████
+;                  █████████████████     
+;                   ██████████  ███████  
+;                    ███ ██  ██
+;
+; The rest of the dino (the legs) will be drawn by the floor kernel, as their
+; graphics match the same position as the dino when standing:
+;                   |██   ██ |
+;                   |█       |
+;                   |██      |
+;
+;                               ████████   #%00001111
+;                 ░   ▒▒▒X███  ██ ░██████  #%11010111
+;                 ███████████████████████  #%11111111
+;                 ███████████████████████  #%11111111
+;                  ██████████████████████  #%11111111
+;                  █████████████████       #%11111100
+;                   ██████████  ███████    #%11110111
+;                    ███ ██  ██            #%10101000
+;                      10110011
+;                    ▯▯   ▯▯
+;                    ▯
+;                    ▯▯
+;
+DINO_CROUCHING_REGION_3_SPRITE:
+  .byte #%11101110
+  .byte #%11111100
+  .byte #%11111111
+  .byte #%11111111
+DINO_CROUCHING_REGION_3_SPRITE_END = *
+
+DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF:
+  .byte #%11111101
+  .byte #%00000101
+  .byte #%11110000
+  .byte #%00000000
+DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END = *
 
 DINO_GAME_OVER_SPRITE:
   .ds 1              ;
@@ -254,6 +315,14 @@ DINO_MISSILE_0_OFFSETS:
   ;    ▒ missile pixels
   ;    X overlapping pixels
 DINO_MISSILE_0_OFFSETS_END = *
+  ; Note: These missile horizontal offsets require an extra zero byte here
+  ; to clear HMM0. If this is omitted, subsequent horizontal offsets will
+  ; be misaligned.
+  ;
+  ; If the next sprite definition already includes a `.ds 1`, that byte
+  ; can be reused. Otherwise, uncomment the line below to explicitly
+  ; reserve the required zero byte:
+  ; .ds 1
 
 DINO_GAME_OVER_MISSILE_0_OFFSETS:
                    ;                       offset           size
@@ -278,81 +347,14 @@ DINO_GAME_OVER_MISSILE_0_OFFSETS:
   .byte #%00000000 ; |        |█ ██████ |       0                0
   .ds 1            ;
 DINO_GAME_OVER_MISSILE_0_OFFSETS_END = *
-  .ds 1
-
-; Crouching sprite diagram:
-;
-; Legend:
-;    █ GRP0 pixels
-;    ▒ missile 0
-;    ░ missile 1
-;    X overlapping pixels
-;    ▯ Non drawn by the current kernel
-;
-;                       ________████████  <-- this will be drawn in the next scanline
-;                 ░   ▒▒▒X███  ██ ░██████
-;                 ███████████████████████
-;                 ███████████████████████
-;                  ██████████████████████
-;                  █████████████████     
-;                   ██████████  ███████  
-;                    ███ ██  ██
-;                    ▯▯   ▯▯
-;                    ▯
-;                    ▯▯
-;                               ████████
-;                 █   ███████  ██ ███████
-;                 ███████████████████████
-;                 ███████████████████████
-;                  ██████████████████████
-;                  █████████████████     
-;                   ██████████  ███████  
-;                    ███ ██  ██
-;
-; The rest of the dino (the legs) will be drawn by the floor kernel, as their
-; graphics match the same position as the dino when standing:
-;                   |██   ██ |
-;                   |█       |
-;                   |██      |
-;
-;
-;   ░   ▒▒▒X███  ██ ░██████  #%11010111
-;   ▒▒▒▒▒▒▒X███████████████  #%11111111
-;   ▒▒▒▒▒▒▒X███████████████  #%11111111
-;    ▒▒▒▒▒▒XX██████████████  #%11111111
-;    ▒▒▒▒▒▒XX████████░       #%11111000
-
-;     ██████████  ███████  
-
-;     ▒▒▒▒▒XXX█    ██████  
-
-;      ███ ██  ██
-
-;                               ████████   #%00001111
-;                 ░   ▒▒▒X███  ██ ░██████  #%11010111
-;                 ███████████████████████  #%11111111
-;                 ███████████████████████  #%11111111
-;                  ██████████████████████  #%11111111
-;                  █████████████████       #%11111100
-;                   ██████████  ███████    #%11110111
-;                    ███ ██  ██            #%10101000
-;                      10110011
-;                    ▯▯   ▯▯
-;                    ▯
-;                    ▯▯
-DINO_CROUCHING_REGION_3_SPRITE:
-  .byte #%11101110
-  .byte #%11111100
-  .byte #%11111111
-  .byte #%11111111
-DINO_CROUCHING_REGION_3_SPRITE_END = *
-
-DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF:
-  .byte #%11111101
-  .byte #%00000101
-  .byte #%11110000
-  .byte #%00000000
-DINO_CROUCHING_REGION_3_MISSILE_AND_BALL_CONF_END = *
+  ; Note: These missile horizontal offsets require an extra zero byte here
+  ; to clear HMM0. If this is omitted, subsequent horizontal offsets will
+  ; be misaligned.
+  ;
+  ; If the next sprite definition already includes a `.ds 1`, that byte
+  ; can be reused. Otherwise, uncomment the line below to explicitly
+  ; reserve the required zero byte:
+  ; .ds 1
 
 PTERO_WINGS_OPEN_SPRITE:
   ; Sprite drawn as a combination of GRP1 and the missile 1:
