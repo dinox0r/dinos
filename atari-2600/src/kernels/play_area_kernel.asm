@@ -47,7 +47,7 @@ _end_grp0_coarse_position:
 
   ; Set M0 coarse position
   ;
-  ; If dino is crouching, M0 needs to be strobed at cycle 25. Otherwise, 
+  ; If dino is crouching, M0 needs to be strobed at cycle 25. Otherwise,
   ; M0 needs to be strobed at cycle 22
   lda #FLAG_DINO_CROUCHING   ; 2 (8)
   bit GAME_FLAGS             ; 3 (11)

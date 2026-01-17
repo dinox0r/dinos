@@ -35,6 +35,29 @@ CLOUD_PART_1_END = *
     ERR
   ENDIF
 
+DINO_GAME_OVER_SPRITE:
+  .ds 1              ;
+  .byte #%11000110   ;  ██   ██
+  .byte #%10000100   ;  █    █
+  .byte #%11000100   ;  ██   █
+  .byte #%11101100   ;  ███ ██
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%11111101   ;  ██████ █
+  .byte #%11001111   ;  ██  ████
+  .byte #%11111100   ;  ██████
+  .byte #%11111000   ;  █████
+  .byte #%11111110   ;  ███████
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%11111111   ;  ████████
+  .byte #%01111111   ;  █ ██████
+  .byte #%10111111   ;   █ █████
+  .byte #%10111111   ;  █ ██████
+  .ds 1              ;
+DINO_GAME_OVER_SPRITE_END = *
+
 DINO_SPRITE_1:
 ;      full sprite                     franke-sprite (GRP0 + M0)
 ;  /----- 17 px -----\
@@ -145,29 +168,6 @@ DINO_SPRITE_3:
   .ds 1              ;
 DINO_SPRITE_3_END = *
 
-DINO_GAME_OVER_SPRITE:
-  .ds 1              ;
-  .byte #%11000110   ;  ██   ██
-  .byte #%10000100   ;  █    █
-  .byte #%11000100   ;  ██   █
-  .byte #%11101100   ;  ███ ██
-  .byte #%11111111   ;  ████████
-  .byte #%11111111   ;  ████████
-  .byte #%11111111   ;  ████████
-  .byte #%11111101   ;  ██████ █
-  .byte #%11001111   ;  ██  ████
-  .byte #%11111100   ;  ██████
-  .byte #%11111000   ;  █████
-  .byte #%11111110   ;  ███████
-  .byte #%11111111   ;  ████████
-  .byte #%11111111   ;  ████████
-  .byte #%11111111   ;  ████████
-  .byte #%01111111   ;  █ ██████
-  .byte #%10111111   ;   █ █████
-  .byte #%10111111   ;  █ ██████
-  .ds 1              ;
-DINO_GAME_OVER_SPRITE_END = *
-
 DINO_SPRITE_OFFSETS:
 ;       LEFT  <---------------------------------------------------------> RIGHT
 ;offset (px)  | -7  -6  -5  -4  -3  -2  -1  0  +1  +2  +3  +4  +5  +6  +7  +8
@@ -247,9 +247,7 @@ DINO_MISSILE_0_OFFSETS:
   .byte #%00000110 ; |       ▒|▒████████|       0                2
   .byte #%10000110 ; |       ▒|▒ ███████|      +8                2
   .byte #%00000000 ; |        |████████ |       0                0
-  .ds 1; ^
-  ;      |
-  ;      + Also enable the ball when this bit is ON (used for the blinking)
+  .ds 1;
   ;
   ; Legend:
   ;    █ GRP0 pixels
@@ -258,8 +256,8 @@ DINO_MISSILE_0_OFFSETS:
 DINO_MISSILE_0_OFFSETS_END = *
 
 DINO_GAME_OVER_MISSILE_0_OFFSETS:
-                  ;                        offset           size
-  .ds 1           ;                  HMM0 bits 7,6,5,4   NUSIZE bits 5,4
+                   ;                       offset           size
+  .ds 1            ;                 HMM0 bits 7,6,5,4   NUSIZE bits 5,4
   .byte #%00000000 ; |   ██   |██       |       0                0
   .byte #%00000000 ; |   █    |█        |       0                0
   .byte #%00000000 ; |   ██   |█        |       0                0
@@ -278,8 +276,9 @@ DINO_GAME_OVER_MISSILE_0_OFFSETS:
   .byte #%00000110 ; |       ▒|▒ ███████|       0                2
   .byte #%10000010 ; |       ▒| █ ██████|      +8                1
   .byte #%00000000 ; |        |█ ██████ |       0                0
-  .ds 1; 
+  .ds 1            ;
 DINO_GAME_OVER_MISSILE_0_OFFSETS_END = *
+  .ds 1
 
 ; Crouching sprite diagram:
 ;
