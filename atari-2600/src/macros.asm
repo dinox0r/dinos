@@ -185,7 +185,7 @@ ROM_START SET *
 
     bcs .dino_y_within_range         ; 2/3 (11/12) - In range if carry set
     IF ENABLE_PAGE_CROSSING_CHECK && (* ^ .dino_y_within_range) & $FF00
-      ECHO "PAGE CROSSING","ERROR ",.dino_y_within_range," at ",*
+      ECHO "PAGE CROSSING","ERROR in .dino_y_within_range",.dino_y_within_range," at ",*
       ERR
     ENDIF
 .dino_y_outside_range:               ; - (11 or 9 cycles total if SEC skipped)
@@ -697,7 +697,12 @@ ROM_START SET *
     ldx #12         ; 2 (9)
 .wait_until_cpu_is_at_cycle_68:         ; - (9) \
     dex                                 ; 2      > total: 59 cycles
-    bne .wait_until_cpu_is_at_cycle_68  ; 2/3   /
+    bne .wait_until_cpu_is_at_cycle_68 ; 2/3   /
+
+    IF (* ^ .wait_until_cpu_is_at_cycle_68) & $FF00
+      ECHO "PAGE CROSSING","ERROR ",.wait_until_cpu_is_at_cycle_68," at ",*
+      ERR
+    ENDIF
 
     ; The CPU is now at cycle 68. A dummy instruction fills the gap to cycle 70.
     nop            ; 2 (70)
@@ -726,6 +731,10 @@ ROM_START SET *
 .div_by_15_loop:        ; - (3)
     sbc #15             ; 2 (5) - Divide by 15 (sucessive subtractions)
     bcs .div_by_15_loop ; 2/3     (obstacle-x / 5 + 5)
+    IF (* ^ .div_by_15_loop) & $FF00
+      ECHO "PAGE CROSSING","ERROR in .div_by_15_loop",.div_by_15_loop," at ",*
+      ERR
+    ENDIF
 
     sta RESP0+.OBJECT_1_INDEX
     sta RESP0+.OBJECT_2_INDEX

@@ -37,8 +37,9 @@
 [x] Day/night cycle
 [ ] Gravel
 [ ] Score (EPIC)
-[ ] Splash screen
+[x] Splash screen
+  [ ] Floor in splash screen
 [ ] Game over text (how?)
 [ ] More cacti sprites
-[ ] 2 clusters of cacti (idea)
+[ ] 2 cacti idea
 

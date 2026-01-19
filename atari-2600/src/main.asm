@@ -160,11 +160,18 @@ clear_zero_page_memory:
 
 ; Set the splash screen on power on/reset
 set_splash_screen_flag:
+  lda #BKG_LIGHT_GRAY
+  sta COLUP0
+  lda #%00111000
+  sta FLOOR_PF1
+  lda #%01000000
+  sta FLOOR_PF0
+
   lda #FLAG_SPLASH_SCREEN  ; enable splash screen
   ;lda #0                  ; disable splash screen
   sta GAME_FLAGS
   ; Skip the clearing flags during initialization, doing this
-  ; preserves the splash screen flag
+  ; to preserve the splash screen ON flag
   jmp _reset_dino_y_pos
 
 on_game_init:
@@ -261,7 +268,7 @@ vsync:
   sta WSYNC  ; 1st line of vsync
   sta WSYNC  ; 2nd line of vsync
   sta WSYNC  ; 3rd (final) line of vsync
-  lda #0   ; A <- 0
+  lda #0     ; A <- 0
   sta VSYNC  ; VSYNC = A (A=0) disables vsync
 
   ; -----------------------
@@ -310,7 +317,7 @@ _check_for_any_button:
   bit INPT4
   bpl __button_pressed
   ; If not, check all joystick directions
-  lda #%11110000   ; Query if any direction was pressed
+  lda #%11110000      ; Query if any direction was pressed
   and SWCHA
   cmp #%11110000
   beq __no_input
