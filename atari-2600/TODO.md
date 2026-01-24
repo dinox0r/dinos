@@ -9,7 +9,7 @@
         so it can be called twice (why a macro first and then
         a subroutine? To copy/paste edit in the same file)~
         discarded. Doing 2 consecutive sta RESP0,x leaves too
-        much gap (what was I even thinking, it's too obvious)
+        much gap (what was I even thinking)
     [x] Draw the stars sprites
     [x] Add the 2 scanlines I took from play area to the sky kernel
 
