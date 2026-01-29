@@ -1037,8 +1037,9 @@ _set_game_over:
   sta FRAME_COUNT+1
 
   ; Remove the crouching flag in case it was crouching
-  lda GAME_FLAGS
-  bpl __set_dino_game_over_sprite
+  lda #FLAG_DINO_CROUCHING
+  bit GAME_FLAGS
+  beq __set_dino_game_over_sprite
   lda #TOGGLE_FLAG_DINO_CROUCHING_OFF
   and GAME_FLAGS
   sta GAME_FLAGS
