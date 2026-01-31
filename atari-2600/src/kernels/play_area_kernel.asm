@@ -174,13 +174,13 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ; GAME_FLAGS bit usage:
   ;   bit 7 = blink active
   ;   bit 6 = splash screen mode
+  ; bit 7 ON implies bit 6 ON
   bpl _play_area__end_of_1st_scanline ; 2/3 (69/70) - blink not active
-  bvc _play_area__end_of_1st_scanline ; 2/3 (71/72) - not in splash screen
   ; Override sprite index for this scanline (eyes closed)
-  ldx #$FF                            ; 2 (73)
+  ldx #$FF                            ; 2 (72)
 
 _play_area__end_of_1st_scanline: ; -
-  sta WSYNC                      ; 3 (worst case 73 -> 76)
+  sta WSYNC                      ; 3 (worst case 72 -> 75)
 
   ; 2nd scanline ==============================================================
                            ; - (0)

@@ -353,11 +353,12 @@ ROM_START SET *
   ;                    NUSIZ1
   ;
   ;   X - Obstacle sprite graphics, to be written to GRP1.
+  ;
+  ; *: It is assumed this macro will be invoked first thing in the scanline
   ;------------------------------------------------------------------------------
   MACRO DRAW_OBSTACLE ; 13 cycles
     stx GRP1          ; 3 (3)
-    sta ENAM1         ; 3 (6) - Enable/disable M1 first. It is assumed this
-                      ;         macro will be invoked first thing in the scanline
+    sta ENAM1         ; 3 (6) - Enable/disable M1 first
     asl               ; 2 (8)
     asl               ; 2 (10)
     sta NUSIZ1        ; 3 (13)
