@@ -361,6 +361,7 @@ ROM_START SET *
     sta ENAM1         ; 3 (6) - Enable/disable M1 first
     asl               ; 2 (8)
     asl               ; 2 (10)
+   ora OBSTACLE_DUPLICATE
     sta NUSIZ1        ; 3 (13)
   ENDM
 

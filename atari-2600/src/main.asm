@@ -40,6 +40,7 @@ OBSTACLE_X_INT               .byte   ; 1 byte   (14)
 OBSTACLE_X_FRACT             .byte   ; 1 byte   (15)
 OBSTACLE_VX_INT              .byte   ; 1 byte   (16)
 OBSTACLE_VX_FRACT            .byte   ; 1 byte   (17)
+OBSTACLE_DUPLICATE           .byte   ; 1 byte
 
 PTR_OBSTACLE_SPRITE          .word   ; 2 bytes  (19)
 PTR_OBSTACLE_OFFSET          .word   ; 2 bytes  (21)
@@ -224,6 +225,9 @@ _init_pebble_conf:
   bvs start_of_frame
 
 _init_obstacle_conf:
+
+  lda #1
+  sta OBSTACLE_DUPLICATE
 
   jsr spawn_obstacle
 
