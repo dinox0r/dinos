@@ -34,6 +34,7 @@
 
 ## Features
 
+[ ] 2 cacti idea
 [x] Day/night cycle
 [ ] Gravel
 [ ] Score (EPIC)
@@ -41,5 +42,4 @@
   [ ] Floor in splash screen
 [ ] Game over text (how?)
 [ ] More cacti sprites
-[ ] 2 cacti idea
 
