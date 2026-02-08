@@ -161,9 +161,9 @@ clear_zero_page_memory:
 
 ; Set the splash screen on power on/reset
 set_splash_screen_flag:
-  lda #BKG_LIGHT_GRAY
+  lda #FRG_DARK_GRAY
   sta COLUPF
-  lda #%00111000
+  lda #%00110000
   sta FLOOR_PF1
   lda #%01000000
   sta FLOOR_PF0
