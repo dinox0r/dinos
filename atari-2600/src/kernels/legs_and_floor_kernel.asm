@@ -1,4 +1,6 @@
 legs_and_floor_kernel:
+  lda #0      ; 2
+  sta NUSIZ1  ; 3 - Reset NUSIZ1, used to duplicate obstacles
   sta WSYNC   ; 3 (--)
 
   ; 1st scanline ========================================================

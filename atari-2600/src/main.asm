@@ -226,9 +226,8 @@ _init_pebble_conf:
 
 _init_obstacle_conf:
 
-  lda #1
+  lda #0
   sta OBSTACLE_DUPLICATE
-
   jsr spawn_obstacle
 
   lda #OBSTACLE_INITIAL_SPEED

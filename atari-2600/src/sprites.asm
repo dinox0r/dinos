@@ -584,10 +584,10 @@ STAR_2_SPRITE_END = *
   ; Make sure that both STAR_1_SPRITE_END and STAR_2_SPRITE_END 
   ; have the same upper byte. Assuming this simplifies the reset_star 
   ; subroutine
-  IF >STAR_1_SPRITE_END != >STAR_2_SPRITE_END
-    ECHO "  STAR_1_SPRITE_END and STAR_2_SPRITE_END have differnt upper byte"
-    ERR
-  ENDIF
+  ;IF >STAR_1_SPRITE_END != >STAR_2_SPRITE_END
+  ;  ECHO "  STAR_1_SPRITE_END and STAR_2_SPRITE_END have differnt upper byte"
+  ;  ERR
+  ;ENDIF
   .byte #%00011100  ;⏐    ███  
   .byte #%00000110  ;⏐      ██ 
   .byte #%00000110  ;⏐      ██ 

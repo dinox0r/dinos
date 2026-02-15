@@ -325,7 +325,7 @@ ROM_START SET *
   ENDM
 
   ; -------------------------------------------------------------------------
-  ; Macro DRAW_OBSTACLE (13 cycles)
+  ; Macro DRAW_OBSTACLE (16 cycles)
   ;
   ; Draws a horizontal obstacle using the missile 1 object (ENAM1) and GRP1
   ; sprite graphics. The macro assumes that a copy of the obstacle
@@ -356,17 +356,19 @@ ROM_START SET *
   ;
   ; *: It is assumed this macro will be invoked first thing in the scanline
   ;------------------------------------------------------------------------------
-  MACRO DRAW_OBSTACLE ; 13 cycles
+  MACRO DRAW_OBSTACLE ; 16 cycles
     stx GRP1          ; 3 (3)
     sta ENAM1         ; 3 (6) - Enable/disable M1 first
     asl               ; 2 (8)
     asl               ; 2 (10)
-   ora OBSTACLE_DUPLICATE
-    sta NUSIZ1        ; 3 (13)
+
+    ora OBSTACLE_DUPLICATE ; 3 (13)
+
+    sta NUSIZ1        ; 3 (16)
   ENDM
 
   MACRO MULTIPLY_A_BY_4
-  asl
+    asl
     asl
   ENDM
 

@@ -87,12 +87,13 @@ spawn_obstacle subroutine
   cmp #3
   bcc .set_y_pos
 
-  ; If the obstacle type is not a ptero, roll the dice again 
-  ; to see if it can be duplicated, that is, 2 cacti sprites instead of
+  ; If the obstacle type is not a ptero (obstacle_type > 2), roll the dice 
+  ; again to see if it can be duplicated, that is, 2 cacti sprites instead of
   ; a single one
   jsr rnd8
-  cmp #150
+  cmp #200
   bcs .set_y_pos
+
   lda GAME_FLAGS
   ora #FLAG_DUPLICATED_OBSTACLE
   sta GAME_FLAGS
