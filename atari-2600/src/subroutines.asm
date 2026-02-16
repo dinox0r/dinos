@@ -65,16 +65,37 @@ spawn_obstacle subroutine
   lda #161
   sta OBSTACLE_X_INT
 
+  ; clear any previous duplication flag
+  lda GAME_FLAGS
+  and #TOGGLE_FLAG_DUPLICATED_OBSTACLE_OFF
+  sta GAME_FLAGS
+
   jsr rnd8
   and #3 ; equivalent to RND % 4
   sta OBSTACLE_TYPE
-  bne .set_y_pos
+
+  bne .check_if_can_duplicate_obstacle
   ; If is the obstacle type 0 (no obstacle or invisible obstacle)
   ; then overwrite its x coordinate to a value between [0, 127], this is
   ; to give a breather to the player but not for too long
   jsr rnd8
   and #127
   sta OBSTACLE_X_INT
+  jmp .set_y_pos
+
+.check_if_can_duplicate_obstacle:
+  cmp #3
+  bcc .set_y_pos
+
+  ; If the obstacle type is not a ptero, roll the dice again 
+  ; to see if it can be duplicated, that is, 2 cacti sprites instead of
+  ; a single one
+  jsr rnd8
+  cmp #150
+  bcs .set_y_pos
+  lda GAME_FLAGS
+  ora #FLAG_DUPLICATED_OBSTACLE
+  sta GAME_FLAGS
 
 .set_y_pos:
   lda OBSTACLE_TYPE
