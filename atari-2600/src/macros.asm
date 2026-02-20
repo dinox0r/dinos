@@ -703,8 +703,8 @@ ROM_START SET *
     dex                                 ; 2      > total: 59 cycles
     bne .wait_until_cpu_is_at_cycle_68 ; 2/3   /
 
-    IF (* ^ .wait_until_cpu_is_at_cycle_68) & $FF00
-      ECHO "PAGE CROSSING","ERROR ",.wait_until_cpu_is_at_cycle_68," at ",*
+    IF ENABLE_PAGE_CROSSING_CHECK && (* ^ .wait_until_cpu_is_at_cycle_68) & $FF00
+      ECHO "PAGE CROSSING in .wait_until_cpu_is_at_cycle_68","ERROR ",.wait_until_cpu_is_at_cycle_68," at ",*
       ERR
     ENDIF
 

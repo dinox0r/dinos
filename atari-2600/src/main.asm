@@ -593,13 +593,17 @@ _update_obstacle_pos:
 
   UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
 
+  ; clear any previous duplication from NUSIZ1
+  lda #0
+  sta NUSIZ1
+
   lda #FLAG_DUPLICATED_OBSTACLE
   bit GAME_FLAGS
   beq _check_obstacle_pos
   lda OBSTACLE_X_INT
   cmp #140
   bcs _check_obstacle_pos
-  lda #%00000010
+  lda #NUSIZX_TWO_COPIES_MEDIUM
   sta OBSTACLE_DUPLICATE
 
 _check_obstacle_pos:
