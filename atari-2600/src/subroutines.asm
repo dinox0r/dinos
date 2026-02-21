@@ -69,9 +69,12 @@ spawn_obstacle subroutine
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DUPLICATED_OBSTACLE_OFF
   sta GAME_FLAGS
+  lda #0
+  sta OBSTACLE_DUPLICATE
 
   jsr rnd8
   and #3 ; equivalent to RND % 4
+ lda #3
   sta OBSTACLE_TYPE
 
   bne .check_if_can_duplicate_obstacle
@@ -91,7 +94,7 @@ spawn_obstacle subroutine
   ; again to see if it can be duplicated, that is, 2 cacti sprites instead of
   ; a single one
   jsr rnd8
-  cmp #200
+  cmp #250
   bcs .set_y_pos
 
   lda GAME_FLAGS

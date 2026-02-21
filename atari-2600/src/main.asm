@@ -593,22 +593,45 @@ _update_obstacle_pos:
 
   UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
 
-  ; clear any previous duplication from NUSIZ1
-  lda #0
-  sta NUSIZ1
-
   lda #FLAG_DUPLICATED_OBSTACLE
   bit GAME_FLAGS
   beq _check_obstacle_pos
+
+  ; A duplicated obstacle, first check if the X position of this sprite 
+  ; is already off-screen
   lda OBSTACLE_X_INT
-  cmp #140
+  bne _check_if_duplication_can_be_enabled
+
+  ; Given that the first obstacle is not longer visible, 
+  ; The trick here is to swap the OBSTACLE_X_INT with the one of the second
+  ; (duplicated) sprite, that way the first sprite takes the place of the 
+  ; second sprite and keeps going in the screen
+  lda #35
+  sta OBSTACLE_X_INT
+
+  ; Now turn duplication off
+  lda #TOGGLE_FLAG_DUPLICATED_OBSTACLE_OFF
+  and GAME_FLAGS
+  sta GAME_FLAGS
+  lda #0
+  sta OBSTACLE_DUPLICATE
+
+  ; Continue like this sprite was a single sprite all along
+  jmp _update_obstacle_sprite
+
+_check_if_duplication_can_be_enabled:
+  ; When the obstacle is at this X position, the second (duplicated) sprite
+  ; can appear on screen, otherwise it will wrap and appear on the left side
+  ; of the screen. 
+  cmp #OBSTACLE_MIN_X_BEFORE_DUPLICATION
+
+  ; Now check if the 
   bcs _check_obstacle_pos
   lda #NUSIZX_TWO_COPIES_MEDIUM
   sta OBSTACLE_DUPLICATE
 
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
-  cmp #0
   bne _update_obstacle_sprite
 
   jsr spawn_obstacle
@@ -950,6 +973,13 @@ end_update_dino:
   jmp end_frame_setup
 
 end_frame_setup:
+  ; Clear any previous NUSIZ1 duplication settings before drawing anything. If
+  ; not reset here, the clouds may appear duplicated on the game over screen.
+  ; This occurs because the normal update* routine (which disables duplication)
+  ; is not executed during game over, leaving NUSIZ1 latched with its previous
+  ; value.
+  lda #0
+  sta NUSIZ1
 
 ;==============================================================================
 ; END FRAME SETUP (VBLANK TIME)
