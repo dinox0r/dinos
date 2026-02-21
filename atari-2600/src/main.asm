@@ -609,14 +609,15 @@ _update_obstacle_pos:
   lda #35
   sta OBSTACLE_X_INT
 
-  ; Now turn duplication off
-  lda #TOGGLE_FLAG_DUPLICATED_OBSTACLE_OFF
-  and GAME_FLAGS
+  ; After swapping the first sprite with the duplicated, turn duplication off
+
+  lda GAME_FLAGS
+  and #TOGGLE_FLAG_DUPLICATED_OBSTACLE_OFF
   sta GAME_FLAGS
   lda #0
   sta OBSTACLE_DUPLICATE
 
-  ; Continue like this sprite was a single sprite all along
+  ; Continue like if this sprite was a single sprite all along
   jmp _update_obstacle_sprite
 
 _check_if_duplication_can_be_enabled:
