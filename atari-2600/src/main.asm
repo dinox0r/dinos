@@ -600,13 +600,14 @@ _update_obstacle_pos:
   ; A duplicated obstacle, first check if the X position of this sprite 
   ; is already off-screen
   lda OBSTACLE_X_INT
-  bne _check_if_duplication_can_be_enabled
+  cmp #OBSTACLE_GRP1_MIN_SCREEN_X
+  bcs _check_if_duplication_can_be_enabled
 
-  ; Given that the first obstacle is not longer visible, 
+  ; Given that the first obstacle is not longer visible,
   ; The trick here is to swap the OBSTACLE_X_INT with the one of the second
-  ; (duplicated) sprite, that way the first sprite takes the place of the 
+  ; (duplicated) sprite, that way the first sprite takes the place of the
   ; second sprite and keeps going in the screen
-  lda #35
+  lda #39
   sta OBSTACLE_X_INT
 
   ; After swapping the first sprite with the duplicated, turn duplication off
@@ -623,10 +624,9 @@ _update_obstacle_pos:
 _check_if_duplication_can_be_enabled:
   ; When the obstacle is at this X position, the second (duplicated) sprite
   ; can appear on screen, otherwise it will wrap and appear on the left side
-  ; of the screen. 
+  ; of the screen.
   cmp #OBSTACLE_MIN_X_BEFORE_DUPLICATION
 
-  ; Now check if the 
   bcs _check_obstacle_pos
   lda #NUSIZX_TWO_COPIES_MEDIUM
   sta OBSTACLE_DUPLICATE
