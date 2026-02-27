@@ -135,9 +135,9 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   sta HMOVE      ; 3 (3)
 
   ; Draw the obstacle first then load dino's data for the next scanline
-  DRAW_OBSTACLE  ; 13 (16)
+  DRAW_OBSTACLE  ; 16 (19)
 
-  ; 44 (60)
+  ; 44 (63)
   LOAD_DINO_GRAPHICS_IF_IN_RANGE #IGNORE_CARRY, _play_area__end_of_1st_scanline
 
   ; --- Dino eye blink override (splash screen only) -------------------------
@@ -168,16 +168,16 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ; When these conditions are satisfied, register X is forced to $FF,
   ; selecting the "eyes closed" sprite data for this scanline only.
   ;
-  cpy #DINO_EYE_SCANLINE_Y            ; 2 (62)
-  bne _play_area__end_of_1st_scanline ; 2/3 (64/65)
-  bit GAME_FLAGS                      ; 3 (67)
+  cpy #DINO_EYE_SCANLINE_Y            ; 2 (65)
+  bne _play_area__end_of_1st_scanline ; 2/3 (67/68)
+  bit GAME_FLAGS                      ; 3 (70)
   ; GAME_FLAGS bit usage:
   ;   bit 7 = blink active
   ;   bit 6 = splash screen mode
   ; bit 7 ON implies bit 6 ON
-  bpl _play_area__end_of_1st_scanline ; 2/3 (69/70) - blink not active
+  bpl _play_area__end_of_1st_scanline ; 2/3 (72/73) - blink not active
   ; Override sprite index for this scanline (eyes closed)
-  ldx #$FF                            ; 2 (72)
+  ldx #$FF                            ; 2 (74)
 
 _play_area__end_of_1st_scanline: ; -
   sta WSYNC                      ; 3 (worst case 72 -> 75)

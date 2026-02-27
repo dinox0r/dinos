@@ -318,7 +318,7 @@ ROM_START SET *
   ENDM
 
   ; -------------------------------------------------------------------------
-  ; Macro DRAW_DIN (3 cycles)
+  ; Macro DRAW_DIN0 (3 cycles)
   ; -------------------------------------------------------------------------
   MACRO DRAW_DINO ; 3 cycles
     stx GRP0      ; 3 (3)
@@ -341,10 +341,9 @@ ROM_START SET *
   ;                  \_____/ \_/ ↑
   ;                   HMM1    │  │
   ;                           │  └── ENAM1
-  ;                        NUSIZ1 ←─ needs to be shifted to the left twice
+  ;                        NUSIZ1 ←─ will be shifted to the left twice
   ;
-  ;       After the left shift by 2 (done previous to the macro invocation),
-  ;       reg A holds:
+  ;       After the left shift by 2 reg A will hold:
   ;
   ;       bit index: 7 6 5 4 3 2 1 0
   ;                  __/ \_/ ↑
@@ -362,6 +361,9 @@ ROM_START SET *
     asl               ; 2 (8)
     asl               ; 2 (10)
 
+    ; OBSTACLE_DUPLICATE will contain a NUSIZx modifier (see constants.asm
+    ; for the possible values) that will either stretch or duplicate (this
+    ; case) the corresponding sprite
     ora OBSTACLE_DUPLICATE ; 3 (13)
 
     sta NUSIZ1        ; 3 (16)
