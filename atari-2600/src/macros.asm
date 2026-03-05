@@ -130,10 +130,6 @@ ROM_START SET *
     lda (PTR_DINO_OFFSET),y   ; 5 (20)
     sta HMP0                  ; 3 (23)
 
-    ; dino graphics- leave them in reg X so they are ready to be used in the 2nd
-    ; scanline, this implies not touching reg X for the rest of this scan line
-    LAX (PTR_DINO_SPRITE),y   ; 5 (28)
-
     ; --- Dino Missile Setup ---
     ; The data pointed to by PTR_DINO_MISSILE_0_CONF has the following bit layout:
     ;
@@ -142,12 +138,16 @@ ROM_START SET *
     ;             HMM0    │  │
     ;                     │  └── ENAM0
     ;                   NUSIZ0 (need to be shifted to the left twice)
-    lda (PTR_DINO_MISSILE_0_CONF),y  ; 5 (33) - Load config byte into A and X
-    sta HMM0                         ; 3 (36)
-    sta ENAM0                        ; 3 (39)
-    asl                              ; 2 (41)
-    asl                              ; 2 (43)
-    sta NUSIZ0                       ; 3 (46)
+    lda (PTR_DINO_MISSILE_0_CONF),y  ; 5 (28) - Load config byte into A and X
+    sta HMM0                         ; 3 (31)
+    sta ENAM0                        ; 3 (34)
+    asl                              ; 2 (36)
+    asl                              ; 2 (38)
+    sta NUSIZ0                       ; 3 (41)
+
+    ; dino graphics- leave them in reg A so they are ready to be used in the 2nd
+    ; scanline, this implies not touching reg A for the rest of this scan line
+    lda (PTR_DINO_SPRITE),y   ; 5 (46)
   ENDM
 
   ;----------------------------------------------------------------------------
@@ -165,8 +165,7 @@ ROM_START SET *
   ; Notes:
   ; - Assumes 24+ cycles have passed since HMOVE when called (safe to
   ;   write HMMx).
-  ; - Register X will hold the P0 graphics data afterward — must remain
-  ;   untouched for the rest of the scanline.
+  ; - Register A and X will hold the P0 graphics data afterward
   ;
   ;----------------------------------------------------------------------------
   MACRO LOAD_DINO_P0_IF_IN_RANGE ; (28, 26 if carry is ignored)
@@ -321,7 +320,7 @@ ROM_START SET *
   ; Macro DRAW_DIN0 (3 cycles)
   ; -------------------------------------------------------------------------
   MACRO DRAW_DINO ; 3 cycles
-    stx GRP0      ; 3 (3)
+    sta GRP0      ; 3 (3)
   ENDM
 
   ; -------------------------------------------------------------------------

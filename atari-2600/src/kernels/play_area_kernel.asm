@@ -170,14 +170,16 @@ play_area_kernel: ;------------------>>> 31 2x scanlines <<<--------------------
   ;
   cpy #DINO_EYE_SCANLINE_Y            ; 2 (65)
   bne _play_area__end_of_1st_scanline ; 2/3 (67/68)
-  bit GAME_FLAGS                      ; 3 (70)
+
+  ora GAME_FLAGS                      ; 3 (70)
+  ;bit GAME_FLAGS                      ; 3 (70)
   ; GAME_FLAGS bit usage:
   ;   bit 7 = blink active
   ;   bit 6 = splash screen mode
   ; bit 7 ON implies bit 6 ON
-  bpl _play_area__end_of_1st_scanline ; 2/3 (72/73) - blink not active
+  ;bpl _play_area__end_of_1st_scanline ; 2/3 (72/73) - blink not active
   ; Override sprite index for this scanline (eyes closed)
-  ldx #$FF                            ; 2 (74)
+  ;ldx #$FF                            ; 2 (74)
 
 _play_area__end_of_1st_scanline: ; -
   sta WSYNC                      ; 3 (worst case 72 -> 75)

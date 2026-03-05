@@ -11,6 +11,10 @@ legs_and_floor_kernel:
 
   ; 28 (44)
   LOAD_DINO_P0_IF_IN_RANGE #SET_CARRY, _legs_and_floor__end_of_1st_scanline
+  ; LOAD_DINO_P0_IF_IN_RANGE leaves the sprite byte in both reg A and reg X
+  ; (via the LAX instruction). This allows A to be used freely for the
+  ; calculations below without first saving it to TEMP, saving 6 cycles.
+  ; The original sprite value is later restored with TXA.
 
   ; In case the dino was crouching, then restore P0 and M0 to standing mode
   lda #FLAG_DINO_CROUCHING  ; 2 (46)
@@ -26,7 +30,8 @@ legs_and_floor_kernel:
 
 _legs_and_floor__end_of_1st_scanline:
   sec         ; 2 (69)
-  sta WSYNC   ; 3 (72)
+  txa         ; 2 (71) - Restore DINO sprite back to reg A
+  sta WSYNC   ; 3 (74)
 
   ; 2nd scanline ========================================================
                 ; - (0)
@@ -110,7 +115,7 @@ _legs_2nd_scanline__end_of_scanline:
 _legs_3rd_scanline__dino_y_within_range: ; - (58)
   lda (PTR_DINO_OFFSET),y  ; 5 (63)
   sta HMP0                 ; 3 (66)
-  LAX (PTR_DINO_SPRITE),y  ; 5 (71)
+  lda (PTR_DINO_SPRITE),y  ; 5 (71)
 
 _legs_and_floor__end_of_3rd_scanline:
   sta WSYNC                ; 3 (74)
@@ -132,8 +137,8 @@ _legs_and_floor__end_of_3rd_scanline:
 ; │ PF2 │  ⌊38.6⌋ = 38  │    ⌈49.3⌉ = 50   │  ⌊65.3⌋ = 65  │    ¯\_(ツ)_/¯    │
 ; └─────┴───────────────┴──────────────────┴───────────────┴──────────────────┘
 ; *: All values represent CPU cycles
-  lda FLOOR_PF0         ; 3 (6)
-  sta PF0               ; 3 (9)
+  ldx FLOOR_PF0         ; 3 (6)
+  stx PF0               ; 3 (9)
   DRAW_DINO             ; 3 (12)
   lda FLOOR_PF1         ; 3 (15)
   sta PF1               ; 3 (18)
