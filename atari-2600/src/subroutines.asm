@@ -297,18 +297,31 @@ change_moon_phase subroutine
 ;  1 -> SCORE,1 and sprites at SCORE_DIGITS_23
 ;  2 -> SCORE,2 and sprites at SCORE_DIGITS_45
 build_score_digit_pair_sprite subroutine
-  lda SCORE,x ; Load the score digit pair and save in TEMP
+  ; Load the score digit pair and save in TEMP
+  lda SCORE,x 
   sta TEMP
 
-  lda #$0F    ; Isolate the digit on the lower nibble
+  ; Isolate the digit on the lower nibble
+  lda #$0F
   and TEMP    ; reg A should have the lower nibble at this point
+
+  ; Calculate the address of the digit's sprite
+  ; Digits are paired in ROM as 01, 23, 45, etc
+  ; so the base address of the digit sprite will be ⌊digit / 2⌋ * 6 then the
+  ; parity of the digit will be need to fetch either the lower or higher nibble
+  ;
+  ; The digit is now in reg A, calculate ⌊digit / 2⌋
+  asr   ; A <- ⌊digit / 2⌋
+
   ; The following will do: reg A <- reg A * 6
+  ; A * 6 + SCORE_DIGIT_0 will be the address of the digit pair sprite
+  ;
   ; A * 6 => A * 4 + A * 2 => (A << 2) + (A << 1)
-  asl          ; A <- A << 1
-  sta TEMP+1   ; TEMP+1 <- (A << 1)
-  asl          ; A <- A << 2
+  asl          ; A <- 2 * A
+  sta TEMP+1   ; TEMP+1 <- 2 * A
+  asl          ; A <- A * 2 (A = digit * 4)
   clc
-  adc TEMP+1   ; A <- (A << 2) + (A << 1)
+  adc TEMP+1   ; A <- 4 * A + 2 * A
   ; sta TEMP+1 ; Store the offset for later
 
   stx TEMP     ; Store a copy of reg X in TEMP so the register is free for use
