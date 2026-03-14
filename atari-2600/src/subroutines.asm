@@ -288,134 +288,236 @@ and #%00000010
 
   rts
 
-; reg Y identifies the pair of digits to output the sprite for:
-; SCORE
-;   99 99 09  (stored as little endian, represents 09 99 99)
-;    0  1  2 <- value of reg Y
+; =============================================================================
+; assemble_score_digit_pair_sprite
+; =============================================================================
 ;
-; This allows indexing into MAX_SCORE as well (as they are contigous in memory)
-;           MAX_SCORE
-;            |
-; SCORE      v
-;   99 99 09  99 99 09
-;    0  1  2   3  4  5  <- value of reg Y
+; Assembles a 2-digit score sprite in RAM from a packed (BCD) score byte stored
+; in the SCORE array. The resulting sprite is OR-ed scanline by scanline into
+; the in-memory score sprite buffer.
 ;
-; --------------------------
-; reg X has the address of the score sprite first scanline. For example:
+; Each byte in SCORE holds two packed decimal digits (one per nibble):
 ;
-;  Y=0 -> SCORE,0 corresponds to the sprite at X=SCORE_DIGITS_10
-;  Y=1 -> SCORE,1 corresponds to the sprite at X=SCORE_DIGITS_32
-;  Y=2 -> SCORE,2 corresponds to the sprite at X=SCORE_DIGITS_54
+;   SCORE layout (little-endian, represents the score "09 99 99"):
 ;
-; Thus the SCORE sprite has to be drawn as:
+;     99 99 09
+;      0  1  2  <- byte index (reg Y on entry)
 ;
-;   SCORE_DIGITS_45 SCORE_DIGITS_23 SCORE_DIGITS_01
+; The SCORE array is immediately followed by MAX_SCORE in memory, allowing
+; the same indexing scheme to be used for both arrays:
+;
+;     SCORE         MAX_SCORE
+;      |                |
+;      v                v
+;     99 99 09    99 99 09
+;      0  1  2     3  4  5  <- value of reg Y
+;
+; -----------------------------------------------------------------------------
+;
+; ⚠ IMPORTANT: The complete on-screen score sprite is rendered RTL as:
+;
+;   SCORE_DIGITS_54  SCORE_DIGITS_32  SCORE_DIGITS_10
+;
+; -----------------------------------------------------------------------------
+; Parameters:
+;
+;   reg Y  -- index into SCORE (or MAX_SCORE) identifying the digit pair byte
+;   reg X  -- base address of the first scanline of the target score sprite
+;             in the in-memory sprite buffer. The mapping is:
+;
+;               Y=0  ->  SCORE[0]  ->  X = SCORE_DIGITS_10
+;               Y=1  ->  SCORE[1]  ->  X = SCORE_DIGITS_32
+;               Y=2  ->  SCORE[2]  ->  X = SCORE_DIGITS_54
 ;
 assemble_score_digit_pair_sprite subroutine
+;
+; About TEMP usage:
+;
+;   TEMP+0  (.FLAGS / .INDEX_SCORE_DIGIT_PAIR)
+;             Dual-purpose byte. The lower 6 bits hold the raw reg Y value
+;             (the score byte index). The upper 2 bits carry processing flags:
+;               bit 7 -- "lower digit pending" flag (units digit)
+;               bit 6 -- digit parity flag (0=even digit, 1=odd digit)
+;
+;   TEMP+1  (.PTR_MEM_SCORE_SPRITE)
+;             Preserves the entry value of reg X (the base address of the
+;             in-memory score sprite param), so it can be restored when
+;             processing the second digit.
+;
+;   TEMP+2  (.TMP / .SCORE_SPRITE_SCANLINE_COUNTER)
+;             Dual-purpose byte. Used as a scratch register during the A*6
+;             address calculation, then repurposed as the scanline loop
+;             counter (initialised to 6) once that calculation is complete.
+;
+.FLAGS = TEMP                   ; \ The flags will be on the upper 2 bits
+.INDEX_SCORE_DIGIT_PAIR = TEMP  ; / while the index on the lower
+.PTR_MEM_SCORE_SPRITE = TEMP+1
+.TMP = TEMP+2
+.SCORE_SPRITE_SCANLINE_COUNTER = TEMP+2
+;
+;
   tya
-  ora #%10000000     ; Set the "is lower digit" flag, that is, the units digit
+  ora #%10000000            ; Set bit 7: marks the lower (units) digit for
+                            ; first-pass processing
 
-  ; Store the reg Y parameter + the "is lower digit" flag value in TEMP, and
-  ; the reg X parameter in TEMP+1
-  sta TEMP
-  stx TEMP+1
+  sta .INDEX_SCORE_DIGIT_PAIR
+  stx .PTR_MEM_SCORE_SPRITE
 
+; -----------------------------------------------------------------------------
+; .process_digit
+;
+; Isolates one digit from the SCORE byte identified by reg Y, determines its
+; parity, calculates the ROM address of its sprite, then copies 6 scanlines
+; into the in-memory sprite buffer.
+;
+; On entry: reg Y holds the score byte index (flags stripped).
+; -----------------------------------------------------------------------------
 .process_digit:
   ; Here, Y should have the score index (without any flags)
   ;         ↓
-  lda SCORE,y       ; Load the score digit pair from memory
-  bit TEMP          ; Test the "is lower digit" flag
+  lda SCORE,y               ; Load the (BCD) score digit pair from RAM
+  bit .FLAGS                ; Test bit 7: is the lower (units) digit pending?
   bpl .digit_in_upper_nibble
+
 .digit_in_lower_nibble:
-  ; Take the chance here to zero/clear the score memory sprite before
-  ; overriding it with the assembled digits sprite
+  ; The lower nibble holds the units digit. Before writing the assembled
+  ; sprite, the destination scanlines are zeroed so stale data is cleared.
   lda #0
   sta 0,x
 
-  lda SCORE,y       ; Reload the digit pair
+  lda SCORE,y              ; Reload the (BCD) digit pair from RAM
   jmp .isolate_digit
+
 .digit_in_upper_nibble:
-  lsr     ;
-  lsr     ; Move the upper nibble to the lower nibble
-  lsr     ; reg A >> 4
-  lsr     ;
+  ; The upper nibble holds the tens digit. Shift it down into the lower
+  ; nibble so the same isolation logic applies to both cases
+  lsr                      ;
+  lsr                      ; reg A >>= 4  (upper nibble -> lower nibble)
+  lsr                      ;
+  lsr                      ;
+
 .isolate_digit:
-  and #%00000111  ; Score digits are 3 bits wide
-  ; The digit is now isolated in reg A, check its parity
+  and #%00000111           ; Mask to 3 bits: score digits range 0-9, encoded
+                           ; in 3 bits within the nibble
+
+; -----------------------------------------------------------------------------
+; .check_digit_parity
+;
+; Determines whether the isolated digit is even or odd, and stores the result
+; in bit 6 of .FLAGS. This parity controls which nibble of the packed ROM
+; sprite byte is used: even digits occupy the upper nibble of their ROM pair,
+; odd digits occupy the lower nibble.
+;
+; The carry is cleared before the ROR sequence to ensure the parity bit lands
+; correctly at bit 6 after two right-rotates.
+; -----------------------------------------------------------------------------
 .check_digit_parity:
-  tay       ; Save the isolated digit in reg Y (the score index is gone now)
-  and #1    ; Parity check
-  ror       ; Place the parity result at the 6th bit and OR it with TEMP
-  ror
-  ora TEMP
-  sta TEMP  ; The digit parity flag is stored as the 6th bit in TEMP
-  tya       ; Restore the isolated digit back into reg A
+  tay                      ; Preserve the isolated digit in reg Y
+  clc                      ; Clear carry so ROR shifts in a 0 at bit 7
+  and #1                   ; Extract the parity bit into bit 0
+  ror                      ; Rotate bit 0 -> carry; 0 -> bit 7
+  ror                      ; Rotate carry -> bit 7; result: parity at bit 6
+  ora .FLAGS
+  sta .FLAGS               ; Bit 6 of .FLAGS now holds the digit parity
+  tya                      ; Restore the isolated digit into reg A
 
-  ; Calculate the address of the digit's sprite
-  ; Digits are paired in ROM as 01, 23, 45, etc
-  ; so the base address of the digit sprite will be ⌊digit / 2⌋ * 6 then the
-  ; parity of the digit (stored as the 6th bit flag in TEMP) will be need to 
-  ; fetch either the lower or higher nibble
-  ;
-  ; The digit is now in reg A, calculate ⌊digit / 2⌋
-  lsr   ; A <- ⌊digit / 2⌋
+; -----------------------------------------------------------------------------
+; ROM sprite address calculation
+;
+; Digit sprites are stored in ROM as consecutive pairs (01, 23, 45, ...).
+; Each pair occupies 6 bytes. The base address of the pair containing digit D
+; is computed as:
+;
+;   offset = ⌊D / 2⌋ * 6
+;
+; This is evaluated using only shifts and addition:
+;
+;   ⌊D/2⌋ * 6  =  ⌊D/2⌋ * 4  +  ⌊D/2⌋ * 2
+;              =  ⌊D/2⌋ << 2 +  ⌊D/2⌋ << 1
+;
+; The layout of a ROM digit pair is as follows (SCORE_DIGIT_01 shown):
+;
+;   SCORE_DIGIT_01:
+;                             /---\ lower nibble: odd digit  (1)
+;     .byte #%00100111  ;⏐  █  ███
+;     .byte #%01010010  ;⏐ █ █  █
+;     .byte #%01010010  ;⏐ █ █  █
+;     .byte #%01010010  ;⏐ █ █  █
+;     .byte #%01010110  ;⏐ █ █ ██
+;     .byte #%00100010  ;⏐  █   █
+;                        \---/ upper nibble: even digit (0)
+;
+; After the offset is computed, reg A holds the ROM index. .TMP is free.
+; -----------------------------------------------------------------------------
+  lsr                       ; reg A <- ⌊digit / 2⌋
 
-  ; The following will do: reg A <- reg A * 6
-  ; A * 6 + SCORE_DIGIT_0 will be the address of the digit pair sprite
-  ;
-  ; A * 6 => A * 4 + A * 2 => (A << 2) + (A << 1)
-  asl          ; A <- 2 * A
-  sta TEMP+2   ; TEMP+2 <- 2 * A
-  asl          ; A <- A * 2 (A = digit * 4)
+  asl                       ; reg A <- 2 * ⌊D/2⌋
+  sta .TMP                  ; .TMP  <- 2 * ⌊D/2⌋
+  asl                       ; reg A <- 4 * ⌊D/2⌋
   clc
-  adc TEMP+2   ; A <- 4 * A + 2 * A
+  adc .TMP                  ; reg A <- 6 * ⌊D/2⌋  [= ROM byte offset]
 
-  ; At this point reg A = ⌊digit / 2⌋ * 6, and TEMP+2 is free for use
-  ;
-  ; ============================================
-  ; IMPORTANT: TEMP+2 is free again!!
-  ; ============================================
-  ;
-  tay          ; Momentaneously store Y
-  lda #6       ; Number of score sprite scanlines
-  sta TEMP+2   ; TEMP+2 will hold the counter for the number of scanlines
-  tya
+  ; ===========================================================================
+  ; ⚠ IMPORTANT: .TMP is now free for reuse as .SCORE_SPRITE_SCANLINE_COUNTER
+  ; ===========================================================================
+  tay                       ; Temporarily park the ROM offset in reg Y
+  lda #6                    ; 6 scanlines per digit sprite
+  sta .SCORE_SPRITE_SCANLINE_COUNTER
+  tya                       ; Restore the ROM offset to reg A
 
+; -----------------------------------------------------------------------------
+; .copy_digit_sprite_scanline
+;
+; Copies 6 scanlines from the ROM digit sprite into the in-memory score sprite
+; buffer. On each iteration:
+;
+;   reg A  -- current ROM sprite byte (both nibbles)
+;   reg X  -- address of the current destination scanline in RAM
+;   reg Y  -- current ROM byte index (used for indexed ROM reads)
+;
+; The parity flag in bit 6 of TEMP selects which nibble of the ROM byte
+; contributes to the output. The "lower digit" flag in bit 7 of .FLAGS
+; determines whether the extracted nibble is positioned in the lower or upper
+; half of the destination byte before compositing.
+; -----------------------------------------------------------------------------
 .copy_digit_sprite_scanline:
-  tay          ; Use Y to index into ROM memory starting at SCORE_DIGIT_01
-  lda SCORE_DIGIT_01,y  ; reg A has the sprite scanline (both digits)
+  tay                       ; Load reg Y with the current ROM offset
+  lda SCORE_DIGIT_01,y      ; Fetch the packed sprite scanline (both digits)
 
-  ; Check the parity flag to find out whether the lower/upper part of the ROM
-  ; sprite should be used to compose with the in-memory score sprite
+  ; Select the nibble that corresponds to this digit's parity.
+  ; BVC branches when bit 6 of TEMP is clear, i.e. the digit is even
+  ; (even digits reside in the upper nibble of the ROM byte).
   bit TEMP
-  bcv .sprite_on_upper_nibble
+  bvc .sprite_on_upper_nibble
+
 .sprite_on_lower_nibble:
-  ; Remove the upper digit from the ROM sprite
-  ; For example:
+  ; The digit occupies the lower nibble of the ROM byte.
+  ; Mask out the upper nibble, leaving only the relevant pixels:
   ;
-  ;     █  ███                      .  ███
-  ;    █ █  █     After removing   . .  █ 
-  ;    █ █  █    the upper nibble  . .  █ 
-  ;    █ █  █         ---->        . .  █ 
-  ;    █ █ ██                      . . ██ 
-  ;     █   █                       .   █ 
+  ;     █  ███                       .  ███
+  ;    █ █  █     After masking     . .  █
+  ;    █ █  █    upper nibble  -->  . .  █
+  ;    █ █  █                       . .  █
+  ;    █ █ ██                       . . ██
+  ;     █   █                        .   █
   ;
   and #$0f
-  ; If the in-memory digit that needs to be assembled is the lower digit, then
-  ; jump straight into composing it. Otherwise, move to the upper nibble
-  bit TEMP
+
+  ; If the destination position is also the lower nibble (bit 7 set),
+  ; the sprite is already correctly positioned for compositing.
+  bit .FLAGS
   bmi .compose_digit_sprite
 
 .move_sprite_to_upper_nibble:
-  ; Moves the masked sprite to the upper nibble
-  ; For example:
+  ; The destination requires the upper nibble. Shift the masked sprite up:
   ;
   ;  |  .  ███|                    | ███    |
-  ;  | . .  █ |   After moving to  |  █     |
-  ;  | . .  █ |  the upper nibble  |  █     |
-  ;  | . .  █ |       ---->        |  █     |
+  ;  | . .  █ |   Shift to upper   |  █     |
+  ;  | . .  █ |   nibble      -->  |  █     |
+  ;  | . .  █ |                    |  █     |
   ;  | . . ██ |                    | ██     |
   ;  |  .   █ |                    |  █     |
+  ;
   asl
   asl
   asl
@@ -423,29 +525,30 @@ assemble_score_digit_pair_sprite subroutine
   jmp .compose_digit_sprite
 
 .sprite_on_upper_nibble:
-  ; Remove the lower digit from the ROM sprite
-  ; For example:
+  ; The digit occupies the upper nibble of the ROM byte.
+  ; Mask out the lower nibble, leaving only the relevant pixels:
   ;
-  ;     █  ███                       █  ...
-  ;    █ █  █     After removing    █ █  . 
-  ;    █ █  █    the upper nibble   █ █  . 
-  ;    █ █  █         ---->         █ █  . 
-  ;    █ █ ██                       █ █ .. 
-  ;     █   █                        █   . 
+  ;     █  ███                        █  ...
+  ;    █ █  █     After masking      █ █  .
+  ;    █ █  █    lower nibble  -->   █ █  .
+  ;    █ █  █                        █ █  .
+  ;    █ █ ██                        █ █ ..
+  ;     █   █                         █   .
   ;
   and #$f0
-  ; If the in-memory digit that needs to be assembled is the upper digit, then
-  ; jump straight into composing it. Otherwise, move to the lower nibble
-  bit TEMP
+
+  ; If the destination position is also the upper nibble (bit 7 clear),
+  ; the sprite is already correctly positioned for compositing.
+  bit .FLAGS
   bpl .compose_digit_sprite
+
 .move_sprite_to_lower_nibble:
-  ; Moves the masked sprite to the lower nibble
-  ; For example:
+  ; The destination requires the lower nibble. Shift the masked sprite down:
   ;
   ;  |  █  ...|                    |      █ |
-  ;  | █ █  . |   After moving to  |     █ █|
-  ;  | █ █  . |  the lower nibble  |     █ █|
-  ;  | █ █  . |       ---->        |     █ █|
+  ;  | █ █  . |   Shift to lower   |     █ █|
+  ;  | █ █  . |   nibble      -->  |     █ █|
+  ;  | █ █  . |                    |     █ █|
   ;  | █ █ .. |                    |     █ █|
   ;  |  █   . |                    |      █ |
   ;
@@ -455,18 +558,37 @@ assemble_score_digit_pair_sprite subroutine
   lsr
 
 .compose_digit_sprite:
+  ; At this point:
   ; reg A has the sprite ready to be OR-ed onto the in-memory score
   ; reg X has the address of the current in-memory score scanline
   ; reg Y has the index in ROM for the digits sprites
   ora 0,x
   sta 0,x
 
-  ; Move the in-memory score 
-  inx
-  iny
+  ; Advance both the in-memory score scanline and the rom sprite scanline
+  inx   ; Next score sprite scanline (in RAM)
+  iny   ; Next score sprite scanline (in ROM)
 
-  dec TEMP+2
+  dec .SCORE_SPRITE_SCANLINE_COUNTER
   bne .copy_digit_sprite_scanline
+  ;
+  ; Finished copying the score sprite scanlines. Now check if the upper digit
+  ; needs to be processed, if not, the subroutine is done
+  bit .FLAGS
+  bpl .finish
 
-  ; If the upper digit is still pending for processing, loop back
+.process_upper_digit:
+  ; The upper digit is still pending. Before looping back to .process_digit,
+  ; the following state must be restored:
+  ; * reg X must hold the base address of the in-memory score sprite
+  ; * reg Y must hold the score byte index, stripped of any flag bits
+  ldx .PTR_MEM_SCORE_SPRITE
+  ldy .INDEX_SCORE_DIGIT_PAIR
+  tya
+  and #%00111111            ; Strip the 2 upper flag bits
+  tay
+
+  jmp .process_digit
+
+.finish:
   rts
