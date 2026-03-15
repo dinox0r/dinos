@@ -859,3 +859,20 @@ sfx_update_playing subroutine
   sta SFX_TRACKER_1
 .return:
   rts
+
+; =============================================================================
+; increment_obstacle_speed
+; =============================================================================
+; Increments the speed of the obstacle by a given amount in reg A
+;
+; Parameters:
+;   reg A - how much to add to the obstacle speed
+;
+increment_obstacle_speed subroutine
+  clc
+  adc OBSTACLE_X_FRACT
+  sta OBSTACLE_X_FRACT
+  adc OBSTACLE_X_INT
+  sta OBSTACLE_X_INT
+.return:
+  rts

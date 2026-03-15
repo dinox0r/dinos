@@ -171,6 +171,22 @@ _increment_score:
 
   cld
 
+  ; Update the difficulty every time the score increments
+
+_update_difficulty:
+  lda OBSTACLE_VX_INT
+  bne _non_easy_difficulty_update
+__easy_difficulty_update:
+  lda #1
+  jsr increment_difficulty
+  jmp _end_update_difficulty
+
+__non_easy_difficulty_update:
+  ; reg A still has OBSTACLE_VX_INT
+  cmp #2
+
+_end_update_difficulty:
+
 _update_score_sprites:
   ; Update the score sprites, this will be done accross 6 frames to update 
   ; both the SCORE and MAX_SCORE sprites (even if the MAX_SCORES sprites are

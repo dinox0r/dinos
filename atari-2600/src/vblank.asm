@@ -331,8 +331,36 @@ update_obstacle:
 _update_obstacle_pos:
   ; update obstacle x
 
+  lda OBSTACLE_X_INT
+  ; A positive sign means the obstacle is on the visible portion of the screen
+  bpl __pos_x_onscreen
+__pos_x_offscreen:
+  ; A negative sign, however, means the obstacle is on offscreen on the rigth
+  ; side but still approaching the player
+  lda #1
+  ; This disables the 'lda #0' below by turning it into a harmless 'bit ...'
+  .byte $2C
+__pos_x_onscreen:
+  lda #0
+  sta TEMP
+
   UPDATE_X_POS OBSTACLE_X_INT, OBSTACLE_X_FRACT, OBSTACLE_VX_INT, OBSTACLE_VX_FRACT, #TREAT_SPEED_PARAMETER_AS_A_VARIABLE
 
+  lda OBSTACLE_X_INT
+  ; If the sign of the x hasn't changed, no need to do anything, continue
+  ; checking if the obstacle is duplicated
+  bpl __check_if_obstacle_is_duplicated
+
+__check_if_pos_is_offscreen:
+  lda TEMP
+  bne __check_if_obstacle_is_duplicated
+  ; But if the x position sign changed, then the obstacle is offscreen on the
+  ; left side of the player. Clamp the x position to 0 to avoid bugs
+  lda #0
+  sta OBSTACLE_X_INT
+  sta OBSTACLE_X_FRACT
+
+__check_if_obstacle_is_duplicated:
   lda #FLAG_DUPLICATED_OBSTACLE
   bit GAME_FLAGS
   beq _check_obstacle_pos
@@ -377,7 +405,7 @@ _check_if_duplication_can_be_enabled:
 _check_obstacle_pos:
   lda OBSTACLE_X_INT
   bne _update_obstacle_sprite
-
+_spawn_new_obstacle:
   jsr spawn_obstacle
 
 _update_obstacle_sprite:
