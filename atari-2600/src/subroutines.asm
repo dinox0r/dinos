@@ -288,3 +288,40 @@ change_moon_phase subroutine
   jsr set_sprite_data
 
   rts
+
+; reg X identifies the pair of digits to output the sprite for:
+;   09 99 99
+;    2  1  0 <- value of reg X
+;
+;  0 -> SCORE,0 and sprites at SCORE_DIGITS_01
+;  1 -> SCORE,1 and sprites at SCORE_DIGITS_23
+;  2 -> SCORE,2 and sprites at SCORE_DIGITS_45
+build_score_digit_pair_sprite subroutine
+  lda SCORE,x ; Load the score digit pair and save in TEMP
+  sta TEMP
+
+  lda #$0F    ; Isolate the digit on the lower nibble
+  and TEMP    ; reg A should have the lower nibble at this point
+  ; The following will do: reg A <- reg A * 6
+  ; A * 6 => A * 4 + A * 2 => (A << 2) + (A << 1)
+  asl          ; A <- A << 1
+  sta TEMP+1   ; TEMP+1 <- (A << 1)
+  asl          ; A <- A << 2
+  clc
+  adc TEMP+1   ; A <- (A << 2) + (A << 1)
+  ; sta TEMP+1 ; Store the offset for later
+
+  stx TEMP     ; Store a copy of reg X in TEMP so the register is free for use
+
+  tax          ; A * 6 is the offset to the sprite from SCORE_DIGIT_0
+  ldy #6       ; The digit is 6 lines height
+.copy_sprite_line:
+  lda SCORE_DIGIT_0,x   ; Sprite data
+  stx TEMP+2
+  ldx TEMP
+
+  inx
+  dey
+  bne .copy_sprite_line
+
+  rts

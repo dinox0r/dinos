@@ -113,26 +113,9 @@ GAME_OVER_TIMER              .byte   ; 1 byte   (64)
 SCORE                        .hex    000000   ; 3 bytes (67)
 MAX_SCORE                    .hex    000000   ; 3 bytes (70)
 
-SCORE_DIGITS_01_1            .byte   ; 1 byte   (71)
-SCORE_DIGITS_01_2            .byte   ; 1 byte   (72)
-SCORE_DIGITS_01_3            .byte   ; 1 byte   (73)
-SCORE_DIGITS_01_4            .byte   ; 1 byte   (74)
-SCORE_DIGITS_01_5            .byte   ; 1 byte   (75)
-SCORE_DIGITS_01_6            .byte   ; 1 byte   (76)
-
-SCORE_DIGITS_23_1            .byte   ; 1 byte   (77)
-SCORE_DIGITS_23_2            .byte   ; 1 byte   (78)
-SCORE_DIGITS_23_3            .byte   ; 1 byte   (79)
-SCORE_DIGITS_23_4            .byte   ; 1 byte   (80)
-SCORE_DIGITS_23_5            .byte   ; 1 byte   (81)
-SCORE_DIGITS_23_6            .byte   ; 1 byte   (82)
-
-SCORE_DIGITS_45_1            .byte   ; 1 byte   (83)
-SCORE_DIGITS_45_2            .byte   ; 1 byte   (84)
-SCORE_DIGITS_45_3            .byte   ; 1 byte   (85)
-SCORE_DIGITS_45_4            .byte   ; 1 byte   (86)
-SCORE_DIGITS_45_5            .byte   ; 1 byte   (87)
-SCORE_DIGITS_45_6            .byte   ; 1 byte   (88)
+SCORE_DIGITS_01              .hex    000000000000  ; 6 bytes (76)
+SCORE_DIGITS_23              .hex    000000000000  ; 6 bytes (82)
+SCORE_DIGITS_45              .hex    000000000000  ; 6 bytes (88)
 
 ; Sound
 SFX_TRACKER_1                .byte   ; 1 byte   (89)
@@ -140,7 +123,7 @@ SFX_TRACKER_2                .byte   ; 1 byte   (90)
 
 ; To save the state of a register temporarily during tight situations
 ; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames
-TEMP                         .word   ; 2 bytes  (92)
+TEMP                         .hex   000000     ; 3 bytes  (93)
 
 ; Alias for TEMP+1 used by the 'set_sprite_data' subroutine
 PARAM_SPRITE_Y = TEMP+1
