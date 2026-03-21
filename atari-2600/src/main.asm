@@ -54,19 +54,30 @@ BACKGROUND_COLOUR            .byte   ; 1 byte   (26)
 PTR_AFTER_PLAY_AREA_KERNEL   .word   ; 2 bytes  (28)
 
 ; Sky area
+;
+; These variables are layed out this way (array form) so they can be indexed
+; in a subroutine
 CLOUD_1_X                    .byte   ; 1 byte   (29)
 CLOUD_2_X                    .byte   ; 1 byte   (30)
 CLOUD_3_X                    .byte   ; 1 byte   (31)
 
 CLOUD_1_TOP_Y                .byte   ; 1 byte   (32)
+; Clouds 2 and 3 have "0" for Y coordinate, there is no enough room
+; to place them randomly on the vertical space of the sky
 
 CURRENT_CLOUD_X              .byte   ; 1 byte   (33)
 CURRENT_CLOUD_TOP_Y          .byte   ; 1 byte   (34)
 CLOUD_LAYER_SCANLINES        .byte   ; 1 byte   (35)
 SKY_FLAGS                    .byte   ; 1 byte   (36)
 
+; moon and star X's coordinates are also layed out in array form
 MOON_POS_X                   .byte   ; 1 byte   (37)
 STAR_POS_X                   .byte   ; 1 byte   (38)
+
+; In Splash Screen mode, this variable (STAR_POS_X) is used as the timer for
+; the dino blinking (during splash screen mode, there are no clouds so is safe
+; to repurpose it this way)
+SPLASH_SCREEN_DINO_BLINK_TIMER = STAR_POS_X
 
 STAR_POS_Y                   .byte   ; 1 byte   (39)
 PTR_STAR_SPRITE              .word   ; 2 bytes  (41)
@@ -99,43 +110,39 @@ RANDOM                       .byte   ; 1 byte   (63)
 GAME_OVER_TIMER              .byte   ; 1 byte   (64)
 
 ; Score
-SCORE_BYTE_1                 .byte   ; 1 byte   (65)
-SCORE_BYTE_2                 .byte   ; 1 byte   (66)
-SCORE_BYTE_3                 .byte   ; 1 byte   (67)
-MAX_SCORE_BYTE_1             .byte   ; 1 byte   (68)
-MAX_SCORE_BYTE_2             .byte   ; 1 byte   (69)
-MAX_SCORE_BYTE_3             .byte   ; 1 byte   (70)
+SCORE                        .hex    000000   ; 3 bytes (67)
+MAX_SCORE                    .hex    000000   ; 3 bytes (70)
 
 SCORE_DIGITS_01_1            .byte   ; 1 byte   (71)
-SCORE_DIGITS_01_2            .byte   ; 1 byte   (71)
-SCORE_DIGITS_01_3            .byte   ; 1 byte   (71)
-SCORE_DIGITS_01_4            .byte   ; 1 byte   (71)
-SCORE_DIGITS_01_5            .byte   ; 1 byte   (71)
-SCORE_DIGITS_01_6            .byte   ; 1 byte   (71)
+SCORE_DIGITS_01_2            .byte   ; 1 byte   (72)
+SCORE_DIGITS_01_3            .byte   ; 1 byte   (73)
+SCORE_DIGITS_01_4            .byte   ; 1 byte   (74)
+SCORE_DIGITS_01_5            .byte   ; 1 byte   (75)
+SCORE_DIGITS_01_6            .byte   ; 1 byte   (76)
 
-SCORE_DIGITS_23_1            .byte   ; 1 byte   (71)
-SCORE_DIGITS_23_2            .byte   ; 1 byte   (71)
-SCORE_DIGITS_23_3            .byte   ; 1 byte   (71)
-SCORE_DIGITS_23_4            .byte   ; 1 byte   (71)
-SCORE_DIGITS_23_5            .byte   ; 1 byte   (71)
-SCORE_DIGITS_23_6            .byte   ; 1 byte   (71)
+SCORE_DIGITS_23_1            .byte   ; 1 byte   (77)
+SCORE_DIGITS_23_2            .byte   ; 1 byte   (78)
+SCORE_DIGITS_23_3            .byte   ; 1 byte   (79)
+SCORE_DIGITS_23_4            .byte   ; 1 byte   (80)
+SCORE_DIGITS_23_5            .byte   ; 1 byte   (81)
+SCORE_DIGITS_23_6            .byte   ; 1 byte   (82)
 
-SCORE_DIGITS_45_1            .byte   ; 1 byte   (71)
-SCORE_DIGITS_45_2            .byte   ; 1 byte   (71)
-SCORE_DIGITS_45_3            .byte   ; 1 byte   (71)
-SCORE_DIGITS_45_4            .byte   ; 1 byte   (71)
-SCORE_DIGITS_45_5            .byte   ; 1 byte   (71)
-SCORE_DIGITS_45_6            .byte   ; 1 byte   (71)
+SCORE_DIGITS_45_1            .byte   ; 1 byte   (83)
+SCORE_DIGITS_45_2            .byte   ; 1 byte   (84)
+SCORE_DIGITS_45_3            .byte   ; 1 byte   (85)
+SCORE_DIGITS_45_4            .byte   ; 1 byte   (86)
+SCORE_DIGITS_45_5            .byte   ; 1 byte   (87)
+SCORE_DIGITS_45_6            .byte   ; 1 byte   (88)
 
 ; Sound
-SFX_TRACKER_1                .byte   ; 1 byte   (71)
-SFX_TRACKER_2                .byte   ; 1 byte   (72)
+SFX_TRACKER_1                .byte   ; 1 byte   (89)
+SFX_TRACKER_2                .byte   ; 1 byte   (90)
 
-; To save the state of a register temporarily during tight situations 
-; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames 
-TEMP                         .word   ; 2 bytes  (74) 
+; To save the state of a register temporarily during tight situations
+; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames
+TEMP                         .word   ; 2 bytes  (92)
 
-; Alias for TEMP+1 used by the 'set_sprite_data' subroutine 
+; Alias for TEMP+1 used by the 'set_sprite_data' subroutine
 PARAM_SPRITE_Y = TEMP+1
 
 ; This section is to include variables that share the same memory but are 
@@ -1131,7 +1138,41 @@ _already_game_over:
   dec GAME_OVER_TIMER
 
 _no_collision:
-  ; TODO: Increment the score
+_check_increment_score:
+  lda #%00001111
+  and FRAME_COUNT
+  bne _check_play_jumping_sound
+
+  ; if SCORE[0] == 99 and SCORE[1] == 99 and SCORE[2] == 99; then game over
+  ldx #3
+_check_if_score_is_999999:
+  lda SCORE-1,x
+  cmp #99
+  bne _increment_score
+  dex
+  bne _check_if_score_is_999999
+
+  ; if SCORE == 999999 then set game over
+  jmp _set_game_over
+
+
+_increment_score:
+  sed
+  clc
+
+  lda SCORE
+  adc #1
+  sta SCORE
+
+  lda SCORE+1
+  adc #0
+  sta SCORE+1
+
+  lda SCORE+2
+  adc #0
+  sta SCORE+2
+
+  cld
 
 _check_play_jumping_sound:
   lda #FLAG_DINO_JUMPING
