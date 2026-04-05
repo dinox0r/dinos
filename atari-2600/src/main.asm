@@ -123,7 +123,7 @@ SFX_TRACKER_2                .byte   ; 1 byte   (90)
 
 ; To save the state of a register temporarily during tight situations
 ; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames
-TEMP                         .hex   000000     ; 3 bytes  (93)
+TEMP                         .hex   00000000     ; 4 bytes  (94)
 
 ; Alias for TEMP+1 used by the 'set_sprite_data' subroutine
 PARAM_SPRITE_Y = TEMP+1
