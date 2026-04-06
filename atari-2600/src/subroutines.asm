@@ -292,18 +292,22 @@ change_moon_phase subroutine
 ; reg X identifies the pair of digits to output the sprite for:
 ;   09 99 99
 ;    2  1  0 <- value of reg X
+; reg Y points to the base address in memory of the score sprite
 ;
-;  0 -> SCORE,0 and sprites at SCORE_DIGITS_01
-;  1 -> SCORE,1 and sprites at SCORE_DIGITS_23
-;  2 -> SCORE,2 and sprites at SCORE_DIGITS_45
+;  0 -> SCORE,x=0 and y=SCORE_DIGITS_01
+;  1 -> SCORE,x=1 and y=SCORE_DIGITS_23
+;  2 -> SCORE,x=2 and y=SCORE_DIGITS_45
 build_score_digit_pair_sprite subroutine
-  ; Load the score digit pair and save in TEMP
-  lda SCORE,x 
+  ; Store each digit separetely
+  lda SCORE,x
   sta TEMP
 
   ; Isolate the digit on the lower nibble
   lda #$0F
   and TEMP    ; reg A should have the lower nibble at this point
+  sta TEMP
+
+
 
   ; Calculate the address of the digit's sprite
   ; Digits are paired in ROM as 01, 23, 45, etc
@@ -311,7 +315,7 @@ build_score_digit_pair_sprite subroutine
   ; parity of the digit will be need to fetch either the lower or higher nibble
   ;
   ; The digit is now in reg A, calculate ⌊digit / 2⌋
-  asr   ; A <- ⌊digit / 2⌋
+  lsr   ; A <- ⌊digit / 2⌋
 
   ; The following will do: reg A <- reg A * 6
   ; A * 6 + SCORE_DIGIT_0 will be the address of the digit pair sprite
@@ -329,7 +333,7 @@ build_score_digit_pair_sprite subroutine
   tax          ; A * 6 is the offset to the sprite from SCORE_DIGIT_0
   ldy #6       ; The digit is 6 lines height
 .copy_sprite_line:
-  lda SCORE_DIGIT_0,x   ; Sprite data
+  lda SCORE_DIGITS_01,x   ; Sprite data
   stx TEMP+2
   ldx TEMP
 
