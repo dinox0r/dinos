@@ -270,8 +270,7 @@ change_moon_phase subroutine
   sta SKY_FLAGS
 
 .update_moon_phase_sprite_data:
-
-  and #%00000010
+and #%00000010
   bne .full_moon_phase
 .waning_or_waxing_creasent_phase:
 
@@ -289,30 +288,74 @@ change_moon_phase subroutine
 
   rts
 
-; reg X identifies the pair of digits to output the sprite for:
-;   09 99 99
-;    2  1  0 <- value of reg X
-; reg Y points to the base address in memory of the score sprite
+; reg Y identifies the pair of digits to output the sprite for:
+; SCORE
+;   99 99 09  (stored as little endian, represents 09 99 99)
+;    0  1  2 <- value of reg Y
 ;
-;  0 -> SCORE,x=0 and y=SCORE_DIGITS_01
-;  1 -> SCORE,x=1 and y=SCORE_DIGITS_23
-;  2 -> SCORE,x=2 and y=SCORE_DIGITS_45
-build_score_digit_pair_sprite subroutine
-  ; Store each digit separetely
-  lda SCORE,x
+; This allows indexing into MAX_SCORE as well (as they are contigous in memory)
+;           MAX_SCORE
+;            |
+; SCORE      v
+;   99 99 09  99 99 09
+;    0  1  2   3  4  5  <- value of reg Y
+;
+; --------------------------
+; reg X has the address of the score sprite first scanline. For example:
+;
+;  Y=0 -> SCORE,0 corresponds to the sprite at X=SCORE_DIGITS_10
+;  Y=1 -> SCORE,1 corresponds to the sprite at X=SCORE_DIGITS_32
+;  Y=2 -> SCORE,2 corresponds to the sprite at X=SCORE_DIGITS_54
+;
+; Thus the SCORE sprite has to be drawn as:
+;
+;   SCORE_DIGITS_45 SCORE_DIGITS_23 SCORE_DIGITS_01
+;
+assemble_score_digit_pair_sprite subroutine
+  tya
+  ora #%10000000     ; Set the "is lower digit" flag, that is, the units digit
+
+  ; Store the reg Y parameter + the "is lower digit" flag value in TEMP, and
+  ; the reg X parameter in TEMP+1
   sta TEMP
+  stx TEMP+1
 
-  ; Isolate the digit on the lower nibble
-  lda #$0F
-  and TEMP    ; reg A should have the lower nibble at this point
-  sta TEMP
+.process_digit:
+  ; Here, Y should have the score index (without the "is lower digit" flag)
+  ;         ↓
+  lda SCORE,y       ; Load the score digit pair from memory
+  bit TEMP          ; Test the "is lower digit" flag
+  bpl .digit_in_upper_nibble
+.digit_in_lower_nibble:
+  ; Take the chance here to zero/clear the score memory sprite before
+  ; overriding it with the assembled digits sprite
+  lda #0
+  sta 0,x
 
-
+  lda SCORE,y       ; Reload the digit pair
+  jmp .isolate_digit
+.digit_in_upper_nibble:
+  lsr     ;
+  lsr     ; Move the upper nibble to the lower nibble
+  lsr     ; reg A >> 4
+  lsr     ;
+.isolate_digit:
+  and #%00000111  ; Score digits are 3 bits wide
+  ; The digit is now isolated in reg A, check its parity
+.check_digit_parity:
+  tay       ; Save the isolated digit in reg Y (the score index is gone now)
+  and #1    ; Parity check
+  ror       ; Place the parity result at the 6th bit and OR it with TEMP
+  ror
+  ora TEMP
+  sta TEMP  ; The digit parity flag is stored as the 6th bit in TEMP
+  tya       ; Restore the isolated digit back into reg A
 
   ; Calculate the address of the digit's sprite
   ; Digits are paired in ROM as 01, 23, 45, etc
   ; so the base address of the digit sprite will be ⌊digit / 2⌋ * 6 then the
-  ; parity of the digit will be need to fetch either the lower or higher nibble
+  ; parity of the digit (stored as the 6th bit flag in TEMP) will be need to 
+  ; fetch either the lower or higher nibble
   ;
   ; The digit is now in reg A, calculate ⌊digit / 2⌋
   lsr   ; A <- ⌊digit / 2⌋
@@ -322,23 +365,84 @@ build_score_digit_pair_sprite subroutine
   ;
   ; A * 6 => A * 4 + A * 2 => (A << 2) + (A << 1)
   asl          ; A <- 2 * A
-  sta TEMP+1   ; TEMP+1 <- 2 * A
+  sta TEMP+2   ; TEMP+2 <- 2 * A
   asl          ; A <- A * 2 (A = digit * 4)
   clc
-  adc TEMP+1   ; A <- 4 * A + 2 * A
-  ; sta TEMP+1 ; Store the offset for later
+  adc TEMP+2   ; A <- 4 * A + 2 * A
 
-  stx TEMP     ; Store a copy of reg X in TEMP so the register is free for use
+  ; At this point reg A = ⌊digit / 2⌋ * 6, and TEMP+2 is free for use
+.copy_digit_sprite_scanline:
+  tay          ; Use Y to index into ROM memory starting at SCORE_DIGIT_01
+  lda SCORE_DIGIT_01,y  ; reg A has the sprite scanline (both digits)
 
-  tax          ; A * 6 is the offset to the sprite from SCORE_DIGIT_0
-  ldy #6       ; The digit is 6 lines height
-.copy_sprite_line:
-  lda SCORE_DIGITS_01,x   ; Sprite data
-  stx TEMP+2
-  ldx TEMP
+  ; Check the parity flag to find out whether the lower/upper part of the ROM
+  ; sprite should be used to compose with the in-memory score sprite
+  bit TEMP
+  bcv .sprite_on_upper_nibble
+.sprite_on_lower_nibble:
+  ; Remove the upper digit from the ROM sprite
+  ; For example:
+  ;
+  ;     █  ███                      .  ███
+  ;    █ █  █     After removing   . .  █ 
+  ;    █ █  █    the upper nibble  . .  █ 
+  ;    █ █  █         ---->        . .  █ 
+  ;    █ █ ██                      . . ██ 
+  ;     █   █                       .   █ 
+  ;
+  and #$0f
+  ; If the in-memory digit that needs to be assembled is the lower digit, then
+  ; jump straight into composing it. Otherwise, move to the upper nibble
+  bit TEMP
+  bmi .compose_digit_sprite
 
-  inx
-  dey
-  bne .copy_sprite_line
+.move_sprite_to_upper_nibble:
+  ; Moves the masked sprite to the upper nibble
+  ; For example:
+  ;
+  ;  |  .  ███|                    | ███    |
+  ;  | . .  █ |   After moving to  |  █     |
+  ;  | . .  █ |  the upper nibble  |  █     |
+  ;  | . .  █ |       ---->        |  █     |
+  ;  | . . ██ |                    | ██     |
+  ;  |  .   █ |                    |  █     |
+  asl
+  asl
+  asl
+  asl
+  jmp .compose_digit_sprite
 
+.sprite_on_upper_nibble:
+  ; Remove the lower digit from the ROM sprite
+  ; For example:
+  ;
+  ;     █  ███                       █  ...
+  ;    █ █  █     After removing    █ █  . 
+  ;    █ █  █    the upper nibble   █ █  . 
+  ;    █ █  █         ---->         █ █  . 
+  ;    █ █ ██                       █ █ .. 
+  ;     █   █                        █   . 
+  ;
+  and #$f0
+  ; If the in-memory digit that needs to be assembed is the upper digit, then
+  ; jump straight into composing it. Otherwise, move to the lower nibble
+  bit TEMP
+  bpl .compose_digit_sprite
+.move_sprite_to_lower_nibble:
+  ; Moves the masked sprite to the lower nibble
+  ; For example:
+  ;
+  ;  |  █  ...|                    |      █ |
+  ;  | █ █  . |   After moving to  |     █ █|
+  ;  | █ █  . |  the lower nibble  |     █ █|
+  ;  | █ █  . |       ---->        |     █ █|
+  ;  | █ █ .. |                    |     █ █|
+  ;  |  █   . |                    |      █ |
+  ;
+  lsr
+  lsr
+  lsr
+  lsr
+
+.compose_digit_sprite:
   rts

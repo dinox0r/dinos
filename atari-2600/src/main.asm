@@ -110,12 +110,12 @@ RANDOM                       .byte   ; 1 byte   (63)
 GAME_OVER_TIMER              .byte   ; 1 byte   (64)
 
 ; Score
-SCORE                        .hex    000000   ; 3 bytes (67)
-MAX_SCORE                    .hex    000000   ; 3 bytes (70)
+SCORE                        .hex    000000        ; 3 bytes (67)
+MAX_SCORE                    .hex    000000        ; 3 bytes (70)
 
-SCORE_DIGITS_01              .hex    000000000000  ; 6 bytes (76)
-SCORE_DIGITS_23              .hex    000000000000  ; 6 bytes (82)
-SCORE_DIGITS_45              .hex    000000000000  ; 6 bytes (88)
+SCORE_DIGITS_10              .hex    000000000000  ; 6 bytes (76)
+SCORE_DIGITS_32              .hex    000000000000  ; 6 bytes (82)
+SCORE_DIGITS_54              .hex    000000000000  ; 6 bytes (88)
 
 ; Sound
 SFX_TRACKER_1                .byte   ; 1 byte   (89)
