@@ -321,7 +321,7 @@ assemble_score_digit_pair_sprite subroutine
   stx TEMP+1
 
 .process_digit:
-  ; Here, Y should have the score index (without the "is lower digit" flag)
+  ; Here, Y should have the score index (without any flags)
   ;         ↓
   lda SCORE,y       ; Load the score digit pair from memory
   bit TEMP          ; Test the "is lower digit" flag
@@ -371,6 +371,16 @@ assemble_score_digit_pair_sprite subroutine
   adc TEMP+2   ; A <- 4 * A + 2 * A
 
   ; At this point reg A = ⌊digit / 2⌋ * 6, and TEMP+2 is free for use
+  ;
+  ; ============================================
+  ; IMPORTANT: TEMP+2 is free again!!
+  ; ============================================
+  ;
+  tay          ; Momentaneously store Y
+  lda #6       ; Number of score sprite scanlines
+  sta TEMP+2   ; TEMP+2 will hold the counter for the number of scanlines
+  tya
+
 .copy_digit_sprite_scanline:
   tay          ; Use Y to index into ROM memory starting at SCORE_DIGIT_01
   lda SCORE_DIGIT_01,y  ; reg A has the sprite scanline (both digits)
@@ -424,7 +434,7 @@ assemble_score_digit_pair_sprite subroutine
   ;     █   █                        █   . 
   ;
   and #$f0
-  ; If the in-memory digit that needs to be assembed is the upper digit, then
+  ; If the in-memory digit that needs to be assembled is the upper digit, then
   ; jump straight into composing it. Otherwise, move to the lower nibble
   bit TEMP
   bpl .compose_digit_sprite
@@ -445,4 +455,18 @@ assemble_score_digit_pair_sprite subroutine
   lsr
 
 .compose_digit_sprite:
+  ; reg A has the sprite ready to be OR-ed onto the in-memory score
+  ; reg X has the address of the current in-memory score scanline
+  ; reg Y has the index in ROM for the digits sprites
+  ora 0,x
+  sta 0,x
+
+  ; Move the in-memory score 
+  inx
+  iny
+
+  dec TEMP+2
+  bne .copy_digit_sprite_scanline
+
+  ; If the upper digit is still pending for processing, loop back
   rts
