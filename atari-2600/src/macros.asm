@@ -1,6 +1,19 @@
-  ; Paints N scanlines with the given background colour, used to draw
-  ; placeholder areas on the screen
-  ; --------------------------------------------------------------------
+  ; =============================================================================
+  ; DEBUG_SUB_KERNEL
+  ; =============================================================================
+  ;
+  ; Paints N scanlines using BACKGROUND_COLOUR, used to mark placeholder regions
+  ; on screen during development.
+  ;
+  ; ⚠ NOTE: Parameter {1} (.BGCOLOR) is declared but unused — BACKGROUND_COLOUR
+  ;         is always read from RAM instead.
+  ;
+  ; Parameters:
+  ;   {1} -- background colour (declared but unused)
+  ;   {2} -- number of scanlines to paint
+  ;
+  ; Cycles: varies
+  ; =============================================================================
   MACRO DEBUG_SUB_KERNEL
 .BGCOLOR SET {1}
 .KERNEL_LINES SET {2}
@@ -14,6 +27,16 @@
     bne .loop
   ENDM
 
+  ; =============================================================================
+  ; INCLUDE_AND_LOG_SIZE
+  ; =============================================================================
+  ;
+  ; Includes a source file and logs its ROM start address, end address, and byte
+  ; count to the assembler output. Build-time utility — generates no runtime code.
+  ;
+  ; Parameters:
+  ;   {1} -- path to the source file to include
+  ; =============================================================================
   MACRO INCLUDE_AND_LOG_SIZE
   ECHO "---------------------------------------------------------"
 ROM_START SET *
@@ -25,9 +48,20 @@ ROM_START SET *
   ECHO "Total:", [.SIZE]d, "bytes"
   ENDM
 
-  ; Loads a 16 bit value from ROM into 2 consecutive bytes in zero page RAM
-  ; --------------------------------------------------------------------
-  MACRO LOAD_ADDRESS_TO_PTR  ; 12 cycles
+  ; =============================================================================
+  ; LOAD_ADDRESS_TO_PTR
+  ; =============================================================================
+  ;
+  ; Loads a 16-bit ROM address into two consecutive zero-page bytes for use as
+  ; an indirect pointer.
+  ;
+  ; Parameters:
+  ;   {1} -- ROM address to load
+  ;   {2} -- zero-page destination (low byte; high byte written to {2}+1)
+  ;
+  ; Cycles: 12
+  ; =============================================================================
+  MACRO LOAD_ADDRESS_TO_PTR
 .ADDRESS SET {1}
 .POINTER SET {2}
     lda #<.ADDRESS    ; 3 (3)
@@ -36,8 +70,18 @@ ROM_START SET *
     sta .POINTER+1    ; 3 (12)
   ENDM
 
-  ; Insert N nop operations
-  ; --------------------------------------------------------------------
+  ; =============================================================================
+  ; INSERT_NOPS
+  ; =============================================================================
+  ;
+  ; Inserts N NOP instructions inline for cycle-accurate timing padding.
+  ; Each NOP costs 2 cycles and 1 ROM byte.
+  ;
+  ; Parameters:
+  ;   {1} -- number of NOPs to insert
+  ;
+  ; Cycles: {1} * 2
+  ; =============================================================================
   MACRO INSERT_NOPS
 .NUM_NOPS SET {1}
     REPEAT .NUM_NOPS
@@ -45,10 +89,23 @@ ROM_START SET *
     REPEND
   ENDM
 
+  ; =============================================================================
+  ; CHECK_Y_COORD_WITHIN_RANGE
+  ; =============================================================================
   ;
-  ; TODO
-  ; --------------------------------------------------------------------
-  MACRO CHECK_Y_COORD_WITHIN_RANGE   ; 12 cycles when y within range, else 18
+  ; Tests whether the current scanline (reg Y) falls within the vertical range of
+  ; a sprite, defined as [.VARIABLE, .VARIABLE + .RANGE_SIZE). If in range,
+  ; branches to {3}. If out of range, clears reg A and reg X and jumps to {4}.
+  ;
+  ; Parameters:
+  ;   {1} -- zero-page variable holding the sprite's top Y coordinate
+  ;   {2} -- sprite height in scanlines
+  ;   {3} -- label to branch to when the scanline is within range
+  ;   {4} -- label to jump to when the scanline is out of range
+  ;
+  ; Cycles: 12 (in range) / 18 (out of range)
+  ; =============================================================================
+  MACRO CHECK_Y_COORD_WITHIN_RANGE
 .VARIABLE SET {1}
 .RANGE_SIZE SET {2}
 .TARGET_BRANCH SET {3}
@@ -64,33 +121,44 @@ ROM_START SET *
     jmp .END_OF_SCANLINE_BRANCH ; 3 (18)
   ENDM
 
-  ;----------------------------------------------------------------------------
-  ; Macro LOAD_DINO_GRAPHICS_IF_IN_RANGE (46 cycles, 44 if carry is ignored)
+  ; =============================================================================
+  ; LOAD_DINO_GRAPHICS_IF_IN_RANGE
+  ; =============================================================================
   ;
-  ; Checks if the current Y position (scanline) falls within the dino's
-  ; vertical range. If so, loads the dino sprite P0 and missile 0
-  ; data for the next scanline.
+  ; Checks whether the current scanline (reg Y) falls within the dino's vertical
+  ; range. If so, loads the dino sprite (P0) and missile 0 (M0) configuration
+  ; for the next scanline. If not, clears reg A, reg X, and ENAM0, then jumps
+  ; to {2}.
   ;
   ; Behavior:
   ; - If the scanline is within the dino's range:
-  ;     - Load obstacle sprite data into A (and X).
-  ;     - Load obstacle missile 0 configuration into A.
-  ;     - Setup fine motion for M0 (HMM0) and prepare graphics for drawing.
-  ; - If the scanline is outside the obstacle's range:
-  ;     - Clear A and X.
-  ;     - Jump to a user-provided label to continue execution.
+  ;     - Load dino sprite data into reg A.
+  ;     - Load M0 configuration and write fine motion (HMM0).
+  ;     - Write NUSIZ0 and ENAM0.
+  ;     - Leave dino graphics in reg A, ready to be latched with 'sta GRP0'
+  ;       on the next scanline.
+  ; - If the scanline is outside the dino's range:
+  ;     - Clear reg A, reg X, and ENAM0.
+  ;     - Jump to {2}.
   ;
-  ; Missile data uses the following encoding:
+  ; M0 data byte encoding:
   ;     bit index: 7 6 5 4 3 2 1 0
   ;                \_____/ \_/ ↑
   ;                 HMM0    │  │
   ;                         │  └─ ENAM0
-  ;                      NUSIZ0 (needs to be shifted left twice)
+  ;                      NUSIZ0 (shifted left twice before writing to NUSIZ0)
+  ;
+  ; ⚠ NOTE: Assumes 24+ cycles have elapsed since the last HMOVE — required for
+  ;         safe writes to HMMx registers.
   ;
   ; Parameters:
-  ;   {1} = Label to jump to when scanline is outside obstacle range
-  ;----------------------------------------------------------------------------
-  MACRO LOAD_DINO_GRAPHICS_IF_IN_RANGE ; (46 cycles, 44 if carry is ignored)
+  ;   {1} -- 1 to insert SEC before SBC (safe subtraction); 0 to skip and save
+  ;          2 cycles if carry is already set from a prior operation
+  ;   {2} -- label to jump to when the scanline is outside the dino's range
+  ;
+  ; Cycles: 46 (with SEC) / 44 (without SEC)
+  ; =============================================================================
+  MACRO LOAD_DINO_GRAPHICS_IF_IN_RANGE
 .SET_CARRY_BEFORE_SUBTRACTION SET {1}
 .TARGET_BRANCH_WHEN_FINISHED SET {2}
     ; Calculate: (current Y - dino Y) + dino height
@@ -120,7 +188,7 @@ ROM_START SET *
     jmp .TARGET_BRANCH_WHEN_FINISHED  ; 3 (24)
 
 .dino_y_within_range:         ; - (15)
-    ; Betwee this macro's call and execution reaching this point, it
+    ; Between this macro's call and execution reaching this point, it
     ; is assumed that 24+ CPU cycles have passed since the last HMOVE,
     ; meaning it is safe to modify HMMx registers without triggering unwanted
     ; shifts.  First, we use HMCLR to reset HMP1 and HMM1. It also clears all
@@ -150,25 +218,30 @@ ROM_START SET *
     lda (PTR_DINO_SPRITE),y   ; 5 (46)
   ENDM
 
-  ;----------------------------------------------------------------------------
-  ; Macro LOAD_DINO_P0_IF_IN_RANGE (28 cycles, 26 if carry is ignored)
+  ; =============================================================================
+  ; LOAD_DINO_P0_IF_IN_RANGE
+  ; =============================================================================
   ;
-  ; Checks if the current scanline (Y) is within the dino's vertical range.
-  ; If so, loads sprite and position data for Player 0 (P0) to draw the dino.
-  ; This version ignores the missile and focuses only on sprite setup.
+  ; Checks whether the current scanline (reg Y) falls within the dino's vertical
+  ; range. If so, loads the P0 sprite graphics and sets horizontal fine motion
+  ; (HMP0) for the next scanline. Unlike LOAD_DINO_GRAPHICS_IF_IN_RANGE, this
+  ; version does not configure the missile (M0).
+  ;
+  ; Result:
+  ;   reg A, reg X -- dino sprite graphics byte (in range), or both zeroed
+  ;                   (out of range)
+  ;
+  ; ⚠ NOTE: Assumes 24+ cycles have elapsed since the last HMOVE — required for
+  ;         safe writes to HMMx registers.
   ;
   ; Parameters:
-  ;   {1} = Label to jump to if scanline is outside the dino's visible Y range.
-  ;   {2} = Set to 1 to insert 'SEC' before SBC (for safe subtraction);
-  ;         Set to 0 to skip it and save 2 cycles if carry is already set.
+  ;   {1} -- 1 to insert SEC before SBC (safe subtraction); 0 to skip and save
+  ;          2 cycles if carry is already set from a prior operation
+  ;   {2} -- label to jump to when the scanline is outside the dino's range
   ;
-  ; Notes:
-  ; - Assumes 24+ cycles have passed since HMOVE when called (safe to
-  ;   write HMMx).
-  ; - Register A and X will hold the P0 graphics data afterward
-  ;
-  ;----------------------------------------------------------------------------
-  MACRO LOAD_DINO_P0_IF_IN_RANGE ; (28, 26 if carry is ignored)
+  ; Cycles: 28 (with SEC) / 26 (without SEC)
+  ; =============================================================================
+  MACRO LOAD_DINO_P0_IF_IN_RANGE
 .SET_CARRY_BEFORE_SUBTRACTION SET {1}
 .TARGET_BRANCH_WHEN_FINISHED SET {2}
     ; Calculate: (Y - dino Y) + dino height
@@ -218,32 +291,43 @@ ROM_START SET *
     LAX (PTR_DINO_SPRITE),y          ; 5 (28)
   ENDM
 
-; -------------------------------------------------------------------------
-; Macro LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE (29 cycles, 27 if carry is ignored)
-;
-; Checks if the current Y position (scanline) falls within the obstacle's
-; vertical range. If so, loads the corresponding obstacle sprite and missile 1
-; data for the next scanline.
-;
-; Behavior:
-; - If the scanline is within the obstacle's range:
-;     - Load obstacle sprite data into A (and X).
-;     - Load obstacle missile 1 configuration into A.
-;     - Setup fine motion for M1 (HMM1) and prepare graphics for drawing.
-; - If the scanline is outside the obstacle's range:
-;     - Clear A and X.
-;     - Jump to a user-provided label to continue execution.
-;
-; Ball data uses the same encoding format as the dino missile:
-;     bit index: 7 6 5 4 3 2 1 0
-;                \_____/ \_/ ↑
-;                 HMM1    │  │
-;                         │  └─ ENAM1
-;                      NUSIZ1 (needs to be shifted left twice)
-;
-; Parameters:
-;   {1} = Label to jump to when scanline is outside obstacle range
-  MACRO LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE ; (29, 27 if carry is ignored)
+  ; =============================================================================
+  ; LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE
+  ; =============================================================================
+  ;
+  ; Checks whether the current scanline (reg Y) falls within the obstacle's
+  ; vertical range. If so, loads the obstacle sprite (GRP1) and missile 1 (M1)
+  ; configuration for the next scanline. If not, clears reg A, reg X, and
+  ; strobes HMCLR, then jumps to {2}.
+  ;
+  ; Behavior:
+  ; - If the scanline is within the obstacle's range:
+  ;     - Load obstacle sprite data into reg X (via LAX).
+  ;     - Load M1 configuration into reg A.
+  ;     - Strobe HMCLR to clear all fine offsets, then write HMM1.
+  ; - If the scanline is outside the obstacle's range:
+  ;     - Clear reg A and reg X.
+  ;     - Strobe HMCLR.
+  ;     - Jump to {2}.
+  ;
+  ; M1 data byte encoding:
+  ;     bit index: 7 6 5 4 3 2 1 0
+  ;                \_____/ \_/ ↑
+  ;                 HMM1    │  │
+  ;                         │  └─ ENAM1
+  ;                      NUSIZ1 (shifted left twice before writing to NUSIZ1)
+  ;
+  ; ⚠ NOTE: Assumes 24+ cycles have elapsed since the last HMOVE — required for
+  ;         safe writes to HMMx registers.
+  ;
+  ; Parameters:
+  ;   {1} -- 1 to insert SEC before SBC (safe subtraction); 0 to skip and save
+  ;          2 cycles if carry is already set from a prior operation
+  ;   {2} -- label to jump to when the scanline is outside the obstacle's range
+  ;
+  ; Cycles: 29 (with SEC) / 27 (without SEC)
+  ; =============================================================================
+  MACRO LOAD_OBSTACLE_GRAPHICS_IF_IN_RANGE
 .SET_CARRY_BEFORE_SUBTRACTION SET {1}
 .TARGET_BRANCH_WHEN_FINISHED SET {2}
     ; Calculate: (current Y - obstacle Y) + obstacle height
@@ -304,57 +388,65 @@ ROM_START SET *
     sta HMM1                             ; 3 (29)
   ENDM
 
-  ; -------------------------------------------------------------------------
-  ; Macro CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY (7 cycles)
-  ; -------------------------------------------------------------------------
+  ; =============================================================================
+  ; CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY
+  ; =============================================================================
   ;
-  ; Same as CHECK_Y_WITHIN_OBSTACLE but assumes carry is set
-  ; --------------------------------------------------------------------
-  MACRO CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY       ; 7 cycles
+  ; Computes (Y − OBSTACLE_Y) + OBSTACLE_HEIGHT without inserting SEC first.
+  ; Carry set after the addition indicates the current scanline is within the
+  ; obstacle's vertical range. Does not branch — caller must test carry.
+  ;
+  ; Assumes carry is already set before the call (from a prior SEC or operation).
+  ;
+  ; Result:
+  ;   reg A -- (Y - OBSTACLE_Y) + OBSTACLE_HEIGHT
+  ;   carry -- set if scanline is within range, clear otherwise
+  ;
+  ; Cycles: 7
+  ; =============================================================================
+  MACRO CHECK_Y_WITHIN_OBSTACLE_IGNORING_CARRY
     tya                   ; 2 (2) - A = current scanline (Y)
-    sbc OBSTACLE_Y        ; 3 (5) - A = X - DINO_TOP_Y_INT
+    sbc OBSTACLE_Y        ; 3 (5) - A = Y - OBSTACLE_Y
     adc #OBSTACLE_HEIGHT  ; 2 (7)
   ENDM
 
-  ; -------------------------------------------------------------------------
-  ; Macro DRAW_DIN0 (3 cycles)
-  ; -------------------------------------------------------------------------
-  MACRO DRAW_DINO ; 3 cycles
+  ; =============================================================================
+  ; DRAW_DINO
+  ; =============================================================================
+  ;
+  ; Latches the dino sprite graphics byte into GRP0. Reg A must hold the sprite
+  ; row for the current scanline before invoking this macro.
+  ;
+  ; Cycles: 3
+  ; =============================================================================
+  MACRO DRAW_DINO
     sta GRP0      ; 3 (3)
   ENDM
 
-  ; -------------------------------------------------------------------------
-  ; Macro DRAW_OBSTACLE (16 cycles)
+  ; =============================================================================
+  ; DRAW_OBSTACLE
+  ; =============================================================================
   ;
-  ; Draws a horizontal obstacle using the missile 1 object (ENAM1) and GRP1
-  ; sprite graphics. The macro assumes that a copy of the obstacle
-  ; configuration (HMM1 + NUSIZ1 + ENAM1) has already been shifted 2 bits to
-  ; the left and is currently in the A register. The X register contains the
-  ; obstacle sprite.
+  ; Draws the obstacle for the current scanline using GRP1 (sprite) and M1
+  ; (missile). Expects the obstacle configuration byte already shifted left by
+  ; 2 bits in reg A, and the sprite graphics byte in reg X.
   ;
-  ; Inputs:
-  ;   A - Obstacle data byte (HMM1 + NUSIZ1 + ENAM1), shifted left by 2 bits.
-  ;       Bit layout in memory before shifting:
+  ; Parameters:
+  ;   reg A -- obstacle config byte (HMM1 | NUSIZ1 | ENAM1), shifted left 2 bits
+  ;   reg X -- obstacle sprite graphics byte for the current scanline
   ;
+  ; Config byte encoding (before shifting):
   ;       bit index: 7 6 5 4 3 2 1 0
   ;                  \_____/ \_/ ↑
   ;                   HMM1    │  │
   ;                           │  └── ENAM1
-  ;                        NUSIZ1 ←─ will be shifted to the left twice
+  ;                        NUSIZ1 (shifted left twice before writing to NUSIZ1)
   ;
-  ;       After the left shift by 2 reg A will hold:
+  ; ⚠ NOTE: This macro must be invoked as the first instruction of the scanline.
   ;
-  ;       bit index: 7 6 5 4 3 2 1 0
-  ;                  __/ \_/ ↑
-  ;                HMM1   │  │
-  ;                       │  └── ENAM1
-  ;                    NUSIZ1
-  ;
-  ;   X - Obstacle sprite graphics, to be written to GRP1.
-  ;
-  ; *: It is assumed this macro will be invoked first thing in the scanline
-  ;------------------------------------------------------------------------------
-  MACRO DRAW_OBSTACLE ; 16 cycles
+  ; Cycles: 16
+  ; =============================================================================
+  MACRO DRAW_OBSTACLE
     stx GRP1          ; 3 (3)
     sta ENAM1         ; 3 (6) - Enable/disable M1 first
     asl               ; 2 (8)
@@ -368,22 +460,71 @@ ROM_START SET *
     sta NUSIZ1        ; 3 (16)
   ENDM
 
+  ; =============================================================================
+  ; MULTIPLY_A_BY_4
+  ; =============================================================================
+  ;
+  ; Multiplies reg A by 4 in place via two left shifts.
+  ;
+  ; Cycles: 4
+  ; =============================================================================
   MACRO MULTIPLY_A_BY_4
     asl
     asl
   ENDM
 
+  ; =============================================================================
+  ; DIVIDE_A_BY_4
+  ; =============================================================================
+  ;
+  ; Divides reg A by 4 (integer division) in place via two right shifts.
+  ;
+  ; Cycles: 4
+  ; =============================================================================
   MACRO DIVIDE_A_BY_4
     lsr
     lsr
   ENDM
 
+  ; =============================================================================
+  ; SFX_INIT
+  ; =============================================================================
+  ;
+  ; Initialises SFX_TRACKER_1 to start playback from the first note. Sets the
+  ; duration counter to 1 and the note index to 0 (packed value: $08).
+  ;
+  ; Side effects:
+  ;   - writes SFX_TRACKER_1
+  ;   - clobbers reg A
+  ;
+  ; Cycles: 5
+  ; =============================================================================
   MACRO SFX_INIT
-    ; Load the duration of 1 for the first note
     lda #%00001000
     sta SFX_TRACKER_1
   ENDM
 
+  ; =============================================================================
+  ; SFX_UPDATE_PLAYING
+  ; =============================================================================
+  ;
+  ; Advances mono SFX playback by one frame. Each call either continues the
+  ; current note or advances to the next one. A note with duration 0 signals
+  ; end-of-sequence: the channel is silenced and the tracker is reset.
+  ;
+  ; SFX_TRACKER_1 packs two fields into one byte:
+  ;   bits 7–3 -- frames elapsed on the current note (duration counter)
+  ;   bits 2–0 -- note table index (byte offset divided by 4)
+  ;
+  ; Each ROM note entry is 4 bytes: [duration, AUDC0, AUDF0, AUDV0].
+  ;
+  ; Parameters:
+  ;   {1} -- ROM label pointing to the start of the sound effect data table
+  ;
+  ; Side effects:
+  ;   - writes AUDC0, AUDF0, AUDV0, SFX_TRACKER_1
+  ;   - clobbers reg A, reg X, reg Y
+  ; =============================================================================
   MACRO SFX_UPDATE_PLAYING
 .SFX_ROM_LABEL SET {1}
     lda SFX_TRACKER_1
@@ -470,6 +611,20 @@ ROM_START SET *
   ENDM
 
 
+  ; =============================================================================
+  ; GENERATE_RANDOM_NUMBER_BETWEEN_160_AND_238
+  ; =============================================================================
+  ;
+  ; Generates a pseudo-random number in the range [160, 238] by combining two
+  ; rnd8 calls with masking and addition.
+  ;
+  ; Result:
+  ;   reg A -- random value in [160, 238]
+  ;
+  ; Side effects:
+  ;   - updates RANDOM (via rnd8)
+  ;   - clobbers TEMP, reg A
+  ; =============================================================================
   MACRO GENERATE_RANDOM_NUMBER_BETWEEN_160_AND_238
     jsr rnd8
     and #63
@@ -480,17 +635,17 @@ ROM_START SET *
     adc TEMP
   ENDM
 
-  ; Coarse positioning setup. The obstacle graphics are stored in
-  ; GRP1, with optional detail added using M1. Positioning is handled by four 
-  ; routines (or cases). Three of these cover situations where the obstacle is 
-  ; partially or fully obscured by the left or right edges of the screen. 
-  ; The third routine (case 3) handles most visible, on-screen placements but 
-  ; cannot accommodate those edge cases.
+  ; =============================================================================
+  ; SET_STITCHED_SPRITE_X_POS
+  ; =============================================================================
   ;
-  ; To simplify positioning logic and avoid signed arithmetic, obstacle_x values 
-  ; are treated as unsigned integers in the range 0–168. The visible Atari 2600 
-  ; screen is 160 pixels wide, with the first 8 pixels of each scanline obscured 
-  ; by the HMOVE blanking interval.
+  ; Coarse-positions a stitched sprite (two objects placed side-by-side, e.g.
+  ; GRP1 + M1) on screen. Handles four placement cases based on the obstacle X
+  ; position, including partial occlusion on both screen edges and fully
+  ; off-screen positions.
+  ;
+  ; Obstacle X values are unsigned in the range 0–170, where:
+  ;   obstacle_x = screen_x + 8 (first 8 pixels hidden by HMOVE blanking)
   ;
   ; ┌ obstacle pos (obstacle_x)
   ; │┌ screen pixel
@@ -509,14 +664,21 @@ ROM_START SET *
   ;  │  ├───────────┼─────────────┼────────────────────────────┼─────────┤
   ;  │  │   case 1  │    case 2   │          case 3            │  case 4 │
   ;  │  └───────────┴─────────────┴────────────────────────────┴─────────┘
-  ;  └─── "x" refers to obstacle position (obstacle_x)
+  ;  └─── "x" refers to obstacle_x
+  ;
+  ; ⚠ NOTE: Reg A must hold the sprite X position on entry.
+  ; ⚠ NOTE: Caller is responsible for invoking 'sta WSYNC' after this macro.
+  ;
+  ; Parameters:
+  ;   {1}   -- TIA object index for the left object (offset into RESP0/HMP0)
+  ;   {2}   -- TIA object index for the right object (offset into RESP0/HMP0)
+  ;   reg A -- obstacle X position (unsigned, 0–170)
   ;
   ; CPU times:
-  ; The macro uses 3 scanlines split as:
-  ; * A max of 27 CPU cycles for the first scanline
-  ; * One entire scanline
-  ; * The 3rd scanline ends with a CPU count of 28 cycles
-  ;
+  ;   scanline 1: up to 27 cycles
+  ;   scanline 2: one full scanline
+  ;   scanline 3: 28 cycles
+  ; =============================================================================
   MACRO SET_STITCHED_SPRITE_X_POS
 .OBJECT_1_INDEX SET {1}
 .OBJECT_2_INDEX SET {2}
@@ -828,7 +990,25 @@ ROM_START SET *
   ENDM
 
 
-  ; ⚠ IMPORTANT: This assumes the sprite X position is already in reg A
+  ; =============================================================================
+  ; SET_SPRITE_X_POS
+  ; =============================================================================
+  ;
+  ; Coarse-positions a single TIA sprite object on screen using the same
+  ; case-based approach as SET_STITCHED_SPRITE_X_POS, but for one object only.
+  ; Handles partial occlusion on both edges and fully off-screen positions.
+  ;
+  ; ⚠ NOTE: Reg A must hold the sprite X position on entry.
+  ;
+  ; Parameters:
+  ;   {1}   -- TIA object index (offset into RESP0/HMP0)
+  ;   reg A -- sprite X position (unsigned, 0–170)
+  ;
+  ; CPU times:
+  ;   scanline 1: up to 24 cycles
+  ;   scanline 2: one full scanline
+  ;   scanline 3: 25 cycles
+  ; =============================================================================
   MACRO SET_SPRITE_X_POS
 .OBJECT_INDEX SET {1}
     ; (current) scanline ==================================================
@@ -915,6 +1095,27 @@ ROM_START SET *
   ENDM
 
 
+  ; =============================================================================
+  ; CLOUD_KERNEL
+  ; =============================================================================
+  ;
+  ; Renders the cloud layer, one scanline per iteration, looping until reg Y
+  ; reaches zero. On each scanline, checks whether the current row falls within
+  ; the cloud's vertical range; if so, loads the appropriate sprite row into
+  ; GRP0 and/or GRP1. If not, clears those registers.
+  ;
+  ; {1} and {2} select which player registers to drive. When both are set, two
+  ; sprite halves are composited: cloud part 1 via GRP0, cloud part 2 via GRP1.
+  ;
+  ; Parameters:
+  ;   {1}   -- 1 to enable GRP0 (cloud part 1); 0 to disable
+  ;   {2}   -- 1 to enable GRP1 (cloud part 2); 0 to disable
+  ;   reg Y -- scanline counter (counts down to 0)
+  ;
+  ; Side effects:
+  ;   - writes GRP0 and/or GRP1
+  ;   - clobbers reg A, reg X, TEMP
+  ; =============================================================================
   MACRO CLOUD_KERNEL
 .USE_GRP0 SET {1}
 .USE_GRP1 SET {2}
@@ -976,7 +1177,24 @@ ROM_START SET *
     ENDIF
   ENDM
 
-  MACRO OFFSET_SPRITE_POINTER_BY_Y_COORD ; 17 CPU cycles
+  ; =============================================================================
+  ; OFFSET_SPRITE_POINTER_BY_Y_COORD
+  ; =============================================================================
+  ;
+  ; Computes a ROM sprite pointer by subtracting the sprite's top Y coordinate
+  ; from the sprite's end-of-data label address. The resulting pointer, when
+  ; indexed by reg Y (counting down), yields the correct scanline row on each
+  ; iteration.
+  ;
+  ; Parameters:
+  ;   {1} -- zero-page variable holding the sprite's top Y coordinate
+  ;   {2} -- zero-page destination for the computed pointer (low byte;
+  ;          high byte written to {2}+1)
+  ;   {3} -- ROM label marking the end of the sprite data table
+  ;
+  ; Cycles: 17
+  ; =============================================================================
+  MACRO OFFSET_SPRITE_POINTER_BY_Y_COORD
 .Y_COORD SET {1}
 .SPRITE_PTR SET {2}
 .SPRITE_ROM_LABEL SET {3}
@@ -991,6 +1209,25 @@ ROM_START SET *
 
 
 
+  ; =============================================================================
+  ; UPDATE_X_POS
+  ; =============================================================================
+  ;
+  ; Subtracts a fixed-point velocity from a fixed-point position, implementing
+  ; horizontal scrolling. Borrow from the fractional subtraction propagates into
+  ; the integer part via the carry flag.
+  ;
+  ; Parameters:
+  ;   {1} -- zero-page variable: position integer part
+  ;   {2} -- zero-page variable: position fractional part
+  ;   {3} -- velocity integer part (zero-page variable or immediate constant)
+  ;   {4} -- velocity fractional part (zero-page variable or immediate constant)
+  ;   {5} -- 1 to treat {3}/{4} as immediate constants; 0 to read from zero page
+  ;
+  ; Side effects:
+  ;   - updates {1} and {2} in zero page
+  ;   - clobbers reg A
+  ; =============================================================================
   MACRO UPDATE_X_POS
 .OBJECT_POSITION_INTEGER_PART SET {1}
 .OBJECT_POSITION_FRACT_PART SET {2}
