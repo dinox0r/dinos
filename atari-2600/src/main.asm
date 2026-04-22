@@ -1008,7 +1008,7 @@ remaining_vblank:
   sta VBLANK   ; Disables VBLANK (A=0)
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-; GAME KERNELs
+; GAME KERNELS
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 draw_game:
   INCLUDE_AND_LOG_SIZE "kernels/score_kernel.asm"
