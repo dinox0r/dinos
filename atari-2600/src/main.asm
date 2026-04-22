@@ -117,13 +117,17 @@ SCORE_DIGITS_10              .hex    000000000000  ; 6 bytes (76)
 SCORE_DIGITS_32              .hex    000000000000  ; 6 bytes (82)
 SCORE_DIGITS_54              .hex    000000000000  ; 6 bytes (88)
 
+MAX_SCORE_DIGITS_10          .hex    000000000000  ; 6 bytes (94)
+MAX_SCORE_DIGITS_32          .hex    000000000000  ; 6 bytes (100)
+MAX_SCORE_DIGITS_54          .hex    000000000000  ; 6 bytes (106)
+
 ; Sound
-SFX_TRACKER_1                .byte   ; 1 byte   (89)
-SFX_TRACKER_2                .byte   ; 1 byte   (90)
+SFX_TRACKER_1                .byte   ; 1 byte   (107)
+SFX_TRACKER_2                .byte   ; 1 byte   (108)
 
 ; To save the state of a register temporarily during tight situations
 ; ⚠ WARNING: Shared data, don't use to hold any state across scanlines/frames
-TEMP                         .hex   00000000     ; 4 bytes  (94)
+TEMP                         .hex   00000000     ; 4 bytes  (112)
 
 ; Alias for TEMP+1 used by the 'set_sprite_data' subroutine
 PARAM_SPRITE_Y = TEMP+1
@@ -1121,6 +1125,20 @@ _already_game_over:
   dec GAME_OVER_TIMER
 
 _no_collision:
+
+_update_score_sprites:
+  ; Update the score sprites, this will be done accross 6 frames to update 
+  ; both the SCORE and MAX_SCORE sprites (even if the MAX_SCORES sprites are
+  ; not visible)
+  lda #%00000111
+  and FRAME_COUNT
+  ; Valid indexes are 0-5 (6 digit pair buffers). Skip 6 and 7.
+  cmp #6
+  bcs _check_increment_score
+
+  tay
+  jsr assemble_score_digit_pair_sprite
+
 _check_increment_score:
   lda #%00001111
   and FRAME_COUNT
@@ -1137,7 +1155,6 @@ _check_if_score_is_999999:
 
   ; if SCORE == 999999 then set game over
   jmp _set_game_over
-
 
 _increment_score:
   sed

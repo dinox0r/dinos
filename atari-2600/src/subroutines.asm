@@ -321,13 +321,17 @@ change_moon_phase subroutine
 ; -----------------------------------------------------------------------------
 ; Parameters:
 ;
-;   reg Y  -- index into SCORE (or MAX_SCORE) identifying the digit pair byte
-;   reg X  -- base address of the first scanline of the target score sprite
-;             in the in-memory sprite buffer. The mapping is:
+;   reg Y  -- index into SCORE (or MAX_SCORE) identifying the digit pair byte.
+;             The base address of the corresponding in-memory score sprite
+;             buffer is computed internally as:
 ;
-;               Y=0  ->  SCORE[0]  ->  X = SCORE_DIGITS_10
-;               Y=1  ->  SCORE[1]  ->  X = SCORE_DIGITS_32
-;               Y=2  ->  SCORE[2]  ->  X = SCORE_DIGITS_54
+;               SCORE_DIGITS_10 + (Y * 6)
+;
+;             The mapping is:
+;
+;               Y=0  ->  SCORE[0]  ->  SCORE_DIGITS_10
+;               Y=1  ->  SCORE[1]  ->  SCORE_DIGITS_32
+;               Y=2  ->  SCORE[2]  ->  SCORE_DIGITS_54
 ;
 assemble_score_digit_pair_sprite subroutine
 ;
@@ -339,26 +343,33 @@ assemble_score_digit_pair_sprite subroutine
 ;               bit 7 -- "lower digit pending" flag (units digit)
 ;
 ;   TEMP+1  (.PTR_MEM_SCORE_SPRITE)
-;             Preserves the entry value of reg X (the base address of the
-;             in-memory score sprite), so it can be restored when processing
-;             the second digit.
+;             Preserves the computed base address of the in-memory score sprite
+;             buffer, so it can be restored when processing the second digit.
 ;
-;   TEMP+2  (.TMP)
-;             Used as a scratch register during the D*6 address calculation
-;             and to temporarily preserve reg A during the scanline zeroing
-;             in the lower digit pass.
-;
-;   TEMP+3  (.SCORE_SPRITE_SCANLINE_COUNTER)
+;   TEMP+2  (.SCORE_SPRITE_SCANLINE_COUNTER)
 ;             The scanline loop counter, initialised to 6 at the start of
 ;             each digit pass.
+;
+;   TEMP+3  (.TMP)
+;             Used as a scratch register during the D*6 address calculations
+;             and to temporarily preserve reg A during the scanline zeroing
+;             in the lower digit pass.
 ;
 .FLAGS = TEMP                  ; The 'lower digit' flag will be on the upper
 .INDEX_SCORE_DIGIT_PAIR = TEMP ; bit, while the index on the lower bits
 .PTR_MEM_SCORE_SPRITE = TEMP+1
-.TMP = TEMP+2
-.SCORE_SPRITE_SCANLINE_COUNTER = TEMP+3
-;
-;
+.SCORE_SPRITE_SCANLINE_COUNTER = TEMP+2
+.TMP = TEMP+3
+
+  ; Compute the base address of the in-memory score sprite buffer for this
+  ; digit pair. Each sprite buffer occupies 6 bytes, so the offset from
+  ; SCORE_DIGITS_10 is Y * 6.
+  tya
+  jsr multiply_by_6
+  clc
+  adc #SCORE_DIGITS_10
+  tax
+
   tya
   ora #%10000000            ; Set bit 7: marks the lower (units) digit for
                             ; first-pass processing
@@ -380,14 +391,7 @@ assemble_score_digit_pair_sprite subroutine
   ;         ↓
   lda SCORE,y               ; Load the (BCD) score digit pair from RAM
   bit .FLAGS                ; Test bit 7: is the lower (units) digit pending?
-  bpl .digit_in_upper_nibble
-
-.digit_in_lower_nibble:
-  ; The lower nibble holds the units digit. Reload the digit pair since the
-  ; BIT instruction above clobbered the N and V flags but left reg A intact —
-  ; however a clean reload is safer and keeps the logic symmetric.
-  lda SCORE,y               ; Reload the (BCD) digit pair from RAM
-  jmp .isolate_digit
+  bmi .digit_in_lower_nibble
 
 .digit_in_upper_nibble:
   ; The upper nibble holds the tens digit. Shift it down into the lower
@@ -397,9 +401,11 @@ assemble_score_digit_pair_sprite subroutine
   lsr                       ;
   lsr                       ;
 
+.digit_in_lower_nibble:
+  ; Nothing to do
+
 .isolate_digit:
-  and #%00000111            ; Mask to 3 bits: score digits range 0-9, encoded
-                            ; in 3 bits within the nibble
+  and #$0f
 
 ; -----------------------------------------------------------------------------
 ; ROM sprite address calculation
@@ -409,11 +415,6 @@ assemble_score_digit_pair_sprite subroutine
 ; 6 bytes. The base address of the sprite for digit D is computed as:
 ;
 ;   offset = D * 6
-;
-; This is evaluated using only shifts and addition:
-;
-;   D * 6  =  D * 4  +  D * 2
-;          =  D << 2 +  D << 1
 ;
 ; The layout of a ROM digit sprite is as follows (SCORE_DIGIT_11 shown):
 ;
@@ -432,19 +433,11 @@ assemble_score_digit_pair_sprite subroutine
 ;
 ; After the offset is computed, reg A holds the ROM index. .TMP is free.
 ; -----------------------------------------------------------------------------
-  asl                       ; reg A <- 2 * D
-  sta .TMP                  ; .TMP  <- 2 * D
-  asl                       ; reg A <- 4 * D
-  clc
-  adc .TMP                  ; reg A <- 6 * D  [= ROM byte offset]
+  jsr multiply_by_6
 
-  ; ===========================================================================
-  ; ⚠ IMPORTANT: .TMP is now free for reuse (scratch during scanline copy)
-  ; ===========================================================================
-  tay                       ; Temporarily park the ROM offset in reg Y
+  tay                       ; Set the ROM offset in reg Y
   lda #6                    ; 6 scanlines per digit sprite
   sta .SCORE_SPRITE_SCANLINE_COUNTER
-  tya                       ; Restore the ROM offset to reg A
 
 ; -----------------------------------------------------------------------------
 ; .copy_digit_sprite_scanline
@@ -462,7 +455,6 @@ assemble_score_digit_pair_sprite subroutine
 ; pass already wrote, preserving both digits in the final scanline byte.
 ; -----------------------------------------------------------------------------
 .copy_digit_sprite_scanline:
-  tay                       ; Load reg Y with the current ROM offset
   lda SCORE_DIGIT_00,y      ; Fetch the sprite scanline (both nibbles identical)
 
   bit .FLAGS
@@ -512,8 +504,8 @@ assemble_score_digit_pair_sprite subroutine
   ora 0,x
   sta 0,x
 
-  inx                       ; Advance to the next RAM scanline
-  iny                       ; Advance to the next ROM scanline
+  inx  ; Advance to the next RAM scanline
+  iny  ; Advance to the next ROM scanline
 
   dec .SCORE_SPRITE_SCANLINE_COUNTER
   bne .copy_digit_sprite_scanline
@@ -534,8 +526,36 @@ assemble_score_digit_pair_sprite subroutine
   ldy .INDEX_SCORE_DIGIT_PAIR
   tya
   and #%01111111            ; Clear bit 7 (the lower digit pending flag)
+  sta .FLAGS
   tay
   jmp .process_digit
 
 .finish:
+  rts
+
+; =============================================================================
+; multiply_by_6
+; =============================================================================
+;
+; Multiplies the value in reg A by 6 using only shifts and addition:
+;
+;   A * 6  =  A * 4  +  A * 2
+;          =  A << 2 +  A << 1
+;
+; Parameters:
+;   reg A  -- value to multiply (must be <= 42 to avoid overflow)
+;
+; Result:
+;   reg A  -- reg A * 6
+;
+; Note: .TMP (TEMP+3) is used as a scratch register and is not
+;       preserved across the call.
+;
+multiply_by_6 subroutine
+.TMP = TEMP+3
+  asl                       ; reg A <- 2 * A
+  sta .TMP                  ; .TMP  <- 2 * A
+  asl                       ; reg A <- 4 * A
+  clc
+  adc .TMP                  ; reg A <- 6 * A
   rts
