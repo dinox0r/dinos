@@ -1,64 +1,115 @@
 ;------------------------------------------------------------------------------
 ; General subroutines
 ;------------------------------------------------------------------------------
+
+; =============================================================================
+; rnd8
+; =============================================================================
+;
+; Updates the RANDOM variable using a Galois LFSR with XOR polynomial $D4,
+; producing a new pseudo-random 8-bit value on each call.
+;
+; Adapted from "Making Games for the Atari 2600" by Steven Hugg,
+; section "Random Number Generation".
+;
+; -----------------------------------------------------------------------------
+; Parameters:   none
+;
+; -----------------------------------------------------------------------------
+; Result:
+;
+;   reg A   -- new pseudo-random byte
+;   RANDOM  -- updated in place
+;
 rnd8 subroutine
-  lda RANDOM
-  lsr
-  bcc .no_xor
-  eor #$D4
+  lda RANDOM   ; 3 (3)
+  lsr          ; 2 (5)  - shifts LSB into carry
+  bcc .no_xor  ; 2/3 (7/8)
+  eor #$D4     ; 2 (9)
 .no_xor:
-  sta RANDOM
-  rts
+  sta RANDOM   ; 3 (12/11)
+  rts          ; 6 (18/17)
 
 ;------------------------------------------------------------------------------
 ; Obstacle related subroutines
 ;------------------------------------------------------------------------------
-; set_sprite_data: Computes a ROM address offset by the y coordinate in 
-;                  PARAM_SPRITE_Y (alias for TEMP+1) and stores the result in a
-;                  zero-page pointer.
+
+; =============================================================================
+; set_sprite_data
+; =============================================================================
 ;
-; Description:
-;   This subroutine adjusts a given ROM address by subtracting PARAM_SPRITE_Y
-;   and stores the resulting address in a zero-page pointer.
+; Adjusts a ROM address by subtracting the sprite's Y coordinate and stores
+; the resulting pointer in a zero-page address pair. Used to compute the
+; correct starting address for indexed sprite reads during the kernel.
 ;
-;   The operation is equivalent to:
+; The operation performed is:
 ;
-;      sec                      ; Set carry for subtraction
-;      lda #<SOME_ROM_ADDRESS   ; Load low byte of base address
-;      sbc PARAM_SPRITE_Y       ; Subtract Y offset
-;      sta ZERO_PAGE_ADDRESS    ; Store low byte of result
-;      lda #>SOME_ROM_ADDRESS   ; Load high byte of base address
-;      sbc #0                   ; Subtract carry (propagating from low byte)
-;      sta ZERO_PAGE_ADDRESS+1  ; Store high byte of result
-;
-; Parameters:
-;   In the form of Zero Page memory:
-;     PARAM_SPRITE_Y - Sprite's Y pos
-;
-;   In the form of registers:
-;     A  - Low byte of SOME_ROM_ADDRESS
-;     Y  - High byte of SOME_ROM_ADDRESS
-;     X  - Zero-page pointer location (i.e., ZERO_PAGE_ADDRESS)
-;
-; Result:
-;   (X)   = Low byte of adjusted address
-;   (X+1) = High byte of adjusted address
+;   sec
+;   lda #<SOME_ROM_ADDRESS    ; low byte of base address
+;   sbc PARAM_SPRITE_Y        ; subtract Y offset
+;   sta ZERO_PAGE_ADDRESS
+;   lda #>SOME_ROM_ADDRESS    ; high byte of base address
+;   sbc #0                    ; propagate carry from low byte subtraction
+;   sta ZERO_PAGE_ADDRESS+1
 ;
 ; Example:
-;   If SOME_ROM_ADDRESS = $F252 and PARAM_SPRITE_Y = 10:
-;     Adjusted address = $F252 - 10 = $F248
-;     ZERO_PAGE_ADDRESS (at X) now holds $F248.
+;
+;   SOME_ROM_ADDRESS = $F252, PARAM_SPRITE_Y = 10
+;   → adjusted address = $F252 - 10 = $F248
+;
+; -----------------------------------------------------------------------------
+; Parameters:
+;
+;   reg A           -- low byte of the ROM base address
+;   reg Y           -- high byte of the ROM base address
+;   reg X           -- zero-page destination pointer (ZERO_PAGE_ADDRESS)
+;   PARAM_SPRITE_Y  -- sprite Y coordinate (alias for TEMP+1)
+;
+; -----------------------------------------------------------------------------
+; Result:
+;
+;   (X)    -- low byte of the adjusted address
+;   (X+1)  -- high byte of the adjusted address
 ;
 set_sprite_data subroutine
-  sec                ; 2 (2) Ensure subtraction works correctly
-  ; The subroutine assumes sprite Y coord in PARA_SPRITE_Y before the call
-  sbc PARAM_SPRITE_Y ; 3 (5) Subtract Y offset from low byte
-  sta $00,x          ; 4 (9) Store adjusted low byte at pointer X
-  tya                ; 2 (11) Load high byte of original address
-  sbc #0             ; 2 (13) Subtract carry from high byte
-  sta $01,x          ; 4 (17) Store adjusted high byte at pointer X+1
-  rts                ; 6 (23) Return from subroutine
+  sec                ; 2 (2)
+  sbc PARAM_SPRITE_Y ; 3 (5)  - subtract Y offset from low byte
+  sta $00,x          ; 4 (9)  - store adjusted low byte
+  tya                ; 2 (11) - load high byte of base address
+  sbc #0             ; 2 (13) - propagate carry into high byte
+  sta $01,x          ; 4 (17) - store adjusted high byte
+  rts                ; 6 (23)
 
+; =============================================================================
+; spawn_obstacle
+; =============================================================================
+;
+; Spawns a new obstacle at the right edge of the screen with a randomised
+; fractional X offset, type, and Y position. Optionally enables sprite
+; duplication for cactus-type obstacles.
+;
+; Obstacle types:
+;   0  -- no obstacle (invisible; X is clamped to [0, 127] for a breather)
+;   1  -- pterodactyl with open wings
+;   2  -- pterodactyl with closed wings
+;   3+ -- cactus (eligible for duplication)
+;
+; ⚠ NOTE: OBSTACLE_TYPE is currently hardcoded to 3 for debugging. The random
+;          type selection code is present but overridden by the lda #3 below.
+;
+; -----------------------------------------------------------------------------
+; Parameters:   none
+;
+; -----------------------------------------------------------------------------
+; Side effects:
+;
+;   OBSTACLE_X_INT      -- set to 161 (right edge)
+;   OBSTACLE_X_FRACT    -- set to a random value
+;   OBSTACLE_TYPE       -- set to the chosen obstacle type
+;   OBSTACLE_Y          -- set based on type (fixed cactus Y or random ptero Y)
+;   OBSTACLE_DUPLICATE  -- cleared; may be set if duplication is enabled
+;   GAME_FLAGS          -- FLAG_DUPLICATED_OBSTACLE cleared or set
+;
 spawn_obstacle subroutine
   jsr rnd8
   sta OBSTACLE_X_FRACT
@@ -74,7 +125,7 @@ spawn_obstacle subroutine
 
   jsr rnd8
   and #3 ; equivalent to RND % 4
- lda #3
+  lda #3
   sta OBSTACLE_TYPE
 
   bne .check_if_can_duplicate_obstacle
@@ -120,9 +171,31 @@ spawn_obstacle subroutine
 ;------------------------------------------------------------------------------
 ; Sky related subroutines
 ;------------------------------------------------------------------------------
+
+; =============================================================================
+; reset_cloud
+; =============================================================================
+;
+; Resets a cloud slot to a new X position with a small random offset in [0, 31].
+; For the single-cloud sky layer (reg X == 0), also assigns a new random Y
+; position placing the cloud below the sky margin.
+;
+; -----------------------------------------------------------------------------
+; Parameters:
+;
+;   reg A  -- base X position for the cloud
+;   reg X  -- cloud slot index:
+;               0  →  single-cloud layer (also randomises CLOUD_1_TOP_Y)
+;               1  →  first cloud in the double-cloud layer
+;               2  →  second cloud in the double-cloud layer
+;
+; -----------------------------------------------------------------------------
+; Side effects:
+;
+;   CLOUD_1_X,x    -- set to A plus a random offset in [0, 31]
+;   CLOUD_1_TOP_Y  -- updated with a random Y value (only when reg X == 0)
+;
 reset_cloud subroutine
-  ; Assumes register A contains the new desired X integer position for the 
-  ; cloud. The value is stored into the appropriate cloud slot (indexed by X).
   sta CLOUD_1_X,x
   jsr rnd8
   and #31
@@ -148,16 +221,54 @@ reset_cloud subroutine
 .end_reset_cloud
   rts
 
+; =============================================================================
+; set_cloud_pos_x
+; =============================================================================
+;
+; Positions GRP0 (P0) and GRP1 (P1) horizontally for a stitched 2-part cloud
+; sprite. Must be called from within the kernel at the right point in the
+; scanline.
+;
+; ⚠ TIMING: Consumes up to 27 cycles of the current scanline, then a full
+;            second scanline for coarse positioning. Returns at cycle 33 of
+;            the third scanline.
+;
+; -----------------------------------------------------------------------------
+; Parameters:
+;
+;   reg A  -- cloud X position
+;
+; -----------------------------------------------------------------------------
+; Result:   GRP0/GRP1 horizontal positions set; HMOVE pending
+;
 set_cloud_pos_x subroutine
-  ; The macro adds 27 cycles to current scanline, then ends it
-  ; and consumes a whole new scanline for the positioning
   SET_STITCHED_SPRITE_X_POS #PLAYER_0_INDEX, #PLAYER_1_INDEX
-  ; Once is finished, it leaves the execution on a new (3rd) scanline
-  ; with 27 cycles (when using SEAMLESS_STITCHING)
   rts ; 6 (33)
 
+; =============================================================================
+; render_cloud_layer
+; =============================================================================
+;
+; Renders a cloud layer on screen by positioning GRP0/GRP1 then running
+; CLOUD_KERNEL for the configured number of scanlines. Selects which player
+; registers to use based on the cloud's X position: left edge (GRP1 only),
+; fully visible (both), right edge (GRP0 only), or off-screen (neither).
+;
+; ⚠ TIMING: Kernel-time subroutine. Consumes scanlines for sprite positioning
+;            via set_cloud_pos_x, then additional scanlines for the cloud body.
+;
+; -----------------------------------------------------------------------------
+; Parameters:
+;
+;   reg A                 -- cloud X position
+;   CURRENT_CLOUD_X       -- cloud X position (used for visibility branching)
+;   CURRENT_CLOUD_TOP_Y   -- Y coordinate of the cloud top
+;   CLOUD_LAYER_SCANLINES -- number of scanlines to render
+;
+; -----------------------------------------------------------------------------
+; Side effects:   GRP0, GRP1, HMOVE strobed each scanline
+;
 render_cloud_layer subroutine
-  ; Assumes reg A contains the x position of the cloud
   jsr set_cloud_pos_x        ; 6 for jsr + 27 of the subroutine (+33)
                             ; consumes a whole scanline and then resumes 
                             ; execution on cycle 27 of the next one
@@ -214,6 +325,26 @@ render_cloud_layer subroutine
   sta HMOVE           ; 3 (3)
   rts                 ; 6 (9)
 
+; =============================================================================
+; reset_star
+; =============================================================================
+;
+; Resets the star to the right edge of the screen with a new random Y position
+; in [6, 21]. Alternates between STAR_1_SPRITE and STAR_2_SPRITE on each call
+; using the SKY_FLAG_STAR_SPRITE bit in SKY_FLAGS.
+;
+; -----------------------------------------------------------------------------
+; Parameters:   none
+;
+; -----------------------------------------------------------------------------
+; Side effects:
+;
+;   STAR_POS_X      -- set to MAX_MOON_AND_STAR_POS_X
+;   STAR_POS_Y      -- set to a random value in [6, 21]
+;   PARAM_SPRITE_Y  -- updated (alias for TEMP+1)
+;   PTR_STAR_SPRITE -- updated to point to the selected star sprite
+;   SKY_FLAGS       -- SKY_FLAG_STAR_SPRITE bit toggled
+;
 reset_star subroutine
   lda #MAX_MOON_AND_STAR_POS_X
   sta STAR_POS_X
@@ -246,6 +377,25 @@ reset_star subroutine
 
   rts
 
+; =============================================================================
+; reset_moon
+; =============================================================================
+;
+; Resets the moon to the right edge of the screen and advances to the next
+; moon phase. Delegates phase advancement and sprite pointer setup to
+; change_moon_phase.
+;
+; -----------------------------------------------------------------------------
+; Parameters:   none
+;
+; -----------------------------------------------------------------------------
+; Side effects:
+;
+;   MOON_POS_X      -- set to MAX_MOON_AND_STAR_POS_X
+;   PARAM_SPRITE_Y  -- set to MOON_POS_Y (alias for TEMP+1)
+;   PTR_MOON_SPRITE -- updated by change_moon_phase
+;   SKY_FLAGS       -- moon phase counter updated by change_moon_phase
+;
 reset_moon subroutine
   lda #MAX_MOON_AND_STAR_POS_X
   sta MOON_POS_X
@@ -256,6 +406,34 @@ reset_moon subroutine
   jsr change_moon_phase
   rts
 
+; =============================================================================
+; change_moon_phase
+; =============================================================================
+;
+; Advances the moon phase counter stored in the lower 2 bits of SKY_FLAGS and
+; updates PTR_MOON_SPRITE to point to the appropriate sprite. The counter
+; cycles through 3 states, wrapping at 3 back to 0:
+;
+;   counter 1  →  crescent phase
+;   counter 2  →  full moon phase
+;   counter 0  →  crescent phase  (after wrap from 3 → 0)
+;
+; ⚠ IMPORTANT: PARAM_SPRITE_Y must be set to the moon's Y position before
+;               calling, as it is forwarded to set_sprite_data internally.
+;
+; -----------------------------------------------------------------------------
+; Parameters:
+;
+;   PARAM_SPRITE_Y  -- moon Y coordinate (alias for TEMP+1); must be set by
+;                      the caller before invoking this subroutine
+;
+; -----------------------------------------------------------------------------
+; Side effects:
+;
+;   PTR_MOON_SPRITE -- updated to point to the phase-appropriate moon sprite
+;   SKY_FLAGS       -- lower 2 bits (moon phase counter) incremented and
+;                      wrapped at 3 → 0
+;
 change_moon_phase subroutine
 
   inc SKY_FLAGS
