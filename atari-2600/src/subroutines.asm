@@ -296,31 +296,28 @@ render_cloud_layer subroutine
 
   lda #0              ; 2 (38)
   CLOUD_KERNEL #IGNORE_GRP0, #IGNORE_GRP1
-  sta WSYNC           ; 3 (?)
-                      ; - (0)
-  sta HMOVE           ; 3 (3)
-  rts                 ; 6 (9)
+                          ; - (7) last kernel scanline
+  jmp .cloud_render_done  ; 3 (10)
 
 .only_show_grp1: ; - (29)
   lda #0         ; 2 (31)
   CLOUD_KERNEL #IGNORE_GRP0, #USE_GRP1
-  sta WSYNC           ; 3 (?)
-                      ; - (0)
-  sta HMOVE           ; 3 (3)
-  rts                 ; 6 (9)
+                          ; - (44) last kernel scanline (worst case)
+  jmp .cloud_render_done  ; 3 (47)
 
 .show_both_grp0_and_grp1: ; - (33)
   lda #0                  ; 2 (35)
   CLOUD_KERNEL #USE_GRP0, #USE_GRP1
-  sta WSYNC           ; 3 (73)
-                      ; - (0)
-  sta HMOVE           ; 3 (3)
-  rts                 ; 6 (9)
+                          ; - (70) last kernel scanline (worst case)
+  jmp .cloud_render_done  ; 3 (73)
 
 .only_show_grp0:      ; - (37)
   lda #0              ; 2 (39)
   CLOUD_KERNEL #USE_GRP0, #IGNORE_GRP1
-  sta WSYNC           ; 3 (?)
+                      ; - (44) last kernel scanline (worst case)
+
+.cloud_render_done:
+  sta WSYNC           ; 3 (76)
                       ; - (0)
   sta HMOVE           ; 3 (3)
   rts                 ; 6 (9)
