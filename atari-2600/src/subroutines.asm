@@ -737,3 +737,108 @@ multiply_by_6 subroutine
   clc
   adc .TMP                  ; reg A <- 6 * A
   rts
+
+;------------------------------------------------------------------------------
+; SFX subroutines
+;------------------------------------------------------------------------------
+
+; =============================================================================
+; sfx_update_playing
+; =============================================================================
+;
+; Advances mono SFX playback by one frame. Each call either continues the
+; current note or advances to the next one. A note with duration 0 signals
+; end-of-sequence: the channel is silenced and SFX_TRACKER_1 is reset to 0.
+;
+; SFX_TRACKER_1 packs two fields into one byte:
+;   bits 7–3 -- frames elapsed on the current note (duration counter)
+;   bits 2–0 -- note table index (byte offset divided by 4)
+;
+; Each ROM note entry is 4 bytes: [duration, AUDC0, AUDF0, AUDV0].
+; A duration of 0 signals end-of-sequence.
+;
+; The caller must load TEMP/TEMP+1 with the ROM table address before calling.
+; The SFX_UPDATE_PLAYING macro in macros.asm handles this automatically.
+;
+; Parameters:
+;   TEMP/TEMP+1 -- pointer to the ROM sound effect data table (set by caller)
+;
+; Side effects:
+;   - writes AUDC0, AUDF0, AUDV0, SFX_TRACKER_1
+;   - clobbers reg A, reg X, reg Y
+;
+sfx_update_playing subroutine
+  lda SFX_TRACKER_1
+  beq .return              ; tracker = 0 means sound is not active
+
+  tax                      ; X = tracker byte (preserved for duration extraction)
+  and #%00000111           ; isolate note index (lower 3 bits)
+  asl                      ; A = note_index * 2
+  asl                      ; A = note_index * 4  (byte offset into ROM table)
+  tay                      ; Y = byte offset
+
+  txa                      ; A = tracker (restored)
+  lsr                      ; shift duration down from upper bits
+  lsr
+  lsr                      ; A = duration counter
+
+  cmp (TEMP),y             ; compare elapsed duration with note's max duration
+  bcs .play_next_note
+
+.play_current_note:
+  ; Increment duration and pack back: ((duration+1) << 3) | (byte_offset >> 2)
+  tax                      ; X = current duration
+  inx                      ; X = current duration + 1
+  txa                      ; A = current duration + 1
+  asl
+  asl
+  asl                      ; A = (duration+1) << 3
+  sta SFX_TRACKER_1
+  tya                      ; A = byte offset
+  lsr
+  lsr                      ; A = note index (byte_offset / 4)
+  ora SFX_TRACKER_1
+  sta SFX_TRACKER_1
+  jmp .play_note
+
+.play_next_note:
+  tya                      ; A = current byte offset
+  clc
+  adc #4                   ; advance to next note entry
+  tay                      ; Y = next note's byte offset
+
+  lda (TEMP),y             ; load next note's duration (0 = end sentinel)
+  beq .stop_sound
+
+  ; Pack new tracker: duration = 1, index = next note index
+  lda #1
+  asl
+  asl
+  asl                      ; A = 1 << 3 = $08
+  sta SFX_TRACKER_1
+  tya                      ; A = next byte offset
+  lsr
+  lsr                      ; A = next note index
+  ora SFX_TRACKER_1
+  sta SFX_TRACKER_1
+
+.play_note:
+  iny                      ; Y → AUDC0 field
+  lda (TEMP),y
+  sta AUDC0
+  iny                      ; Y → AUDF0 field
+  lda (TEMP),y
+  sta AUDF0
+  iny                      ; Y → AUDV0 field
+  lda (TEMP),y
+  sta AUDV0
+  rts
+
+.stop_sound:
+  lda #0
+  sta AUDC0
+  sta AUDF0
+  sta AUDV0
+  sta SFX_TRACKER_1
+.return:
+  rts

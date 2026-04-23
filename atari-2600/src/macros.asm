@@ -508,106 +508,26 @@ ROM_START SET *
   ; SFX_UPDATE_PLAYING
   ; =============================================================================
   ;
-  ; Advances mono SFX playback by one frame. Each call either continues the
-  ; current note or advances to the next one. A note with duration 0 signals
-  ; end-of-sequence: the channel is silenced and the tracker is reset.
+  ; Thin wrapper around the sfx_update_playing subroutine. Loads the sound
+  ; effect table address into TEMP/TEMP+1 and calls the subroutine.
   ;
-  ; SFX_TRACKER_1 packs two fields into one byte:
-  ;   bits 7–3 -- frames elapsed on the current note (duration counter)
-  ;   bits 2–0 -- note table index (byte offset divided by 4)
-  ;
-  ; Each ROM note entry is 4 bytes: [duration, AUDC0, AUDF0, AUDV0].
+  ; ⚠ NOTE: TEMP and TEMP+1 are clobbered by this macro.
   ;
   ; Parameters:
   ;   {1} -- ROM label pointing to the start of the sound effect data table
   ;
   ; Side effects:
   ;   - writes AUDC0, AUDF0, AUDV0, SFX_TRACKER_1
-  ;   - clobbers reg A, reg X, reg Y
+  ;   - clobbers reg A, reg X, reg Y, TEMP, TEMP+1
+  ;
+  ; Cycles: varies (see sfx_update_playing subroutine)
   ; =============================================================================
   MACRO SFX_UPDATE_PLAYING
-.SFX_ROM_LABEL SET {1}
-    lda SFX_TRACKER_1
-    beq .end_update_sfx_mono
-
-    ; The lower 3 bits contain the index into the data byte
-    ; with the current playing note, the upper 5 bits contain 
-    ; the duration played so far
-    tay  ; Clone reg A into reg Y temporarily
-    and #%00000111
-
-    MULTIPLY_A_BY_4
-
-    tax
-
-    tya  ; Restore reg A from reg Y and isolate the duration
-    lsr
-    lsr
-    lsr
-
-    ; Check if the duration for the current note has been reached
-    cmp .SFX_ROM_LABEL,x
-    bcs .play_next_note
-.play_current_note:
-    ; First, update SFX_TRACKER_1
-    ; reg A contains the current duration
-    ;
-    ; The following instructions do:
-    ; (++current_duration << 3) | (note_index / 4)
-    tay
-    iny
-    tya
-    asl
-    asl
-    asl
-    sta SFX_TRACKER_1
-    txa
-    DIVIDE_A_BY_4
-    ora SFX_TRACKER_1
-    sta SFX_TRACKER_1
-
-    ; reg X still contains the index into the current note sound data
-    jmp .play_note
-.play_next_note:
-    ; Increment the index to the next note data
-    txa
-    clc
-    adc #4
-    tax
-
-    ; If the next note's duration is 0, is the signal to stop the sound
-    lda .SFX_ROM_LABEL,x
-    beq .stop_sound
-
-    ; Update SFX_TRACKER_1.
-    ; Set the duration to 1, otherwise, next call to this macro
-    ; when the index is 0 will assume that the sound finished playing
-    ; (as 0 is used to indicate that)
-    lda #1
-    asl
-    asl
-    asl
-    sta SFX_TRACKER_1
-    txa
-    DIVIDE_A_BY_4
-    ora SFX_TRACKER_1
-    sta SFX_TRACKER_1
-
-.play_note:
-    lda .SFX_ROM_LABEL+#1,x
-    sta AUDC0
-    lda .SFX_ROM_LABEL+#2,x
-    sta AUDF0
-    lda .SFX_ROM_LABEL+#3,x
-    sta AUDV0
-    jmp .end_update_sfx_mono
-.stop_sound:
-    lda #0
-    sta AUDC0
-    sta AUDF0
-    sta AUDV0
-    sta SFX_TRACKER_1
-.end_update_sfx_mono:
+    lda #<{1}
+    sta TEMP
+    lda #>{1}
+    sta TEMP+1
+    jsr sfx_update_playing
   ENDM
 
 
