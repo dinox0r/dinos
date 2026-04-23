@@ -456,21 +456,19 @@ _update_pebble_anim:
   lda FOREGROUND_COLOUR
   sta COLUPF
 
-  ; reset FLOOR_PFx
+  ; reset FLOOR_PFx and PEBBLE_PFx
   lda #%11111111
-  sta FLOOR_PF0
-  sta FLOOR_PF1
-  sta FLOOR_PF2
-  sta FLOOR_PF3
-  sta FLOOR_PF4
-  sta FLOOR_PF5
+  ldx #5
+.floor_reset_loop:
+  sta FLOOR_PF0,x
+  dex
+  bpl .floor_reset_loop
   lda #0
-  sta PEBBLE_PF0
-  sta PEBBLE_PF1
-  sta PEBBLE_PF2
-  sta PEBBLE_PF3
-  sta PEBBLE_PF4
-  sta PEBBLE_PF5
+  ldx #5
+.pebble_reset_loop:
+  sta PEBBLE_PF0,x
+  dex
+  bpl .pebble_reset_loop
 
   lda PEBBLE_X_INT
   ldy #0
