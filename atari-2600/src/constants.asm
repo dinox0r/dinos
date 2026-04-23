@@ -114,6 +114,7 @@ FLAG_DINO_LEFT_LEG       = #%00000010
 FLAG_DINO_JUMPING        = #%00000100
 FLAG_DINO_CROUCHING      = #%00001000
 FLAG_DUPLICATED_OBSTACLE = #%00010000
+FLAG_MAX_SCORE_PRESENT   = #%00100000
 ; bit 6: 1 -> splash screen mode / 0 -> game mode
 FLAG_SPLASH_SCREEN       = #%01000000
 ; When in splash screen mode:

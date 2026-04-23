@@ -122,17 +122,16 @@ _check_increment_score:
   and FRAME_COUNT
   bne _check_play_jumping_sound
 
-  ; if SCORE[0] == 99 and SCORE[1] == 99 and SCORE[2] == 99; then game over
-  ldx #3
-_check_if_score_is_999999:
-  lda SCORE-1,x
+  ; if SCORE == 99999 then skip incrementing the score
+  lda SCORE
   cmp #99
   bne _increment_score
-  dex
-  bne _check_if_score_is_999999
-
-  ; if SCORE == 999999 then set game over
-  jmp _set_game_over
+  lda SCORE+1
+  cmp #99
+  bne _increment_score
+  lda SCORE+2
+  cmp #9
+  beq _check_play_jumping_sound
 
 _increment_score:
   sed
@@ -151,6 +150,24 @@ _increment_score:
   sta SCORE+2
 
   cld
+
+_update_max_score:
+  ; if SCORE > MAX_SCORE then MAX_SCORE = SCORE
+  sec
+  lda MAX_SCORE
+  sbc SCORE
+  lda MAX_SCORE+1
+  sbc SCORE+1
+  lda MAX_SCORE+2
+  sbc SCORE+2
+  bcs _check_play_jumping_sound  ; MAX_SCORE >= SCORE: skip
+
+  ldx #3
+__do_update_max_score:
+  lda SCORE-1,x
+  sta MAX_SCORE-1,x
+  dex
+  bne __do_update_max_score
 
 _check_play_jumping_sound:
   lda #FLAG_DINO_JUMPING

@@ -1,6 +1,7 @@
 ;------------------------------------------------------------------------------
 ; V-BLANK (37 scanlines)
 ;------------------------------------------------------------------------------
+vblank:
 
   ; Set the timer for the remaining VBLANK period (37 lines)
   ; 76 cpu cycles per scanline, 37 * 76 = 2812 cycles / 64 cycles per ticks = 43

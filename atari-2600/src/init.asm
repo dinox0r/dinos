@@ -5,6 +5,44 @@ _clear_game_flags:
   lda #0
   sta GAME_FLAGS
 
+_init_score:
+  ; Reset the score back to 000000
+  sta SCORE
+  sta SCORE+1
+  sta SCORE+2
+
+  ; Suppress the hi-score display until the player has completed at least one
+  ; run. MAX_SCORE is zero on power-on, so a non-zero value means a previous
+  ; game over has already written a score into it. FLAG_MAX_SCORE_PRESENT gates
+  ; the hi-score section in the score kernel, matching the original game's
+  ; behaviour where "HI" only appears after the player fails their first run.
+  ;
+  ; First run (game over):
+  ;                                                   00042
+  ;       O██   █
+  ;   █   ███ █ █ █
+  ; -- ████  -█████-----------------------------------------
+  ;     ██      █
+  ;
+  ; Next run (game starts):
+  ;                                          HI 00042 00000
+  ;       ███
+  ;   █   ███
+  ; -- ████  -----------------------------------------------
+  ;     ██
+
+  lda MAX_SCORE
+  bne __max_score_present
+  lda MAX_SCORE+1
+  bne __max_score_present
+  lda MAX_SCORE+2
+  beq _reset_dino_y_pos
+
+__max_score_present:
+  lda #FLAG_MAX_SCORE_PRESENT
+  ora GAME_FLAGS
+  sta GAME_FLAGS
+
 _reset_dino_y_pos:
   lda #INIT_DINO_TOP_Y
   sta DINO_TOP_Y_INT
