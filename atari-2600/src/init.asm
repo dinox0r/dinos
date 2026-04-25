@@ -32,11 +32,9 @@ _init_score:
   ;     ██
 
   lda MAX_SCORE
+  ora MAX_SCORE+1
+  ora MAX_SCORE+2
   bne __max_score_present
-  lda MAX_SCORE+1
-  bne __max_score_present
-  lda MAX_SCORE+2
-  beq _reset_dino_y_pos
 
 __max_score_present:
   lda #FLAG_MAX_SCORE_PRESENT

@@ -20,16 +20,18 @@ simple_score_subkernel_setup:  ; - (either 11 or 17)
   sta WSYNC    ; 3 (?)
 
   ; 2nd scanline ==============================================================
-               ; - (0)
+                 ; - (0)
   sta HMOVE
   sta WSYNC
 
   ; 3rd scanline ==============================================================
-               ; - (0)
+                 ; - (0)
   sta HMOVE
   ldy #6
 simple_score_subkernel:
   sta WSYNC
+  ; 4 to 10th scanline ========================================================
+                       ; - (0)
   sta HMOVE
   dey
   bne simple_score_subkernel

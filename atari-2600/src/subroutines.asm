@@ -205,7 +205,7 @@ reset_cloud subroutine
 
   ; If X == 0, this resets the cloud for the single-cloud sky.
   ; If X >= 1, this is one of the two clouds in the double-cloud sky.
-  cpx #0
+  txa              ; txa sets Z same as cpx #0, 1 byte instead of 2
   bne .end_reset_cloud
 
   ; For the single-cloud sky (reg X == 0), allow a random vertical
@@ -241,10 +241,6 @@ reset_cloud subroutine
 ; -----------------------------------------------------------------------------
 ; Result:   GRP0/GRP1 horizontal positions set; HMOVE pending
 ;
-set_cloud_pos_x subroutine
-  SET_STITCHED_SPRITE_X_POS #PLAYER_0_INDEX, #PLAYER_1_INDEX
-  rts ; 6 (33)
-
 ; =============================================================================
 ; render_cloud_layer
 ; =============================================================================
@@ -254,8 +250,8 @@ set_cloud_pos_x subroutine
 ; registers to use based on the cloud's X position: left edge (GRP1 only),
 ; fully visible (both), right edge (GRP0 only), or off-screen (neither).
 ;
-; ⚠ TIMING: Kernel-time subroutine. Consumes scanlines for sprite positioning
-;            via set_cloud_pos_x, then additional scanlines for the cloud body.
+; ⚠ TIMING: Kernel-time subroutine. Consumes scanlines for sprite positioning,
+;            then additional scanlines for the cloud body.
 ;
 ; -----------------------------------------------------------------------------
 ; Parameters:
@@ -269,8 +265,8 @@ set_cloud_pos_x subroutine
 ; Side effects:   GRP0, GRP1, HMOVE strobed each scanline
 ;
 render_cloud_layer subroutine
-  jsr set_cloud_pos_x        ; 6 for jsr + 27 of the subroutine (+33)
-                            ; consumes a whole scanline and then resumes 
+  SET_STITCHED_SPRITE_X_POS #PLAYER_0_INDEX, #PLAYER_1_INDEX
+                            ; consumes a whole scanline and then resumes
                             ; execution on cycle 27 of the next one
 
   sta WSYNC           ; 3 (30)
@@ -400,8 +396,9 @@ reset_moon subroutine
   lda #MOON_POS_Y
   sta PARAM_SPRITE_Y
 
-  jsr change_moon_phase
-  rts
+  ; Tail call optimization: jmp instead of jsr+rts so change_moon_phase's
+  ; rts pops this subroutine's return address and returns directly to the caller
+  jmp change_moon_phase
 
 ; =============================================================================
 ; change_moon_phase
@@ -459,9 +456,9 @@ change_moon_phase subroutine
 
 .load_moon_sprite_data:
   ldx #PTR_MOON_SPRITE
-  jsr set_sprite_data
-
-  rts
+  ; Tail call optimization: jmp instead of jsr+rts so set_sprite_data's
+  ; rts pops this subroutine's return address and returns directly to the caller
+  jmp set_sprite_data
 
 ; =============================================================================
 ; assemble_score_digit_pair_sprite

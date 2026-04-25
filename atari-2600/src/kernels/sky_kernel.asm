@@ -39,8 +39,9 @@ double_cloud_layer:                ; - (13)
   sta CURRENT_CLOUD_X              ; 3 (28)
   jsr render_cloud_layer           ; 6 (?)
 
-  lda #SKY_CLOUDS_2_AND_3_TOP_Y    ; 2 (?)
-  sta CURRENT_CLOUD_TOP_Y          ; 3 (?)
+  ; CURRENT_CLOUD_TOP_Y is not reset here because render_cloud_layer (and
+  ; CLOUD_KERNEL) only reads it — never writes it — so the value set above
+  ; is still intact for the second call. Saves 4 bytes.
   lda CLOUD_3_X                    ; 3 (?)
   sta CURRENT_CLOUD_X              ; 3 (?)
   jsr render_cloud_layer           ; 6 (?)

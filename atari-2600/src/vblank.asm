@@ -559,7 +559,7 @@ _end_pebble_anim:
   lda DINO_TOP_Y_INT
   ; Remember: 'cmp' under the hood acts like: 256 + (a - b)
   cmp #INIT_DINO_TOP_Y+#20
-  bcs __dino_y_over_20
+  bcs end_update_floor
   cmp #INIT_DINO_TOP_Y+#10
   bcs __dino_y_over_10
 
@@ -576,8 +576,7 @@ _end_pebble_anim:
   lda PEBBLE_PF1
   and #%00111111
   sta PEBBLE_PF1
-
-  jmp end_update_floor
+  bcc end_update_floor       ; carry clear from cmp above
 
 __dino_y_over_10:
   lda FLOOR_PF1
@@ -586,9 +585,7 @@ __dino_y_over_10:
   lda PEBBLE_PF1
   and #%01111111
   sta PEBBLE_PF1
-  jmp end_update_floor
 
-__dino_y_over_20:
 end_update_floor:
 
 update_dino:
@@ -709,7 +706,6 @@ _swap_legs:
 
 _end_legs_anim:
 end_update_dino:
-  jmp end_frame_setup
 
 end_frame_setup:
   ; Clear any previous NUSIZ1 duplication settings before drawing anything. If
@@ -724,11 +720,10 @@ end_frame_setup:
 ; END FRAME SETUP (VBLANK TIME)
 ;==============================================================================
 
-  lda #0
 remaining_vblank:
   lda INTIM
   bne remaining_vblank
                ; 2752 cycles + 2 from bne, 2754 (out of 2812 vblank)
 
   sta WSYNC
-  sta VBLANK   ; Disables VBLANK (A=0)
+  sta VBLANK   ; Disables VBLANK (A=0, loop exits when INTIM reads 0)
