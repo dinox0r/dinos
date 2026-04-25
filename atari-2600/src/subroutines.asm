@@ -158,7 +158,9 @@ spawn_obstacle subroutine
   bcc .chose_ptero_random_y_pos
   lda #CACTUS_Y
   sta OBSTACLE_Y
-  jmp .end_spawn_obstacle
+  ; AI suggested edit: jmp .end_spawn_obstacle — replaced with bcs: carry is SET
+  ; from the preceding cmp #3 falling through (cactus path means A >= 3)
+  bcs .end_spawn_obstacle
 .chose_ptero_random_y_pos:
   jsr rnd8
   and #3
@@ -448,7 +450,9 @@ change_moon_phase subroutine
 
   lda #<MOON_PHASE_SPRITE_END
   ldy #>MOON_PHASE_SPRITE_END
-  jmp .load_moon_sprite_data
+  ; AI suggested edit: jmp .load_moon_sprite_data — replaced with bne: ldy sets
+  ; Z=0 because the high byte of a ROM address ($F0+) is always non-zero
+  bne .load_moon_sprite_data
 
 .full_moon_phase:
   lda #<FULL_MOON_SPRITE_END
@@ -793,7 +797,9 @@ sfx_update_playing subroutine
   lsr                      ; A = note index (byte_offset / 4)
   ora SFX_TRACKER_1
   sta SFX_TRACKER_1
-  jmp .play_note
+  ; AI suggested edit: jmp .play_note — replaced with bne: A holds the packed
+  ; tracker (duration+1 shifted left 3 bits | note index), always >= 8, so Z=0
+  bne .play_note
 
 .play_next_note:
   tya                      ; A = current byte offset

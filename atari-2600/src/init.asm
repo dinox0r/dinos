@@ -19,14 +19,14 @@ _init_score:
   ;
   ; First run (game over):
   ;                                                   00042
-  ;       O██   █
+  ;       x██   █
   ;   █   ███ █ █ █
   ; -- ████  -█████-----------------------------------------
   ;     ██      █
   ;
   ; Next run (game starts):
   ;                                          HI 00042 00000
-  ;       ███
+  ;       o██
   ;   █   ███
   ; -- ████  -----------------------------------------------
   ;     ██
@@ -37,7 +37,7 @@ _init_score:
   bne __max_score_present
 
 __max_score_present:
-  lda #FLAG_MAX_SCORE_PRESENT
+  lda #FLAG_MAX_SCORE_AVAILABLE
   ora GAME_FLAGS
   sta GAME_FLAGS
 

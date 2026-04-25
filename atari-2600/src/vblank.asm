@@ -227,10 +227,19 @@ _reset_transition_counter_and_flip_daytime:
 
 _update_sky_flags:
   ; Update SKY_FLAGS with the new counter value (no overflow).
-  sta TEMP           ; store new counter bits
-  lda SKY_FLAGS      ; load current SKY_FLAGS
-  and #%11100011     ; clear previous counter bits (bits 4–2)
-  ora TEMP           ; insert new counter bits
+  ;
+  ; The following is an AI tool suggestion that saves a couple of ROM bytes:
+  eor SKY_FLAGS   ; A ⊕ SKY_FLAGS "joins" the counter (in A) with SKY_FLAGS
+  and #%00011100  ; Isolate the bits from the A ⊕ SKY_FLAGS "joint" that matter
+                  ; for the counter (bits 2 to 4, inclusive)
+  eor SKY_FLAGS   ; Taking ⊕ SKY_FLAGS again cancels out the initial SKY_FLAGS
+                  ; from the "joint" (A ⊕ SKY_FLAGS)[2..4] ⊕ SKY_FLAGS
+  ;
+  ; The version above is an improvement over the original:
+  ;sta TEMP           ; store new counter bits
+  ;lda SKY_FLAGS      ; load current SKY_FLAGS
+  ;and #%11100011     ; clear previous counter bits (bits 4–2)
+  ;ora TEMP           ; insert new counter bits
 
 _store_sky_flags:
   sta SKY_FLAGS
@@ -345,7 +354,9 @@ _update_obstacle_pos:
   sta OBSTACLE_DUPLICATE
 
   ; Continue like if this sprite was a single sprite all along
-  jmp _update_obstacle_sprite
+  ; AI suggested edit: jmp _update_obstacle_sprite — replaced with beq: A=0
+  ; from the preceding lda #0 (sta OBSTACLE_DUPLICATE), so Z=1
+  beq _update_obstacle_sprite
 
 _check_if_duplication_can_be_enabled:
   ; When the obstacle is at this X position, the second (duplicated) sprite
@@ -497,7 +508,7 @@ __update_pf0:
   lsr
   tay
   lda POWERS_OF_2_NEGATED+#4,y
-  jmp _end_pebble_anim
+  bne _end_pebble_anim  ; POWERS_OF_2_NEGATED values are never zero, so Z is always clear here
 
 __update_pf1:
   ldy #4
@@ -507,12 +518,15 @@ __update_pf1:
   cmp #32
   bcc ___pf1_adjust_low_nibble
   ldy #0  ; ≥ 32
-  jmp ___pf1_adjust_low_nibble
+  ; AI suggested edit: jmp ___pf1_adjust_low_nibble — replaced with beq: ldy #0
+  ; sets Z=1, so beq always branches
+  beq ___pf1_adjust_low_nibble
 ___range_is_96_to_127:
   cmp #112
   bcc ___pf1_adjust_low_nibble
   ldy #0
-  jmp ___pf1_adjust_low_nibble
+  ; AI suggested edit: jmp ___pf1_adjust_low_nibble removed — the target label
+  ; is the very next instruction, so this was a 3-byte no-op
 ___pf1_adjust_low_nibble:
   and #%00001100
   lsr
@@ -523,7 +537,7 @@ ___pf1_adjust_low_nibble:
   adc TEMP
   tay
   lda POWERS_OF_2_NEGATED,y
-  jmp _end_pebble_anim
+  bne _end_pebble_anim  ; POWERS_OF_2_NEGATED values are never zero, so Z is always clear here
 
 __update_pf2:
   cmp #128
@@ -532,7 +546,9 @@ __update_pf2:
   cmp #144
   bcc ___pf2_adjust_low_nibble
   ldy #4
-  jmp ___pf2_adjust_low_nibble
+  ; AI suggested edit: jmp ___pf2_adjust_low_nibble — replaced with bcs: carry
+  ; is SET from the preceding cmp #144 falling through (A >= 144)
+  bcs ___pf2_adjust_low_nibble
 ___range_is_48_to_79:
   cmp #64
   bcc ___pf2_adjust_low_nibble
@@ -546,7 +562,7 @@ ___pf2_adjust_low_nibble:
   adc TEMP
   tay
   lda POWERS_OF_2_NEGATED,y
-  jmp _end_pebble_anim
+  bne _end_pebble_anim  ; POWERS_OF_2_NEGATED values are never zero, so Z is always clear here
 
 __pebble_out_of_bounds:
   ldx #0
@@ -606,7 +622,9 @@ _check_if_dino_is_crouching:
   sta DINO_TOP_Y_INT
 
   ; neither jumping or crouching, just standing, update the leg animation
-  jmp _update_leg_anim
+  ; AI suggested edit: jmp _update_leg_anim — replaced with bne: A=INIT_DINO_TOP_Y
+  ; (28), which is non-zero, so Z=0
+  bne _update_leg_anim
 
 _jumping:
   ; update dino_y <- dino_y - vy
@@ -633,7 +651,10 @@ _finish_jump:
   lda GAME_FLAGS
   and #TOGGLE_FLAG_DINO_JUMPING_OFF
   sta GAME_FLAGS
-  jmp _update_jump_pos
+  ; AI suggested edit: jmp _update_jump_pos — replaced with bcc: carry is CLEAR
+  ; from cmp #INIT_DINO_TOP_Y falling through (A < INIT_DINO_TOP_Y), and none
+  ; of the instructions in _finish_jump affect carry
+  bcc _update_jump_pos
 
 _update_jump:
   ; update vy = vy + acc_y
@@ -666,7 +687,9 @@ _update_jump_pos:
   ldx #PTR_DINO_MISSILE_0_CONF
   jsr set_sprite_data
 
-  jmp _end_legs_anim
+  ; AI suggested edit: jmp _end_legs_anim — replaced with bmi: set_sprite_data
+  ; returns with A = high byte of the adjusted ROM pointer ($F0+), so N=1
+  bmi _end_legs_anim
 
 _crouching:
   ; Set the dino's Y position to the top of the crouching region.
@@ -691,7 +714,9 @@ _update_leg_anim:
   lda #>[DINO_SPRITE_3 - INIT_DINO_POS_Y]
   sta PTR_DINO_SPRITE+1
 
-  jmp _swap_legs
+  ; AI suggested edit: jmp _swap_legs — replaced with bmi: A = high byte of
+  ; the sprite pointer (ROM address, $F0+), so bit 7 is always set, N=1
+  bmi _swap_legs
 
 _right_leg:
   lda #<[DINO_SPRITE_2 - INIT_DINO_POS_Y]
