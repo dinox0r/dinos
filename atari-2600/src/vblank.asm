@@ -653,14 +653,17 @@ _update_jump:
 _update_jump_pos:
   lda DINO_TOP_Y_INT
   sta PARAM_SPRITE_Y
+
   lda #<DINO_SPRITE_1_END
   ldy #>DINO_SPRITE_1_END
   ldx #PTR_DINO_SPRITE
   jsr set_sprite_data
+
   lda #<DINO_SPRITE_OFFSETS_END
   ldy #>DINO_SPRITE_OFFSETS_END
   ldx #PTR_DINO_OFFSET
   jsr set_sprite_data
+
   lda #<DINO_MISSILE_0_OFFSETS_END
   ldy #>DINO_MISSILE_0_OFFSETS_END
   ldx #PTR_DINO_MISSILE_0_CONF
