@@ -34,12 +34,14 @@ _init_score:
   lda MAX_SCORE
   ora MAX_SCORE+1
   ora MAX_SCORE+2
-  bne __max_score_present
+  beq __max_score_not_present
 
 __max_score_present:
   lda #FLAG_MAX_SCORE_AVAILABLE
   ora GAME_FLAGS
   sta GAME_FLAGS
+
+__max_score_not_present:
 
 _reset_dino_y_pos:
   lda #INIT_DINO_TOP_Y

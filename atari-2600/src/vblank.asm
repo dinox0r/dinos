@@ -354,6 +354,7 @@ _update_obstacle_pos:
   sta OBSTACLE_DUPLICATE
 
   ; Continue like if this sprite was a single sprite all along
+  ;
   ; AI suggested edit: jmp _update_obstacle_sprite — replaced with beq: A=0
   ; from the preceding lda #0 (sta OBSTACLE_DUPLICATE), so Z=1
   beq _update_obstacle_sprite

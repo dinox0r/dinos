@@ -112,12 +112,10 @@ __end_setting_up_middle_section_kernel:
 
   sta PLAY_AREA_MIN_Y  ; 3 (27/29) - If crouching, the play area min y is changed
 
-  ; TODO can remove this sec?
-  sec         ; 2 (31) Set the carry ahead of time for the next scanline
-
-  ; Remove the fine offsets applied to the obstacles before going to the next 
-  ; scanline, also leave the other motion registers in a clear state
-  sta HMCLR   ; 3 (34)
+  ; sec removed: it was intended to set carry for the 1st kernel scanline, but
+  ; DRAW_OBSTACLE always clobbers carry via its asl instructions before carry is
+  ; needed. Dead code — removed.
+  sta HMCLR   ; 3 (29/31)
 
   ; We are assuming that reg A has the obstacle graphics, which go to GRP1
   ; and that reg X has the M1 state for the obstacle additional graphics, 

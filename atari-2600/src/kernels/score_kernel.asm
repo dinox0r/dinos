@@ -117,7 +117,7 @@ score_setup_kernel:;---->>> 2 scanlines <<<----
   lda FRAME_COUNT                     ; 3 (16)
   and #3                              ; 2 (18)
   ora TEMP                            ; 3 (21)
-  bne hi_score_overlay_kernel_setup   ; 2/3 (23/24)
+  beq hi_score_overlay_kernel_setup   ; 2/3 (23/24)
 
 principal_score_kernel_setup:  ; - (23)
 

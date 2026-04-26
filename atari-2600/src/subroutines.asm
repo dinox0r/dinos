@@ -125,7 +125,10 @@ spawn_obstacle subroutine
 
   jsr rnd8
   and #3 ; equivalent to RND % 4
-  lda #3
+
+  ; For debugging purposes
+  ; lda #3   ; cacti only
+
   sta OBSTACLE_TYPE
 
   bne .check_if_can_duplicate_obstacle
@@ -145,7 +148,9 @@ spawn_obstacle subroutine
   ; again to see if it can be duplicated, that is, 2 cacti sprites instead of
   ; a single one
   jsr rnd8
-  cmp #250
+  ; For debugging purposes
+  ; cmp #250   ; Makes duplicated obstacles more likely to appear
+  cmp #115
   bcs .set_y_pos
 
   lda GAME_FLAGS

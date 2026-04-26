@@ -1,4 +1,5 @@
 sky_setup_kernel:;-->>> 4 scanlines <<<-----
+  sta HMOVE
   sta WSYNC
                  ; - (0)
   sta HMOVE      ; 3 (3)
