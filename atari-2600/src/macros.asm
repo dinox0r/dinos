@@ -660,7 +660,9 @@ ROM_START SET *
           ;          A - B = A + ~B + 1
           ;                           ^this is the carry set by sec
 
-    jmp .case_3__obj1_and_obj2_fully_visible       ; 3 (24)
+    ; AI suggested edit: jmp .case_3 — replaced with bcs: sec just set carry, so
+    ; bcs is always taken (carry always set here)
+    bcs .case_3__obj1_and_obj2_fully_visible       ; 3 (24)
 
 .case_1__obj1_fully_hidden_obj2_partially_visible: ; - (8)
     sta WSYNC      ; 3 (11)
@@ -678,7 +680,10 @@ ROM_START SET *
     ; offset calculation
     sec
     sbc #15-#4
-    jmp .end_of_cases_1_2_and_3
+    ; AI suggested edit: jmp .end_of_cases_1_2_and_3 — replaced with bcc: input
+    ; x is in [0, 7] (case_1 entry condition), so x - 11 is always negative and
+    ; carry is always CLEAR after the subtraction
+    bcc .end_of_cases_1_2_and_3
 
 .case_2__obj1_partially_visible_obj2_fully_visible: ; - (12)
     sta WSYNC      ; 3 (15)
@@ -737,7 +742,10 @@ ROM_START SET *
     ;--------------------------------------------------------------------------
     stx HMP0+.OBJECT_2_INDEX    ; 3 (28)
 
-    jmp .end_of_cases_1_2_and_3 ; 3 (31)
+    ; AI suggested edit: jmp .end_of_cases_1_2_and_3 — replaced with bcc: input
+    ; x is in [8, 16] (case_2 entry condition), so x - 20 is always negative and
+    ; carry is always CLEAR after sbc #5+#15
+    bcc .end_of_cases_1_2_and_3 ; 3 (31)
 
 .case_4__obj1_partially_visible_obj2_fully_hidden: ; - (16)
     sta WSYNC      ; 3 (19)
@@ -796,7 +804,9 @@ ROM_START SET *
 
     sta RESP0+.OBJECT_1_INDEX     ; 3 (73)
 
-    jmp .end_case_4               ; 3 (76)
+    ; AI suggested edit: jmp .end_case_4 — replaced with beq: the ldx #12 loop
+    ; exits when dex makes X=0 (Z=1), and nop/sta don't affect flags
+    beq .end_case_4               ; 3 (76)
 
 .case_5__both_obj1_and_obj2_fully_hidden:
     sta WSYNC      ; 3 (?)
@@ -806,7 +816,10 @@ ROM_START SET *
     sta RESP1+.OBJECT_2_INDEX
     sta WSYNC
     sta HMOVE
-    jmp .end_case_5
+    ; AI suggested edit: jmp .end_case_5 — replaced with bcs: case_5 is entered
+    ; via cmp #171; bcs (carry SET), and all subsequent sta instructions don't
+    ; affect carry
+    bcs .end_case_5
 
 
 .case_3__obj1_and_obj2_fully_visible: ; - (24)

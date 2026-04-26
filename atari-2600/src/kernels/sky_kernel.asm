@@ -25,7 +25,9 @@ single_cloud_layer:                ; - (22)
   sta CURRENT_CLOUD_X              ; 3 (37)
   jsr render_cloud_layer           ; 6 (43) + 33 (render_cloud_layer)
 
-  jmp end_of_sky_kernel            ; 3 (12)
+  ; AI suggested edit: jmp end_of_sky_kernel — replaced with beq: CLOUD_KERNEL
+  ; always exits when dey reaches Y=0 (Z=1), sta WSYNC/HMOVE don't affect flags
+  beq end_of_sky_kernel            ; 3 (12)
 
 ; -----------------------------------------------------------------------------
 ;
@@ -49,7 +51,10 @@ double_cloud_layer:                ; - (13)
 
   sta WSYNC
   sta HMOVE
-  jmp end_of_sky_kernel
+  ; AI suggested edit: jmp end_of_sky_kernel — replaced with beq: second
+  ; render_cloud_layer call always returns with Z=1 (CLOUD_KERNEL loop exits
+  ; when Y=0); sta WSYNC/HMOVE don't affect flags
+  beq end_of_sky_kernel
 
 moon_and_stars_layer:
 _moon_and_stars_layer_setup:
@@ -125,7 +130,9 @@ __check_y_is_within_star:
   bcs __y_is_within_star  ; 2/3 (20/21)
 __y_is_not_within_star:
   ldx #0                       ; 2 (22)
-  jmp __check_y_is_within_moon ; 3 (25)
+  ; AI suggested edit: jmp __check_y_is_within_moon — replaced with beq: ldx #0
+  ; sets Z=1; target is 2 bytes ahead (same page), so beq taken = 3 cycles = jmp
+  beq __check_y_is_within_moon ; 3 (25)
 __y_is_within_star:        ; - (21)
   LAX (PTR_STAR_SPRITE),y  ; 5 (26)
 
@@ -137,7 +144,9 @@ __check_y_is_within_moon:  ; - (25/26)
   bcs __y_is_within_moon ; 2/3 (36/37)
 __y_is_not_within_moon:
   lda #0                       ; 2 (38)
-  jmp end_moon_and_stars_layer ; 3 (41)
+  ; AI suggested edit: jmp end_moon_and_stars_layer — replaced with beq: lda #0
+  ; sets Z=1; target is 2 bytes ahead (same page), so beq taken = 3 cycles = jmp
+  beq end_moon_and_stars_layer ; 3 (41)
 
 __y_is_within_moon:
   lda (PTR_MOON_SPRITE),y      ; 5 (42)

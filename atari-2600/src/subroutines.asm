@@ -138,7 +138,9 @@ spawn_obstacle subroutine
   jsr rnd8
   and #127
   sta OBSTACLE_X_INT
-  jmp .set_y_pos
+  ; AI suggested edit: jmp .set_y_pos — replaced with bpl: and #127 always clears
+  ; bit 7 (N=0), and sta/jsr don't affect N, so bpl is always taken
+  bpl .set_y_pos
 
 .check_if_can_duplicate_obstacle:
   cmp #3
@@ -547,7 +549,7 @@ assemble_score_digit_pair_sprite subroutine
   ; SCORE_DIGITS_10 is Y * 6.
   tya
   jsr multiply_by_6
-  clc
+  ; multiply_by_6 always exits with carry clear (clc inside + result ≤ 12)
   adc #SCORE_DIGITS_10
   tax
 
@@ -709,7 +711,9 @@ assemble_score_digit_pair_sprite subroutine
   and #%01111111            ; Clear bit 7 (the lower digit pending flag)
   sta .FLAGS
   tay
-  jmp .process_digit
+  ; AI suggested edit: jmp .process_digit — replaced with bpl: tay always sets
+  ; N=0 because score index is 0–2 (< 128), so bpl is always taken
+  bpl .process_digit
 
 .finish:
   rts
@@ -816,10 +820,7 @@ sfx_update_playing subroutine
   beq .stop_sound
 
   ; Pack new tracker: duration = 1, index = next note index
-  lda #1
-  asl
-  asl
-  asl                      ; A = 1 << 3 = $08
+  lda #%00001000           ; duration=1 packed as (1 << 3); saves 3 bytes vs lda #1; asl; asl; asl
   sta SFX_TRACKER_1
   tya                      ; A = next byte offset
   lsr

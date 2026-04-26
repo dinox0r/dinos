@@ -86,7 +86,7 @@ _init_pebble_conf:
 
 _init_obstacle_conf:
 
-  lda #0
+  ; A is still 0 from the lda #0 above (bit/bvs don't touch A)
   sta OBSTACLE_DUPLICATE
   jsr spawn_obstacle
 

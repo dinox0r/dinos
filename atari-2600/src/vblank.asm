@@ -95,7 +95,9 @@ _on_joystick_up:
 
   SFX_INIT JUMP_SOUND
 
-  jmp _end_check_joystick
+  ; AI suggested edit: jmp _end_check_joystick — replaced with bne: SFX_INIT
+  ; expands to lda #%00001000 (A=8), so Z=0
+  bne _end_check_joystick
 
 _on_joystick_down:
   jsr rnd8
@@ -223,7 +225,10 @@ _reset_transition_counter_and_flip_daytime:
   ; flips the daytime ──┘
   ; flag while resetting the counter bits (which were 111₂ = 7).
   eor #%10011100
-  jmp _store_sky_flags
+  ; AI suggested edit: jmp _store_sky_flags — replaced with bcc: carry is CLEAR
+  ; from the preceding asl;asl (counter was 0–7, so double-shifted value fits
+  ; in bits 2–4; carry stays 0 through both shifts)
+  bcc _store_sky_flags
 
 _update_sky_flags:
   ; Update SKY_FLAGS with the new counter value (no overflow).

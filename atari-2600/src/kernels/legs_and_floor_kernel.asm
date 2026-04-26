@@ -56,7 +56,9 @@ _legs_and_floor__decrement_y:  ; - (33)
   lda #0
   sta PEBBLE_CACHED_OBSTACLE_GRP1      ; 3 (58)
   sta PEBBLE_CACHED_OBSTACLE_M1        ; 3 (66)
-  jmp _legs_2nd_scanline__end_of_scanline
+  ; AI suggested edit: jmp _legs_2nd_scanline__end_of_scanline — replaced with
+  ; beq: lda #0 sets Z=1, and the two stas don't affect flags
+  beq _legs_2nd_scanline__end_of_scanline
 _legs_2nd_scanline__obstacle_y_within_range: ; - (50)
   lda (PTR_OBSTACLE_SPRITE),y          ; 5 (55)
   sta PEBBLE_CACHED_OBSTACLE_GRP1      ; 3 (58)
@@ -110,7 +112,9 @@ _legs_2nd_scanline__end_of_scanline:
   lda #0               ; 2 (59)
   tax                  ; 2 (61)
   sta ENAM0            ; 3 (64)
-  jmp _legs_and_floor__end_of_3rd_scanline ; 3 (67)
+  ; AI suggested edit: jmp _legs_and_floor__end_of_3rd_scanline — replaced with
+  ; beq: lda #0 sets Z=1, and tax/sta don't affect flags
+  beq _legs_and_floor__end_of_3rd_scanline ; 3 (67)
 
 _legs_3rd_scanline__dino_y_within_range: ; - (58)
   lda (PTR_DINO_OFFSET),y  ; 5 (63)

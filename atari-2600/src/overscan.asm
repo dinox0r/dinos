@@ -54,7 +54,9 @@ _resume_game_over_check:
   ; Collision detection
   bit CXPPMM
   bmi _set_game_over
-  jmp _no_collision
+  ; AI suggested edit: jmp _no_collision — replaced with bpl: bmi not taken means
+  ; N=0 (bit 7 of CXPPMM was clear), so bpl is always taken here
+  bpl _no_collision
 _set_game_over:
   lda #GAME_OVER_TIMER_TOTAL_TIME
   sta GAME_OVER_TIMER

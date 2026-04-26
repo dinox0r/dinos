@@ -65,7 +65,9 @@ _dino_is_crouching_2:  ; - (17)
   sta $2D              ; 3 (28) - Wait/waste 3 cycles (2 bytes)
   sta RESBL            ; 3 (31)
 
-  jmp _end_m0_coarse_position  ; 3 (34)
+  ; AI suggested edit: jmp _end_m0_coarse_position — replaced with bne: A holds
+  ; #FLAG_DINO_CROUCHING (=8) from the lda above; sta doesn't affect flags, Z=0
+  bne _end_m0_coarse_position  ; 3 (34)
 
 _dino_is_not_crouching_2: ; - (18)
   INSERT_NOPS 2        ; 4 (22)
@@ -98,7 +100,9 @@ _last_setup_scanline:
 
   lda #PLAY_AREA_BOTTOM_Y          ; 2 (24)
 
-  jmp __end_setting_up_middle_section_kernel ; 3 (27)
+  ; AI suggested edit: jmp __end_setting_up_middle_section_kernel — replaced with
+  ; bne: PLAY_AREA_BOTTOM_Y=11 (non-zero), so Z=0
+  bne __end_setting_up_middle_section_kernel ; 3 (27)
 
 __assign_crouching_kernel:         ; - (13)
   lda  #<dino_crouching_kernel     ; 2 (15)
