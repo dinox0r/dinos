@@ -1,9 +1,9 @@
 ; There are 2 subkernels for the score:
 ;
-; 1. The primary score kernel, which shows the continuously updating
+; 1. The main score kernel, which shows the continuously updating
 ;    5-digit score:
 ;
-;                                           primary score kernel
+;                                             main score kernel
 ;                                                  /-----\
 ;                                                   00042
 ;       o██                       █
@@ -12,7 +12,7 @@
 ;     ██                          █
 ;
 ; 2. The hi-score overlay kernel, which shows the hi-score in full and
-;    3 digits from the primary score (only 3 because that's all that can be
+;    3 digits from the main score (only 3 because that's all that can be
 ;    drawn using the 6-sprite trick):
 ;
 ;                                   hi-score overlay kernel
@@ -59,7 +59,7 @@
 ;   ↓↓↓↓↓↓↓↓↓↓↓↓
 ;   HI 00123 000__
 ;
-; The sprite layout for the primary score kernel is:
+; The sprite layout for the main score kernel is:
 ;
 ;   ________ 00042   GRP0 is configured to 2 copies close (NSIZ0 = #1)
 ;           ↑↑↑↑↑↑
@@ -81,7 +81,7 @@
 ;         sta RESP0 at CPU cycle 63
 ;           │
 ;           ↓
-;            00042 - principal score kernel
+;            00042 - main score kernel
 ;   HI 00123 000   - hi-score overlay kernel
 ;  ↑
 ;  │
@@ -105,7 +105,7 @@ score_setup_kernel:;---->>> 2 scanlines <<<----
   ;
   ; bool TEMP = not (GAME_FLAGS & FLAG_MAX_SCORE_AVAILABLE)
   ; TEMP = TEMP or (FRAME_COUNT % 4) != 0
-  ; if TEMP goto primary_score_kernel_setup
+  ; if TEMP goto main_score_kernel_setup
   ;
   ; This implementation reduces ROM usage and avoids extra branching.
   ; Both paths start with the same CPU cycle count, making it easier for
@@ -119,7 +119,7 @@ score_setup_kernel:;---->>> 2 scanlines <<<----
   ora TEMP                            ; 3 (21)
   beq hi_score_overlay_kernel_setup   ; 2/3 (23/24)
 
-principal_score_kernel_setup:  ; - (23)
+main_score_kernel_setup:  ; - (23)
 
   ;
   ; Need to reach CPU cycle 65 
@@ -132,9 +132,9 @@ principal_score_kernel_setup:  ; - (23)
 
   ; Target position is CPU cycle 63:
   ldy #5                       ; 2 (35)
-_principal_score_kernel_coarse_pos:
+_main_score_kernel_coarse_pos:
   dey                                    ;\
-  bne _principal_score_kernel_coarse_pos ;/ 5 * 4 + 4 = 29 (59)
+  bne _main_score_kernel_coarse_pos ;/ 5 * 4 + 4 = 29 (59)
   nop                          ; 2 (61)
   nop                          ; 2 (63)
 
@@ -146,12 +146,12 @@ _principal_score_kernel_coarse_pos:
   ; 2nd scanline ==============================================================
                  ; - (0)
   sta HMOVE      ; 3 (3)
-  ; Even though, some resources stay that is fine, strobing HMCLR before 24
+  ; Even though some resources stay that is fine, strobing HMCLR before 24
   ; cycles after a sta HMOVE has always produced positioning glitches in this
   ; project
-  ldy #3         ; 2 (5)
+  ldx #3         ; 2 (5)
 _wait_for_hmclr_safe_strobing:
-  dey                               ; \
+  dex                               ; \
   bne _wait_for_hmclr_safe_strobing ; / 5 * 3 + 4 = 19 (24)
 
   sta HMCLR      ; 3 (27)
@@ -162,16 +162,24 @@ _wait_for_hmclr_safe_strobing:
                  ; - (0)
   sta HMOVE
   ldy #6
-principal_score_kernel:
+main_score_kernel:
   sta WSYNC
   ; 4 to 10th scanline ========================================================
-                       ; - (0)
-  sta HMOVE
-  lda #$59
-  sta COLUBK
+                         ; - (0)
+  sta HMOVE              ; 3 (3)
+  lda SCORE_DIGITS_01,x  ; 4 (7)
+  sta GRP0               ; 3 (10)
+  lda SCORE_DIGITS_32,x  ; 4 (14)
+  sta GRP1               ; 3 (17)
 
-  dey
-  bne principal_score_kernel
+  ldy SCORE_DIGITS_54,x  ; 4 (21)
+  ; Wait until the first GRP0 sprite has been drawn to change GRP0 for the
+  ; second copy, but that can only be done after CPU cycle 66 and before 
+  ; cycle 70, so the sta GRP0 needs to start at cycle 67 so it ends exactly
+  ; at CPU cycle 70
+
+  dex
+  bne main_score_kernel
   sta WSYNC
   ; AI suggested edit: jmp end_of_score_kernel — replaced with beq: the loop
   ; exits when dey makes Y=0, and sta WSYNC doesn't affect flags, so Z=1
