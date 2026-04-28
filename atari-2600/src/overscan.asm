@@ -105,6 +105,24 @@ __set_dino_game_over_sprite:
   ldx #PTR_DINO_MISSILE_0_CONF
   jsr set_sprite_data
 
+__update_max_score:
+  ; if SCORE > MAX_SCORE then MAX_SCORE = SCORE
+  sec
+  lda MAX_SCORE
+  sbc SCORE
+  lda MAX_SCORE+1
+  sbc SCORE+1
+  lda MAX_SCORE+2
+  sbc SCORE+2
+  bcs __init_game_over_sound  ; MAX_SCORE >= SCORE: skip
+
+  ldx #3
+___do_update_max_score:
+  lda SCORE-1,x
+  sta MAX_SCORE-1,x
+  dex
+  bne ___do_update_max_score
+
 __init_game_over_sound:
   SFX_INIT GAME_OVER_SOUND
 
@@ -115,25 +133,14 @@ _already_game_over:
   beq _check_play_jumping_sound
   dec GAME_OVER_TIMER
 
+  bpl _update_score_sprites
+
 _no_collision:
 
-_update_score_sprites:
-  ; Update the score sprites, this will be done accross 6 frames to update 
-  ; both the SCORE and MAX_SCORE sprites (even if the MAX_SCORES sprites are
-  ; not visible)
+_check_increment_score:
   lda #%00000111
   and FRAME_COUNT
-  ; Valid indexes are 0-5 (6 digit pair buffers). Skip 6 and 7.
-  cmp #6
-  bcs _check_increment_score
-
-  tay
-  jsr assemble_score_digit_pair_sprite
-
-_check_increment_score:
-  lda #%00001111
-  and FRAME_COUNT
-  bne _check_play_jumping_sound
+  bne _update_score_sprites
 
   ; if SCORE == 99999 then skip incrementing the score
   lda SCORE
@@ -144,7 +151,7 @@ _check_increment_score:
   bne _increment_score
   lda SCORE+2
   cmp #9
-  beq _check_play_jumping_sound
+  beq _update_score_sprites
 
 _increment_score:
   sed
@@ -164,23 +171,18 @@ _increment_score:
 
   cld
 
-_update_max_score:
-  ; if SCORE > MAX_SCORE then MAX_SCORE = SCORE
-  sec
-  lda MAX_SCORE
-  sbc SCORE
-  lda MAX_SCORE+1
-  sbc SCORE+1
-  lda MAX_SCORE+2
-  sbc SCORE+2
-  bcs _check_play_jumping_sound  ; MAX_SCORE >= SCORE: skip
+_update_score_sprites:
+  ; Update the score sprites, this will be done accross 6 frames to update 
+  ; both the SCORE and MAX_SCORE sprites (even if the MAX_SCORES sprites are
+  ; not visible)
+  lda #%00000111
+  and FRAME_COUNT
+  ; Valid indexes are 0-5 (6 digit pair buffers). Skip 6 and 7.
+  cmp #6
+  bcs _check_play_jumping_sound
 
-  ldx #3
-__do_update_max_score:
-  lda SCORE-1,x
-  sta MAX_SCORE-1,x
-  dex
-  bne __do_update_max_score
+  tay
+  jsr assemble_score_digit_pair_sprite
 
 _check_play_jumping_sound:
   lda #FLAG_DINO_JUMPING

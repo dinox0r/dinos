@@ -832,7 +832,7 @@ ROM_START SET *
     sbc #15             ; 2 (5) - Divide by 15 (sucessive subtractions)
     bcs .div_by_15_loop ; 2/3     (obstacle-x / 5 + 5)
     IF (* ^ .div_by_15_loop) & $FF00
-      ECHO "PAGE CROSSING","ERROR in .div_by_15_loop",.div_by_15_loop," at ",*
+      ECHO "PAGE CROSSING","ERROR in .div_by_15_loop (SET_STITCHED_SPRITE_X_POS macro)",.div_by_15_loop," at ",*
       ERR
     ENDIF
 

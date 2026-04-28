@@ -756,5 +756,6 @@ remaining_vblank:
   bne remaining_vblank
                ; 2752 cycles + 2 from bne, 2754 (out of 2812 vblank)
 
-  sta WSYNC
-  sta VBLANK   ; Disables VBLANK (A=0, loop exits when INTIM reads 0)
+  sta WSYNC  ; - (0) Finishes any remaining v-blank
+  sta HMOVE  ; 3 (3)
+  sta VBLANK ; 3 (6) Turns v-blank off (reg A is 0)

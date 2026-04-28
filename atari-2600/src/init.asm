@@ -110,3 +110,12 @@ _init_sky_conf:
 
   jsr reset_star
   jsr reset_moon
+
+  ; Temporary ROM padding: 57 NOPs to page-align score_kernel.asm's sbeq branch
+  ; and its target (hi_score_overlay_kernel_setup) onto the same 256-byte page.
+  ; Without this, sbeq triggers a page-crossing error.
+  ; TODO: remove when the ROM layout stabilises and the sbeq target is naturally
+  ; close enough to the branch instruction.
+  REPEAT 57
+    nop
+  REPEND

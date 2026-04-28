@@ -563,9 +563,9 @@ assemble_score_digit_pair_sprite subroutine
 ; -----------------------------------------------------------------------------
 ; .process_digit
 ;
-; Isolates one digit from the SCORE byte identified by reg Y, calculates the
-; ROM address of its sprite, then copies 6 scanlines into the in-memory score
-; sprite buffer.
+; Isolates one digit from the SCORE byte (a digit pair) indexed by reg Y,
+; calculates the ROM address of its sprite, then copies 6 scanlines into the
+; in-memory score sprite buffer.
 ;
 ; On entry: reg Y holds the score byte index (flags stripped).
 ; -----------------------------------------------------------------------------
@@ -619,6 +619,7 @@ assemble_score_digit_pair_sprite subroutine
   jsr multiply_by_6
 
   tay                       ; Set the ROM offset in reg Y
+
   lda #6                    ; 6 scanlines per digit sprite
   sta .SCORE_SPRITE_SCANLINE_COUNTER
 
@@ -696,7 +697,10 @@ assemble_score_digit_pair_sprite subroutine
 ; -----------------------------------------------------------------------------
 ; After the 6 scanlines are written, check whether the upper (tens) digit
 ; still needs to be processed. Bit 7 of .FLAGS is set on entry for the lower
-; digit pass; if it is still set here, the upper digit has not yet been handled.
+; digit pass; if it is still set here, the upper digit has not yet been handled
+;
+; Unless... It's index Y=2 or Y=5, in which case the upper digit is ignored
+; This leaves the trailing thousands digit empty, i.e, _99999 instead of 099999
 ; -----------------------------------------------------------------------------
   bit .FLAGS
   bpl .finish
@@ -711,9 +715,16 @@ assemble_score_digit_pair_sprite subroutine
   and #%01111111            ; Clear bit 7 (the lower digit pending flag)
   sta .FLAGS
   tay
+
+  ; Check whether y=2 or y=5 and skip the upper digit in that case
+  cpy #2
+  beq .finish
+  cpy #5
+  beq .finish
+
   ; AI suggested edit: jmp .process_digit — replaced with bpl: tay always sets
   ; N=0 because score index is 0–2 (< 128), so bpl is always taken
-  bpl .process_digit
+  jmp .process_digit
 
 .finish:
   rts

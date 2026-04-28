@@ -78,21 +78,25 @@
 ;
 ; Positioning:
 ;
-;         sta RESP0 at CPU cycle 63
+;         sta RESP0 at CPU cycle 62 (so the change is applied at 65)
 ;           │
 ;           ↓
 ;            00042 - main score kernel
 ;   HI 00123 000   - hi-score overlay kernel
 ;  ↑
 ;  │
-;  sta RESP0 at CPU cycle 52
+;  sta RESP0 at CPU cycle 51
 ;
+  ;ALIGN 256
 score_setup_kernel:;---->>> 2 scanlines <<<----
                ; - (0)
 
   ; 1st scanline ==============================================================
                ; - (0)
-  sta HMOVE    ; 3 (3)
+  ; The v-blank section ends with the following 
+  ; sta WSYNC  ; - (0) Finishes any remaining v-blank
+  ; sta HMOVE  ; 3 (3)
+  ; sta VBLANK ; 3 (6) Turns v-blank off (reg A is 0)
 
   ; The intent of the following code is to perform this check:
   ;
@@ -110,38 +114,36 @@ score_setup_kernel:;---->>> 2 scanlines <<<----
   ; This implementation reduces ROM usage and avoids extra branching.
   ; Both paths start with the same CPU cycle count, making it easier for
   ; the score positioning code to keep track of the colour cycle timing.
-  lda #FLAG_MAX_SCORE_AVAILABLE       ; 2 (5)
-  and GAME_FLAGS                      ; 3 (8)
-  eor #FLAG_MAX_SCORE_AVAILABLE       ; 2 (10)
-  sta TEMP                            ; 3 (13)
-  lda FRAME_COUNT                     ; 3 (16)
-  and #3                              ; 2 (18)
-  ora TEMP                            ; 3 (21)
-  beq hi_score_overlay_kernel_setup   ; 2/3 (23/24)
+  lda #FLAG_MAX_SCORE_AVAILABLE       ; 2 (8)
+  and GAME_FLAGS                      ; 3 (11)
+  eor #FLAG_MAX_SCORE_AVAILABLE       ; 2 (13)
+  sta TEMP                            ; 3 (16)
+  lda FRAME_COUNT                     ; 3 (19)
+  and #3                              ; 2 (21)
+  ora TEMP                            ; 3 (24)
+  sbeq hi_score_overlay_kernel_setup  ; 2/3 (26/27)
 
-main_score_kernel_setup:  ; - (23)
-
-  ;
-  ; Need to reach CPU cycle 65 
-  lda #NUSIZX_TWO_COPIES_CLOSE ; 2 (25)
-  sta NUSIZ0                   ; 3 (28)
-
-  ; Offset GRP1 by -1px (1px to the left) so it joins GRP0 at its end
-  lda #$10                     ; 2 (30)
-  sta HMP1                     ; 3 (33)
+main_score_kernel_setup:            ; - (26)
 
   ; Target position is CPU cycle 63:
-  ldy #5                       ; 2 (35)
-_main_score_kernel_coarse_pos:
-  dey                                    ;\
-  bne _main_score_kernel_coarse_pos ;/ 5 * 4 + 4 = 29 (59)
-  nop                          ; 2 (61)
-  nop                          ; 2 (63)
+  ldy #5                            ; 2 (28)
+_main_score_kernel_coarse_pos:      ; -
+  dey                               ;\
+  bne _main_score_kernel_coarse_pos ;/ (5 - 1) * 5 + 4 = 24 (52)
 
-  sta RESP0                    ; 3 (66)
-  sta RESP1                    ; 3 (69)
+  ;
+  ; Need to reach CPU cycle 65
+  lda #NUSIZX_TWO_COPIES_CLOSE ; 2 (54)
+  sta NUSIZ0                   ; 3 (57)
 
-  sta WSYNC                    ; 3 (72)
+  ; Offset GRP1 by -1px (1px to the left) so it joins GRP0 at its end
+  lda #$10                     ; 2 (59)
+  sta HMP1                     ; 3 (62)
+
+  sta RESP0                    ; 3 (65)
+  sta RESP1                    ; 3 (68)
+
+  sta WSYNC                    ; 3 (71)
 
   ; 2nd scanline ==============================================================
                  ; - (0)
@@ -149,69 +151,132 @@ _main_score_kernel_coarse_pos:
   ; Even though some resources stay that is fine, strobing HMCLR before 24
   ; cycles after a sta HMOVE has always produced positioning glitches in this
   ; project
-  ldx #3         ; 2 (5)
+  ldx #5         ; 2 (5)
 _wait_for_hmclr_safe_strobing:
   dex                               ; \
-  bne _wait_for_hmclr_safe_strobing ; / 5 * 3 + 4 = 19 (24)
+  bne _wait_for_hmclr_safe_strobing ; / (5 - 1) * 5 + 4 = 24 (29)
 
-  sta HMCLR      ; 3 (27)
+  sta HMCLR      ; 3 (32)
 
-  sta WSYNC      ; 3 (30)
+  sta WSYNC      ; 3 (35)
 
   ; 3rd scanline ==============================================================
                  ; - (0)
   sta HMOVE
-  ldy #6
+  ldx #6
 main_score_kernel:
-  sta WSYNC
-  ; 4 to 10th scanline ========================================================
-                         ; - (0)
-  sta HMOVE              ; 3 (3)
-  lda SCORE_DIGITS_01,x  ; 4 (7)
-  sta GRP0               ; 3 (10)
-  lda SCORE_DIGITS_32,x  ; 4 (14)
-  sta GRP1               ; 3 (17)
+  ; end of 3rd, and 4th to 10th scanline ======================================
+  sta WSYNC                ; 3 (73 -> 76)
+                           ; - (0)
+  sta HMOVE                ; 3 (3)
+  lda SCORE_DIGITS_54-1,x  ; 4 (7)
+  sta GRP0                 ; 3 (10)
+  lda SCORE_DIGITS_32-1,x  ; 4 (14)
+  sta GRP1                 ; 3 (17)
 
-  ldy SCORE_DIGITS_54,x  ; 4 (21)
+  lda SCORE_DIGITS_10-1,x  ; 4 (21)
+  ;
   ; Wait until the first GRP0 sprite has been drawn to change GRP0 for the
-  ; second copy, but that can only be done after CPU cycle 66 and before 
-  ; cycle 70, so the sta GRP0 needs to start at cycle 67 so it ends exactly
-  ; at CPU cycle 70
+  ; second copy, but that can only be done just after CPU cycle 65 and before
+  ; cycle 69, so the sta GRP0 needs to start at cycle 66 so it ends exactly
+  ; at CPU cycle 69
+  ; ┌───────┬───────┬───────┐
+  ; │GRP0(1)│  GRP1 │GRP0(2)│  <-- pixels covered by GRPx
+  ; └───────┴───────┴───────┘
+  ; ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  <-- CPU cycles
+  ; 65 66 67 68 69 70 71 72 73
+  ;
 
-  dex
-  bne main_score_kernel
-  sta WSYNC
+  ldy #8                 ; 2 (24)
+_wait_to_update_grp0_again:
+  dey                             ; \
+  bne _wait_to_update_grp0_again  ; / (8 - 1) * 5 + 4 = 39 (63)
+
+  nop                    ; 2 (65)
+  dex                    ; 2 (67)
+
+  sta GRP0               ; 3 (70)
+
+  bne main_score_kernel  ; 2/3 (72/73)
+  sta WSYNC              ; 3 (76)
+
   ; AI suggested edit: jmp end_of_score_kernel — replaced with beq: the loop
   ; exits when dey makes Y=0, and sta WSYNC doesn't affect flags, so Z=1
   beq end_of_score_kernel
 
-hi_score_overlay_kernel_setup: ; - (18)
+hi_score_overlay_kernel_setup: ; - (27)
 
-  lda #NUSIZX_THREE_COPIES_CLOSE   ; 2 (20)
-  sta NUSIZ0   ; 3 (23)
-  sta NUSIZ1   ; 3 (26)
+  lda #NUSIZX_THREE_COPIES_CLOSE   ; 2 (29)
+  sta NUSIZ0   ; 3 (32)
+  sta NUSIZ1   ; 3 (35)
 
   ; Enable the VDEL (A is #3 = #%00000011 so already has the bit 0 ON)
-  sta VDELP0   ; 3 (29)
-  sta VDELP1   ; 3 (32)
+  sta VDELP0   ; 3 (38)
+  sta VDELP1   ; 3 (41)
+
+  lda #$f0     ; 2 (43) - Move GRP0 1px to the right
+  sta HMP0     ; 3 (46)
+
+  dec $2D      ; 5 (51) - Waste 5 cycles
+
+  sta RESP0    ; 3 (54)
+  sta RESP1    ; 3 (57)
 
   sta WSYNC    ; 3 (?)
 
   ; 2nd scanline ==============================================================
                ; - (0)
   sta HMOVE
+
+  ldx #5         ; 2 (5)
+_wait_for_hmclr_safe_strobing_2:
+  dex                                 ; \
+  bne _wait_for_hmclr_safe_strobing_2 ; / (5 - 1) * 5 + 4 = 24 (29)
+  sta HMCLR
+
   sta WSYNC
 
   ; 3rd scanline ==============================================================
                ; - (0)
   sta HMOVE
-  ldy #6
+  ldx #6
 hi_score_overlay_kernel:
-  sta WSYNC
-  sta HMOVE
-  dey
-  bne hi_score_overlay_kernel
-  sta WSYNC
+  ; end of 3rd, and 4th to 10th scanline ======================================
+  sta WSYNC                ; 3 (73 -> 76)
+                           ; - (0)
+  sta HMOVE                ; 3 (3)
+  lda SCORE_TEXT_HI-1,x    ; 4 (7)
+  sta GRP0;'               ; 3 (10) GRP0' (buffer) has the "HI" sprite
+
+  lda MAX_SCORE_DIGITS_54-1,x ; 4 (14) GRP0 will have the "HI" sprite
+  sta GRP1;'                  ; 3 (17) GRP1' (buffer) has the hi-score 54
+                              ;        digits
+
+  lda MAX_SCORE_DIGITS_32-1,x ; 4 (21) GRP1 will have the hi-score 54 digits
+  sta GRP0;'                  ; 3 (24) and GRP0' (buffer) the hi-score 32
+                              ;        digits
+
+  ldy MAX_SCORE_DIGITS_10-1,x ; 4 (28)
+
+  lda SCORE_DIGITS_54-1,x     ; 4 (32)
+  sta TEMP                    ; 3 (35)
+
+  dex                         ; 2 (37)
+  stx TEMP+1                  ; 3 (40) Save the index so reg X is free
+  lda MAX_SCORE_DIGITS_10-1,x ; 4 (44)
+  sta TEMP+2                  ; 3 (47)
+  ldx TEMP+2                  ; 3 (50) reg X has MAX_SCORE_DIGITS_10-1,x
+
+  lda TEMP                    ; 3 (53) Restore reg A to SCORE_DIGITS_54-1,x
+
+  sty GRP1                    ; 3 (56)
+  sta GRP0                    ; 3 (59)
+  stx GRP1                    ; 3 (63)
+  sta GRP0                    ; 3 (66)
+
+  ldx TEMP+1                  ; 3 (69)
+  bne main_score_kernel       ; 2/3 (71/72)
+  sta WSYNC                   ; 3 (75)
 
 end_of_score_kernel:
   ; 1st scanline ==============================================================
@@ -220,11 +285,13 @@ end_of_score_kernel:
 
   lda BACKGROUND_COLOUR
   sta COLUBK
-  sta COLUBK
-  sta COLUBK
-  sta COLUBK
-  sta COLUBK
-  sta COLUBK
+
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
 
   lda #NUSIZX_ONE_COPY   ; 2 (5)
   sta NUSIZ0   ; 3 (8)
