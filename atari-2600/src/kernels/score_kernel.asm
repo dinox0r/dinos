@@ -263,19 +263,22 @@ hi_score_overlay_kernel:
 
   dex                         ; 2 (37)
   stx TEMP+1                  ; 3 (40) Save the index so reg X is free
-  lda MAX_SCORE_DIGITS_10-1,x ; 4 (44)
+  lda SCORE_DIGITS_32,x       ; 4 (44)
   sta TEMP+2                  ; 3 (47)
-  ldx TEMP+2                  ; 3 (50) reg X has MAX_SCORE_DIGITS_10-1,x
+  ldx TEMP+2                  ; 3 (50) reg X has SCORE_DIGITS_32 sprite data (for stx GRP1)
 
   lda TEMP                    ; 3 (53) Restore reg A to SCORE_DIGITS_54-1,x
+  ; GRP0 copy 1 (HI text) spans CC 161-168. sty GRP1 must fire at CC 169+
+  ; to avoid splitting the sprite mid-draw. One nop shifts it to CC 171.
+  nop                         ; 2 (55)
 
-  sty GRP1                    ; 3 (56)
-  sta GRP0                    ; 3 (59)
-  stx GRP1                    ; 3 (63)
-  sta GRP0                    ; 3 (66)
+  sty GRP1                    ; 3 (58)  CC 171 — just after GRP0c1 ends
+  sta GRP0                    ; 3 (61)  CC 180 — after GRP1c1 ends at CC 178
+  stx GRP1                    ; 3 (64)  CC 189 — after GRP0c2 ends at CC 184
+  sta GRP0                    ; 3 (67)  CC 198 — after GRP1c2 ends at CC 194
 
-  ldx TEMP+1                  ; 3 (69)
-  bne main_score_kernel       ; 2/3 (71/72)
+  ldx TEMP+1                  ; 3 (70)
+  bne hi_score_overlay_kernel ; 2/3 (72/73)
   sta WSYNC                   ; 3 (75)
 
 end_of_score_kernel:
