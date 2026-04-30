@@ -244,6 +244,7 @@ hi_score_overlay_kernel:
   ; end of 3rd, and 4th to 10th scanline ======================================
   sta WSYNC                ; 3 (73 -> 76)
                            ; - (0)
+hi_score_overlay_kernel_2:
   sta HMOVE                ; 3 (3)
   lda SCORE_TEXT_HI-1,x    ; 4 (7)
   sta GRP0;'               ; 3 (10) GRP0' (buffer) has the "HI" sprite
@@ -270,16 +271,22 @@ hi_score_overlay_kernel:
   lda TEMP                    ; 3 (53) Restore reg A to SCORE_DIGITS_54-1,x
   ; GRP0 copy 1 (HI text) spans CC 161-168. sty GRP1 must fire at CC 169+
   ; to avoid splitting the sprite mid-draw. One nop shifts it to CC 171.
-  nop                         ; 2 (55)
+  ;nop                         ; 2 (55)
+  sta $2D                     ; 3 (56)
 
-  sty GRP1                    ; 3 (58)  CC 171 — just after GRP0c1 ends
-  sta GRP0                    ; 3 (61)  CC 180 — after GRP1c1 ends at CC 178
-  stx GRP1                    ; 3 (64)  CC 189 — after GRP0c2 ends at CC 184
-  sta GRP0                    ; 3 (67)  CC 198 — after GRP1c2 ends at CC 194
+  sty GRP1                    ; 3 (59) CC 171 — just after GRP0(0) ends
+  sta GRP0                    ; 3 (62) CC 180 — after GRP1(0) ends at CC 178
+  stx GRP1                    ; 3 (65) CC 189 — after GRP0(1) ends at CC 184
+  sta GRP0                    ; 3 (68) CC 198 — after GRP1(1) ends at CC 194
 
-  ldx TEMP+1                  ; 3 (70)
-  bne hi_score_overlay_kernel ; 2/3 (72/73)
-  sta WSYNC                   ; 3 (75)
+  ldx TEMP+1                  ; 3 (71)
+
+  sbeq end_of_score_kernel     ; 2/3 (73/74)
+  jmp  hi_score_overlay_kernel_2  ; 3 (76)
+end_of_hi_score_overlay_kernel_2:
+  nop ; 2 (76)
+  ;bne hi_score_overlay_kernel_2 ; 2/3 (75/76)
+  ;sta WSYNC                   ; 3 (75)
 
 end_of_score_kernel:
   ; 1st scanline ==============================================================
