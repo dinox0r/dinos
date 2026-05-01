@@ -244,7 +244,7 @@ hi_score_overlay_kernel:
   ; end of 3rd, and 4th to 10th scanline ======================================
   sta WSYNC                ; 3 (73 -> 76)
                            ; - (0)
-hi_score_overlay_kernel_2:
+hi_score__start_of_scan_line:
   sta HMOVE                ; 3 (3)
   lda SCORE_TEXT_HI-1,x    ; 4 (7)
   sta GRP0;'               ; 3 (10) GRP0' (buffer) has the "HI" sprite
@@ -281,27 +281,15 @@ hi_score_overlay_kernel_2:
 
   ldx TEMP+1                  ; 3 (71)
 
-  sbeq end_of_score_kernel     ; 2/3 (73/74)
-  jmp  hi_score_overlay_kernel_2  ; 3 (76)
-end_of_hi_score_overlay_kernel_2:
+  sbeq hi_score__end_of_scan_line    ; 2/3 (73/74)
+  jmp  hi_score__start_of_scan_line  ; 3 (76)
+hi_score__end_of_scan_line:
   nop ; 2 (76)
-  ;bne hi_score_overlay_kernel_2 ; 2/3 (75/76)
-  ;sta WSYNC                   ; 3 (75)
 
 end_of_score_kernel:
   ; 1st scanline ==============================================================
                ; - (0)
   sta HMOVE    ; 3 (3)
-
-  lda BACKGROUND_COLOUR
-  sta COLUBK
-
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
 
   lda #NUSIZX_ONE_COPY   ; 2 (5)
   sta NUSIZ0   ; 3 (8)
