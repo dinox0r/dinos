@@ -175,15 +175,21 @@ _increment_score:
 
 _update_difficulty:
   lda OBSTACLE_VX_INT
-  bne _non_easy_difficulty_update
+  bne __non_easy_difficulty_update
 __easy_difficulty_update:
+  ; If the integer part of the obstacle speed is 0, it means
+  ; the speed is in the beginner level, increment its fractional
+  ; part by one on score updates until its integer part reaches 1
   lda #1
-  jsr increment_difficulty
+  ; Increment the difficulty by increasing the obstacle speed
+  jsr increment_obstacle_speed
   jmp _end_update_difficulty
 
 __non_easy_difficulty_update:
   ; reg A still has OBSTACLE_VX_INT
-  cmp #2
+  ; The idea here will be to increment the fractional part 
+  ; d
+  ;cmp #2
 
 _end_update_difficulty:
 

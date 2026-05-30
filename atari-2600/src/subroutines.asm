@@ -152,7 +152,7 @@ spawn_obstacle subroutine
   jsr rnd8
   ; For debugging purposes
   ; cmp #250   ; Makes duplicated obstacles more likely to appear
-  cmp #115
+  cmp #150
   bcs .set_y_pos
 
   lda GAME_FLAGS

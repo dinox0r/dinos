@@ -92,7 +92,7 @@ _init_obstacle_conf:
 
   lda #OBSTACLE_INITIAL_SPEED
   sta OBSTACLE_VX_FRACT
-  lda #3
+  lda #2
   sta OBSTACLE_VX_INT
 
 _init_sky_conf:
